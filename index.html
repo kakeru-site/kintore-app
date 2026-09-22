@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>筋トレ管理</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0c0c0e;
+    --bg-elevated:#151517;
+    --surface:#1c1d20;
+    --surface-2:#232428;
+    --border:#2d2e33;
+    --text:#f2f2f3;
+    --text-dim:#9a9aa0;
+    --text-faint:#6b6b70;
+    --red:#ff3b3b;
+    --red-dim:#7a2020;
+    --orange:#ff8c1a;
+    --green:#39ff88;
+    --green-dim:#0f3d26;
+    --radius:14px;
+    --radius-sm:9px;
+    --tabbar-h:64px;
+    --header-h:52px;
+    font-variant-numeric: tabular-nums;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overscroll-behavior-y:none;
+  }
+  .num, input[type=number]{
+    font-family:'Oswald','Noto Sans JP',sans-serif;
+    font-weight:600;
+  }
+  button{font-family:inherit;}
+  h1,h2,h3{margin:0;}
+  ::-webkit-scrollbar{width:0;height:0;}
+
+  /* ---------- Auth screen ---------- */
+  #authScreen{
+    min-height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .auth-card{
+    width:100%;
+    max-width:360px;
+    background:var(--bg-elevated);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:32px 24px;
+  }
+  .auth-logo{
+    text-align:center;
+    font-family:'Oswald',sans-serif;
+    font-size:28px;
+    font-weight:700;
+    letter-spacing:1px;
+    margin-bottom:4px;
+  }
+  .auth-logo span{color:var(--red);}
+  .auth-sub{
+    text-align:center;
+    color:var(--text-dim);
+    font-size:13px;
+    margin-bottom:28px;
+  }
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--text-dim);
+    margin-bottom:6px;
+  }
+  .field input, .field textarea, .field select{
+    width:100%;
+    background:var(--surface);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:var(--radius-sm);
+    padding:12px 14px;
+    font-size:16px;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{
+    outline:none;
+    border-color:var(--red);
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    border:none;
+    border-radius:var(--radius-sm);
+    padding:13px 18px;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    width:100%;
+  }
+  .btn-primary{background:var(--red); color:#fff;}
+  .btn-primary:active{opacity:0.8;}
+  .btn-ghost{background:transparent; color:var(--text-dim); border:1px solid var(--border);}
+  .btn-danger{background:transparent; color:var(--red); border:1px solid var(--red-dim);}
+  #authError{
+    color:var(--red);
+    font-size:13px;
+    margin-top:14px;
+    text-align:center;
+    min-height:16px;
+  }
+
+  /* ---------- App shell ---------- */
+  #appScreen{display:none; min-height:100%; flex-direction:column;}
+  #appScreen.active{display:flex;}
+  header.appbar{
+    height:var(--header-h);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 16px;
+    border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:10;
+    background:rgba(12,12,14,0.92);
+    backdrop-filter:blur(6px);
+  }
+  header.appbar .title{
+    font-family:'Oswald',sans-serif;
+    font-size:16px;
+    font-weight:600;
+    letter-spacing:0.5px;
+    color:var(--text-dim);
+  }
+  header.appbar .logout{
+    background:none;border:none;color:var(--text-faint);font-size:12px;cursor:pointer;
+  }
+  main{
+    flex:1;
+    overflow-y:auto;
+    padding:16px 16px calc(var(--tabbar-h) + 90px) 16px;
+  }
+  .section{display:none;}
+  .section.active{display:block;}
+  .section-title{
+    font-size:13px;
+    color:var(--text-dim);
+    margin-bottom:12px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .placeholder-note{
+    color:var(--text-faint);
+    font-size:13px;
+    text-align:center;
+    padding:60px 20px;
+    border:1px dashed var(--border);
+    border-radius:var(--radius);
+  }
+
+  /* ---------- Cards / lists ---------- */
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+    margin-bottom:14px;
+  }
+  .summary-row{
+    display:flex;
+    gap:10px;
+    margin-bottom:16px;
+  }
+  .summary-box{
+    flex:1;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:14px 12px;
+    text-align:center;
+  }
+  .summary-box .label{font-size:11px; color:var(--text-dim); margin-bottom:6px;}
+  .summary-box .value{font-family:'Oswald',sans-serif; font-size:22px; font-weight:600;}
+  .summary-box .unit{font-size:12px; color:var(--text-dim); margin-left:2px;}
+  .diff-good{color:var(--green);}
+  .diff-bad{color:var(--orange);}
+  .edit-target-btn{
+    font-size:11px; color:var(--text-faint); background:none; border:none;
+    text-decoration:underline; cursor:pointer; margin-top:4px;
+  }
+
+  .chart-wrap{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:14px 10px;
+    margin-bottom:16px;
+    height:220px;
+  }
+
+  .list-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 4px;
+    border-bottom:1px solid var(--border);
+    cursor:pointer;
+  }
+  .list-item:last-child{border-bottom:none;}
+  .list-item .date{font-size:12px; color:var(--text-dim);}
+  .list-item .main-val{font-family:'Oswald',sans-serif; font-size:18px; font-weight:600;}
+  .list-item .note{font-size:12px; color:var(--text-faint); margin-top:2px;}
+  .empty-msg{color:var(--text-faint); font-size:13px; text-align:center; padding:30px 0;}
+
+  /* ---------- Tab bar ---------- */
+  .tabbar{
+    position:fixed; left:0; right:0; bottom:0;
+    height:var(--tabbar-h);
+    display:flex;
+    background:var(--bg-elevated);
+    border-top:1px solid var(--border);
+    padding-bottom:env(safe-area-inset-bottom);
+    z-index:20;
+  }
+  .tab-btn{
+    flex:1;
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    font-size:10px;
+    cursor:pointer;
+    padding:6px 2px;
+  }
+  .tab-btn .ic{font-size:19px; line-height:1;}
+  .tab-btn.active{color:var(--red);}
+
+  .fab{
+    position:fixed;
+    right:18px;
+    bottom:calc(var(--tabbar-h) + 18px + env(safe-area-inset-bottom));
+    width:56px; height:56px;
+    border-radius:50%;
+    background:var(--red);
+    color:#fff;
+    border:none;
+    font-size:28px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 6px 18px rgba(255,59,59,0.35);
+    cursor:pointer;
+    z-index:15;
+  }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    display:none;
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.6);
+    z-index:50;
+    align-items:flex-end;
+  }
+  .modal-overlay.active{display:flex;}
+  .modal-box{
+    width:100%;
+    max-height:88vh;
+    overflow-y:auto;
+    background:var(--bg-elevated);
+    border-radius:20px 20px 0 0;
+    padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+    animation:slideUp 0.2s ease-out;
+  }
+  @keyframes slideUp{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .modal-header{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:18px;
+  }
+  .modal-header h2{font-size:17px; font-weight:700;}
+  .modal-close{
+    background:none; border:none; color:var(--text-dim); font-size:22px; cursor:pointer; line-height:1;
+  }
+  .modal-actions{display:flex; gap:10px; margin-top:18px;}
+  .modal-actions .btn{flex:1;}
+
+  /* small confirm modal */
+  .confirm-box{
+    max-width:320px; margin:auto; text-align:center; border-radius:var(--radius);
+  }
+  .confirm-box p{font-size:14px; color:var(--text-dim); margin:0 0 18px;}
+
+  /* ---------- Toast ---------- */
+  #toast{
+    position:fixed; top:0; left:0; right:0;
+    z-index:100;
+    display:flex; justify-content:center;
+    padding-top:10px;
+    pointer-events:none;
+  }
+  .toast-msg{
+    pointer-events:auto;
+    max-width:420px;
+    margin:0 12px;
+    background:#2a1414;
+    border:1px solid var(--red);
+    color:#ffdada;
+    font-size:13px;
+    padding:12px 14px;
+    border-radius:var(--radius-sm);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    animation:dropIn 0.2s ease-out;
+  }
+  @keyframes dropIn{from{transform:translateY(-12px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+  .toast-msg button{background:none;border:none;color:#ffdada;font-size:16px;cursor:pointer;}
+
+  #configWarning{
+    display:none;
+    position:fixed; inset:0; z-index:200;
+    background:var(--bg);
+    color:var(--text);
+    padding:30px 24px;
+    text-align:center;
+    align-items:center; justify-content:center; flex-direction:column;
+  }
+  #configWarning.active{display:flex;}
+  #configWarning h2{color:var(--orange); margin-bottom:14px; font-size:18px;}
+  #configWarning p{color:var(--text-dim); font-size:13px; line-height:1.7; max-width:420px;}
+  #configWarning code{background:var(--surface); padding:2px 6px; border-radius:4px; font-size:12px;}
+</style>
+</head>
+<body>
+
+<div id="configWarning">
+  <h2>⚠️ Firebase設定が未入力です</h2>
+  <p>
+    このアプリを動かすには、<code>index.html</code> 内の <code>firebaseConfig</code> をあなた自身のFirebaseプロジェクトの値に書き換える必要があります。<br><br>
+    同梱の <code>SETUP.md</code> の手順に沿って Firebase プロジェクトを作成し、設定値を貼り付けてください。
+  </p>
+</div>
+
+<div id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">MUSCLE<span>LOG</span></div>
+    <div class="auth-sub">筋トレ記録アプリ</div>
+    <form id="loginForm">
+      <div class="field">
+        <label for="loginEmail">メールアドレス</label>
+        <input type="email" id="loginEmail" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="loginPassword">パスワード</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary">ログイン</button>
+      <div id="authError"></div>
+    </form>
+  </div>
+</div>
+
+<div id="appScreen">
+  <header class="appbar">
+    <span class="title" id="pageTitle">体重記録</span>
+    <button class="logout" id="logoutBtn">ログアウト</button>
+  </header>
+
+  <main>
+    <!-- ① 体重記録 -->
+    <section class="section active" id="section-weight">
+      <div class="summary-row">
+        <div class="summary-box">
+          <div class="label">現在</div>
+          <div class="value num" id="currentWeightVal">--</div>
+          <div class="unit">kg</div>
+        </div>
+        <div class="summary-box">
+          <div class="label">目標</div>
+          <div class="value num" id="targetWeightVal">--</div>
+          <div class="unit">kg</div>
+          <button class="edit-target-btn" id="editTargetBtn">目標を編集</button>
+        </div>
+        <div class="summary-box">
+          <div class="label">差分</div>
+          <div class="value num" id="diffWeightVal">--</div>
+          <div class="unit">kg</div>
+        </div>
+      </div>
+
+      <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
+
+      <div class="section-title">記録一覧</div>
+      <div class="card" id="weightListWrap">
+        <div id="weightList"></div>
+      </div>
+    </section>
+
+    <!-- ④ 種目登録 -->
+    <section class="section" id="section-exercises">
+      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+    </section>
+
+    <!-- ③ トレ記録 -->
+    <section class="section" id="section-workout">
+      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+    </section>
+
+    <!-- ⑥ ジムカレンダー -->
+    <section class="section" id="section-calendar">
+      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+    </section>
+
+    <!-- ② BIG3 -->
+    <section class="section" id="section-big3">
+      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+    </section>
+
+    <!-- ⑤ タイマー -->
+    <section class="section" id="section-timer">
+      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+    </section>
+  </main>
+
+  <button class="fab" id="fabBtn">＋</button>
+
+  <nav class="tabbar">
+    <button class="tab-btn active" data-section="weight" data-title="体重記録"><span class="ic">⚖️</span>体重</button>
+    <button class="tab-btn" data-section="exercises" data-title="種目登録"><span class="ic">📋</span>種目</button>
+    <button class="tab-btn" data-section="workout" data-title="トレ記録"><span class="ic">🏋️</span>記録</button>
+    <button class="tab-btn" data-section="calendar" data-title="ジムカレンダー"><span class="ic">💪</span>カレンダー</button>
+    <button class="tab-btn" data-section="big3" data-title="BIG3"><span class="ic">📈</span>BIG3</button>
+    <button class="tab-btn" data-section="timer" data-title="タイマー"><span class="ic">⏱️</span>タイマー</button>
+  </nav>
+</div>
+
+<!-- 体重 追加/編集モーダル -->
+<div class="modal-overlay" id="weightModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="weightModalTitle">体重を記録</h2>
+      <button class="modal-close" data-close="weightModal">×</button>
+    </div>
+    <form id="weightForm">
+      <input type="hidden" id="weightDocId">
+      <div class="field">
+        <label for="weightDate">日付</label>
+        <input type="date" id="weightDate" required>
+      </div>
+      <div class="field">
+        <label for="weightValue">体重 (kg)</label>
+        <input type="number" id="weightValue" step="0.1" inputmode="decimal" required>
+      </div>
+      <div class="field">
+        <label for="weightNote">メモ（任意）</label>
+        <textarea id="weightNote" rows="2"></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="weightDeleteBtn" style="display:none;">削除</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 目標体重 モーダル -->
+<div class="modal-overlay" id="targetModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>目標体重</h2>
+      <button class="modal-close" data-close="targetModal">×</button>
+    </div>
+    <form id="targetForm">
+      <div class="field">
+        <label for="targetValue">目標体重 (kg)</label>
+        <input type="number" id="targetValue" step="0.1" inputmode="decimal" required>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box confirm-box">
+    <p id="confirmMsg">この記録を削除しますか？</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close="confirmModal">キャンセル</button>
+      <button type="button" class="btn btn-danger" id="confirmOkBtn">削除する</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+/* =========================================================
+   Firebase 設定
+   ここをあなた自身の Firebase プロジェクトの値に書き換えてください。
+   （手順は同梱の SETUP.md を参照）
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyCX0_RS20799DgzbeT-IQdwwwcdHlA1vSM",
+  authDomain: "muscle-log-f9d37.firebaseapp.com",
+  projectId: "muscle-log-f9d37",
+  storageBucket: "muscle-log-f9d37.firebasestorage.app",
+  messagingSenderId: "988087018690",
+  appId: "1:988087018690:web:16bdedc26042d63221875b"
+};
+
+if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+  document.getElementById('configWarning').classList.add('active');
+  throw new Error("firebaseConfig が未設定です。SETUP.md を参照してください。");
+}
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot,
+  query, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+/* ---------- 共通ユーティリティ ---------- */
+function showToast(message){
+  const wrap = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = 'toast-msg';
+  el.innerHTML = `<span>${message}</span><button aria-label="閉じる">×</button>`;
+  el.querySelector('button').addEventListener('click', () => el.remove());
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 6000);
+}
+
+function todayStr(){
+  const d = new Date();
+  const tz = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+  return tz.toISOString().slice(0,10);
+}
+
+function openModal(id){ document.getElementById(id).classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+document.querySelectorAll('[data-close]').forEach(btn=>{
+  btn.addEventListener('click', ()=> closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(ov=>{
+  ov.addEventListener('click', (e)=>{ if(e.target === ov) ov.classList.remove('active'); });
+});
+
+let confirmCallback = null;
+function askConfirm(message, onOk){
+  document.getElementById('confirmMsg').textContent = message;
+  confirmCallback = onOk;
+  openModal('confirmModal');
+}
+document.getElementById('confirmOkBtn').addEventListener('click', ()=>{
+  closeModal('confirmModal');
+  if (confirmCallback) confirmCallback();
+  confirmCallback = null;
+});
+
+/* ---------- タブ切り替え ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('section-' + btn.dataset.section).classList.add('active');
+    document.getElementById('pageTitle').textContent = btn.dataset.title;
+    document.getElementById('fabBtn').style.display =
+      (btn.dataset.section === 'weight') ? 'flex' : 'none';
+  });
+});
+
+/* ---------- 認証 ---------- */
+document.getElementById('loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value;
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('authError');
+  errEl.textContent = '';
+  try{
+    await signInWithEmailAndPassword(auth, email, password);
+  }catch(err){
+    errEl.textContent = 'ログインに失敗しました（メールアドレスまたはパスワードが正しくありません）';
+    console.error(err);
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  try{ await signOut(auth); }
+  catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
+});
+
+let unsubWeight = null;
+let unsubTarget = null;
+
+onAuthStateChanged(auth, (user)=>{
+  if (user){
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appScreen').classList.add('active');
+    startListeners(user.uid);
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appScreen').classList.remove('active');
+    if (unsubWeight) unsubWeight();
+    if (unsubTarget) unsubTarget();
+  }
+});
+
+/* =========================================================
+   ① 体重記録
+   ========================================================= */
+let weightEntries = []; // [{id, date, weight, note}]
+let targetWeight = null;
+
+function startListeners(uid){
+  const weightCol = collection(db, 'users', uid, 'bodyWeight');
+  const q = query(weightCol, orderBy('date', 'desc'));
+  unsubWeight = onSnapshot(q, (snap)=>{
+    weightEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderWeightSummary();
+    renderWeightChart();
+    renderWeightList();
+  }, (err)=>{
+    console.error(err);
+    showToast('体重データの読み込みに失敗しました: ' + err.message);
+  });
+
+  const targetRef = doc(db, 'users', uid, 'settings', 'targetWeight');
+  unsubTarget = onSnapshot(targetRef, (snap)=>{
+    targetWeight = snap.exists() ? snap.data().value : null;
+    renderWeightSummary();
+    renderWeightChart();
+  }, (err)=>{
+    console.error(err);
+    showToast('目標体重の読み込みに失敗しました: ' + err.message);
+  });
+}
+
+function renderWeightSummary(){
+  const cur = weightEntries.length ? weightEntries[0].weight : null;
+  document.getElementById('currentWeightVal').textContent = cur !== null ? cur.toFixed(1) : '--';
+  document.getElementById('targetWeightVal').textContent = targetWeight !== null ? Number(targetWeight).toFixed(1) : '--';
+
+  const diffEl = document.getElementById('diffWeightVal');
+  if (cur !== null && targetWeight !== null){
+    const diff = cur - targetWeight;
+    if (diff <= 0){
+      diffEl.textContent = '達成';
+      diffEl.className = 'value num diff-good';
+    } else {
+      diffEl.textContent = '-' + diff.toFixed(1);
+      diffEl.className = 'value num diff-bad';
+    }
+  } else {
+    diffEl.textContent = '--';
+    diffEl.className = 'value num';
+  }
+}
+
+let weightChartInstance = null;
+function renderWeightChart(){
+  const sorted = [...weightEntries].sort((a,b)=> a.date.localeCompare(b.date));
+  const labels = sorted.map(e => e.date.slice(5)); // MM-DD
+  const data = sorted.map(e => e.weight);
+
+  const datasets = [{
+    label: '体重',
+    data,
+    borderColor: '#ff3b3b',
+    backgroundColor: 'rgba(255,59,59,0.15)',
+    tension: 0.25,
+    pointRadius: 3,
+    fill: true,
+  }];
+
+  if (targetWeight !== null && sorted.length){
+    datasets.push({
+      label: '目標',
+      data: sorted.map(()=> targetWeight),
+      borderColor: '#ff8c1a',
+      borderDash: [6,4],
+      pointRadius: 0,
+      fill: false,
+    });
+  }
+
+  const ctx = document.getElementById('weightChart');
+  if (weightChartInstance) weightChartInstance.destroy();
+  weightChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#9a9aa0', font: { size: 11 } } }
+      },
+      scales: {
+        x: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } },
+        y: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } }
+      }
+    }
+  });
+}
+
+function renderWeightList(){
+  const wrap = document.getElementById('weightList');
+  if (!weightEntries.length){
+    wrap.innerHTML = '<div class="empty-msg">まだ記録がありません</div>';
+    return;
+  }
+  wrap.innerHTML = '';
+  weightEntries.forEach(e=>{
+    const row = document.createElement('div');
+    row.className = 'list-item';
+    row.innerHTML = `
+      <div>
+        <div class="date">${e.date}</div>
+        ${e.note ? `<div class="note">${escapeHtml(e.note)}</div>` : ''}
+      </div>
+      <div class="main-val">${Number(e.weight).toFixed(1)} kg</div>
+    `;
+    row.addEventListener('click', ()=> openWeightModal(e));
+    wrap.appendChild(row);
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function openWeightModal(entry){
+  document.getElementById('weightModalTitle').textContent = entry ? '体重を編集' : '体重を記録';
+  document.getElementById('weightDocId').value = entry ? entry.id : '';
+  document.getElementById('weightDate').value = entry ? entry.date : todayStr();
+  document.getElementById('weightValue').value = entry ? entry.weight : '';
+  document.getElementById('weightNote').value = entry ? (entry.note || '') : '';
+  document.getElementById('weightDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
+  openModal('weightModal');
+}
+
+document.getElementById('fabBtn').addEventListener('click', ()=> openWeightModal(null));
+
+document.getElementById('weightForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const date = document.getElementById('weightDate').value;
+  const weight = parseFloat(document.getElementById('weightValue').value);
+  const note = document.getElementById('weightNote').value.trim();
+  if (!date || isNaN(weight)){
+    showToast('日付と体重を正しく入力してください');
+    return;
+  }
+  try{
+    const ref = doc(db, 'users', user.uid, 'bodyWeight', date);
+    await setDoc(ref, { date, weight, note, updatedAt: serverTimestamp() }, { merge: true });
+    closeModal('weightModal');
+  }catch(err){
+    console.error(err);
+    showToast('保存に失敗しました: ' + err.message);
+  }
+});
+
+document.getElementById('weightDeleteBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('weightDocId').value;
+  if (!id) return;
+  askConfirm('この体重記録を削除しますか？', async ()=>{
+    const user = auth.currentUser;
+    try{
+      await deleteDoc(doc(db, 'users', user.uid, 'bodyWeight', id));
+      closeModal('weightModal');
+    }catch(err){
+      console.error(err);
+      showToast('削除に失敗しました: ' + err.message);
+    }
+  });
+});
+
+/* 目標体重 */
+document.getElementById('editTargetBtn').addEventListener('click', ()=>{
+  document.getElementById('targetValue').value = targetWeight !== null ? targetWeight : '';
+  openModal('targetModal');
+});
+
+document.getElementById('targetForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const value = parseFloat(document.getElementById('targetValue').value);
+  if (isNaN(value)){
+    showToast('目標体重を正しく入力してください');
+    return;
+  }
+  try{
+    const ref = doc(db, 'users', user.uid, 'settings', 'targetWeight');
+    await setDoc(ref, { value, updatedAt: serverTimestamp() }, { merge: true });
+    closeModal('targetModal');
+  }catch(err){
+    console.error(err);
+    showToast('目標体重の保存に失敗しました: ' + err.message);
+  }
+});
+</script>
+</body>
+</html>
