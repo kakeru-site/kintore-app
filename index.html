@@ -143,8 +143,10 @@
     letter-spacing:0.5px;
     color:var(--text-dim);
   }
+  header.appbar .header-actions{ display:flex; gap:14px; align-items:center; }
   header.appbar .logout{
     background:none;border:none;color:var(--text-faint);font-size:12px;cursor:pointer;
+    text-decoration:underline;
   }
   main{
     flex:1;
@@ -223,6 +225,15 @@
   .list-item .main-val{font-family:'Oswald',sans-serif; font-size:18px; font-weight:600;}
   .list-item .note{font-size:12px; color:var(--text-faint); margin-top:2px;}
   .empty-msg{color:var(--text-faint); font-size:13px; text-align:center; padding:30px 0;}
+  .tag{
+    display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px;
+    background:var(--surface-2); color:var(--text-dim);
+  }
+  .pr-badge{
+    display:inline-block; font-size:11px; font-weight:700; padding:3px 8px;
+    border-radius:20px; background:var(--green-dim); color:var(--green);
+    border:1px solid var(--green); margin-top:4px;
+  }
 
   /* ---------- Tab bar ---------- */
   .tabbar{
@@ -299,11 +310,82 @@
   .modal-actions{display:flex; gap:10px; margin-top:18px;}
   .modal-actions .btn{flex:1;}
 
-  /* small confirm modal */
   .confirm-box{
     max-width:320px; margin:auto; text-align:center; border-radius:var(--radius);
   }
   .confirm-box p{font-size:14px; color:var(--text-dim); margin:0 0 18px;}
+
+  /* ---------- Sets rows ---------- */
+  .set-row{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .set-row .set-idx{ width:18px; color:var(--text-faint); font-size:12px; flex-shrink:0; }
+  .set-row input{ flex:1; }
+  .set-row button{ background:none; border:none; color:var(--text-faint); font-size:20px; cursor:pointer; width:26px; flex-shrink:0; }
+  .add-set-btn{
+    width:100%; padding:10px; border:1px dashed var(--border); background:none;
+    color:var(--text-dim); border-radius:var(--radius-sm); cursor:pointer; font-size:13px; margin-top:2px;
+  }
+
+  /* ---------- Sub tabs (timer) ---------- */
+  .subtabs{ display:flex; gap:8px; margin-bottom:20px; }
+  .subtab-btn{
+    flex:1; padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);
+    background:var(--surface); color:var(--text-dim); font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .subtab-btn.active{ background:var(--red); color:#fff; border-color:var(--red); }
+
+  /* ---------- Calendar ---------- */
+  .cal-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .cal-header button{
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    width:36px; height:36px; border-radius:50%; font-size:16px; cursor:pointer;
+  }
+  .cal-header .cal-label{ font-family:'Oswald',sans-serif; font-size:16px; font-weight:600; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .cal-dow{ text-align:center; font-size:11px; color:var(--text-faint); padding-bottom:4px; }
+  .cal-day{
+    aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    border-radius:10px; background:var(--surface); border:1px solid var(--border);
+    font-size:11px; color:var(--text-dim);
+  }
+  .cal-day.empty{ background:transparent; border:none; }
+  .cal-day.has-log{ background:var(--green-dim); border-color:var(--green); color:var(--text); cursor:pointer; }
+  .cal-day.today{ box-shadow:0 0 0 2px var(--orange) inset; }
+  .cal-day .emoji{ font-size:16px; line-height:1; }
+  .cal-day .daynum{ font-size:9px; margin-top:2px; color:var(--text-faint); }
+  .cal-day.has-log .daynum{ color:var(--text-dim); }
+
+  /* ---------- BIG3 ---------- */
+  .big3-title{
+    font-family:'Oswald',sans-serif; font-size:15px; font-weight:600; margin-bottom:12px;
+  }
+  .big3-chart{ height:180px; }
+
+  /* ---------- Timer ---------- */
+  .timer-display{
+    font-family:'Oswald',sans-serif; font-size:52px; font-weight:600; text-align:center;
+    margin:36px 0; letter-spacing:1px;
+  }
+  .timer-controls{ display:flex; gap:14px; justify-content:center; }
+  .timer-btn{
+    width:78px; height:78px; border-radius:50%; font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .timer-btn.start{ background:var(--green-dim); color:var(--green); border:2px solid var(--green); }
+  .timer-btn.reset{ background:var(--surface); color:var(--text-dim); border:1px solid var(--border); }
+  .timer-set{ display:flex; gap:10px; justify-content:center; align-items:center; margin-bottom:10px; color:var(--text-dim); font-size:13px; }
+  .timer-set input{
+    width:64px; text-align:center; background:var(--surface); border:1px solid var(--border);
+    color:var(--text); border-radius:var(--radius-sm); padding:10px; font-size:16px;
+  }
+
+  /* ---------- Lock screen ---------- */
+  #lockScreen{
+    display:none; position:fixed; inset:0; z-index:150; background:var(--bg);
+    flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px;
+  }
+  #lockScreen.active{ display:flex; }
+  #lockScreen .lock-icon{ font-size:52px; }
+  #lockScreen .lock-msg{ color:var(--text-dim); font-size:14px; margin-bottom:10px; }
+  #lockScreen .btn{ max-width:240px; }
 
   /* ---------- Toast ---------- */
   #toast{
@@ -380,7 +462,10 @@
 <div id="appScreen">
   <header class="appbar">
     <span class="title" id="pageTitle">体重記録</span>
-    <button class="logout" id="logoutBtn">ログアウト</button>
+    <div class="header-actions">
+      <button class="logout" id="settingsBtn">設定</button>
+      <button class="logout" id="logoutBtn">ログアウト</button>
+    </div>
   </header>
 
   <main>
@@ -415,27 +500,80 @@
 
     <!-- ④ 種目登録 -->
     <section class="section" id="section-exercises">
-      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+      <div class="section-title">登録済みの種目</div>
+      <div class="card"><div id="exerciseList"></div></div>
     </section>
 
     <!-- ③ トレ記録 -->
     <section class="section" id="section-workout">
-      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+      <div class="section-title">トレーニング記録</div>
+      <div class="card"><div id="workoutList"></div></div>
     </section>
 
     <!-- ⑥ ジムカレンダー -->
     <section class="section" id="section-calendar">
-      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+      <div class="cal-header">
+        <button id="calPrevBtn">‹</button>
+        <span class="cal-label" id="calLabel"></span>
+        <button id="calNextBtn">›</button>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <p style="font-size:11px; color:var(--text-faint); text-align:center; margin-top:14px;">
+        💪 のマスをタップすると、その日のメニューが見られます
+      </p>
     </section>
 
     <!-- ② BIG3 -->
     <section class="section" id="section-big3">
-      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+      <div class="card">
+        <div class="big3-title">🏋️ スクワット</div>
+        <div class="summary-row" id="big3StatsSquat"></div>
+        <div class="chart-wrap big3-chart"><canvas id="big3ChartSquat"></canvas></div>
+        <div id="big3ListSquat"></div>
+      </div>
+      <div class="card">
+        <div class="big3-title">🏋️ ベンチプレス</div>
+        <div class="summary-row" id="big3StatsBench"></div>
+        <div class="chart-wrap big3-chart"><canvas id="big3ChartBench"></canvas></div>
+        <div id="big3ListBench"></div>
+      </div>
+      <div class="card">
+        <div class="big3-title">🏋️ デッドリフト</div>
+        <div class="summary-row" id="big3StatsDeadlift"></div>
+        <div class="chart-wrap big3-chart"><canvas id="big3ChartDeadlift"></canvas></div>
+        <div id="big3ListDeadlift"></div>
+      </div>
+      <p style="font-size:11px; color:var(--text-faint); text-align:center; margin-top:4px;">
+        ※ 種目名に「スクワット/squat」「ベンチプレス・ベンチ/bench」「デッドリフト・デッド/deadlift」を含む記録を自動集計しています。
+      </p>
     </section>
 
     <!-- ⑤ タイマー -->
     <section class="section" id="section-timer">
-      <div class="placeholder-note">この画面は次の実装ステップで追加予定です。</div>
+      <div class="subtabs">
+        <button class="subtab-btn active" data-mode="stopwatch">ストップウォッチ</button>
+        <button class="subtab-btn" data-mode="timer">タイマー</button>
+      </div>
+
+      <div id="stopwatchPanel">
+        <div class="timer-display num" id="swDisplay">00:00.0</div>
+        <div class="timer-controls">
+          <button class="timer-btn reset" id="swResetBtn">リセット</button>
+          <button class="timer-btn start" id="swStartBtn">開始</button>
+        </div>
+      </div>
+
+      <div id="timerPanel" style="display:none;">
+        <div class="timer-set">
+          <input type="number" id="timerMinInput" min="0" max="99" value="1"> 分
+          <input type="number" id="timerSecInput" min="0" max="59" value="0"> 秒
+        </div>
+        <div class="timer-display num" id="timerDisplay">01:00</div>
+        <div class="timer-controls">
+          <button class="timer-btn reset" id="timerResetBtn">リセット</button>
+          <button class="timer-btn start" id="timerStartBtn">開始</button>
+        </div>
+      </div>
     </section>
   </main>
 
@@ -499,6 +637,117 @@
   </div>
 </div>
 
+<!-- 種目 追加/編集モーダル -->
+<div class="modal-overlay" id="exerciseModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="exerciseModalTitle">種目を登録</h2>
+      <button class="modal-close" data-close="exerciseModal">×</button>
+    </div>
+    <form id="exerciseForm">
+      <input type="hidden" id="exerciseDocId">
+      <div class="field">
+        <label for="exerciseBodyPart">部位</label>
+        <input type="text" id="exerciseBodyPart" list="bodyPartList" required>
+        <datalist id="bodyPartList">
+          <option value="胸"></option>
+          <option value="背中"></option>
+          <option value="脚"></option>
+          <option value="肩"></option>
+          <option value="腕"></option>
+          <option value="腹"></option>
+          <option value="有酸素"></option>
+          <option value="全身"></option>
+        </datalist>
+      </div>
+      <div class="field">
+        <label for="exerciseName">種目名</label>
+        <input type="text" id="exerciseName" required>
+      </div>
+      <div class="field">
+        <label for="exercisePoints">ポイント</label>
+        <input type="number" id="exercisePoints" step="1">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="exerciseDeleteBtn" style="display:none;">削除</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- トレ記録 追加/編集モーダル -->
+<div class="modal-overlay" id="workoutModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="workoutModalTitle">トレーニングを記録</h2>
+      <button class="modal-close" data-close="workoutModal">×</button>
+    </div>
+    <form id="workoutForm">
+      <input type="hidden" id="workoutDocId">
+      <div class="field">
+        <label for="workoutDate">日付</label>
+        <input type="date" id="workoutDate" required>
+      </div>
+      <div class="field">
+        <label for="workoutExerciseName">種目名</label>
+        <input type="text" id="workoutExerciseName" list="exerciseDatalist" required autocomplete="off">
+        <datalist id="exerciseDatalist"></datalist>
+        <div id="workoutExerciseInfo" style="font-size:12px; margin-top:6px; min-height:16px;"></div>
+      </div>
+      <div class="field">
+        <label>セット</label>
+        <div id="setsContainer"></div>
+        <button type="button" class="add-set-btn" id="addSetBtn">＋ セットを追加</button>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="workoutDeleteBtn" style="display:none;">削除</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ジムカレンダー 日別詳細モーダル -->
+<div class="modal-overlay" id="dayDetailModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="dayDetailTitle">記録</h2>
+      <button class="modal-close" data-close="dayDetailModal">×</button>
+    </div>
+    <div id="dayDetailList"></div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>設定</h2>
+      <button class="modal-close" data-close="settingsModal">×</button>
+    </div>
+    <div class="field">
+      <label>Face ID / Touch ID ロック</label>
+      <p style="font-size:12px; color:var(--text-dim); margin:0 0 14px; line-height:1.6;">
+        この端末でアプリを開いたときに、パスワード入力の代わりにFace ID / Touch IDでロック解除できるようにします。設定はこの端末だけに保存され、ログイン自体は引き続きFirebaseのメール/パスワード認証で行われます。
+      </p>
+      <button type="button" class="btn btn-primary" id="settingsEnableFaceIdBtn">この端末でFace ID / Touch IDを設定</button>
+      <button type="button" class="btn btn-ghost" id="settingsDisableFaceIdBtn" style="margin-top:10px;">ロックを解除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Face ID 導入モーダル -->
+<div class="modal-overlay" id="faceIdOfferModal">
+  <div class="modal-box confirm-box">
+    <p>この端末で、次回からFace ID / Touch IDでロック解除できるように設定しますか？（あとから「設定」からも変更できます）</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close="faceIdOfferModal">あとで</button>
+      <button type="button" class="btn btn-primary" id="faceIdOfferYesBtn">設定する</button>
+    </div>
+  </div>
+</div>
+
 <!-- 削除確認モーダル -->
 <div class="modal-overlay" id="confirmModal">
   <div class="modal-box confirm-box">
@@ -510,13 +759,19 @@
   </div>
 </div>
 
+<!-- Face ID ロック画面 -->
+<div id="lockScreen">
+  <div class="lock-icon">🔒</div>
+  <div class="lock-msg">Face ID / Touch IDでロック解除</div>
+  <button class="btn btn-primary" id="faceIdUnlockBtn">ロック解除</button>
+  <button class="btn btn-ghost" id="lockPasswordFallbackBtn">パスワードでログインし直す</button>
+</div>
+
 <div id="toast"></div>
 
 <script type="module">
 /* =========================================================
    Firebase 設定
-   ここをあなた自身の Firebase プロジェクトの値に書き換えてください。
-   （手順は同梱の SETUP.md を参照）
    ========================================================= */
 const firebaseConfig = {
   apiKey: "AIzaSyCX0_RS20799DgzbeT-IQdwwwcdHlA1vSM",
@@ -537,7 +792,7 @@ import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot,
+  getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot,
   query, orderBy, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
@@ -562,6 +817,12 @@ function todayStr(){
   return tz.toISOString().slice(0,10);
 }
 
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
+}
+
 function openModal(id){ document.getElementById(id).classList.add('active'); }
 function closeModal(id){ document.getElementById(id).classList.remove('active'); }
 document.querySelectorAll('[data-close]').forEach(btn=>{
@@ -584,19 +845,32 @@ document.getElementById('confirmOkBtn').addEventListener('click', ()=>{
 });
 
 /* ---------- タブ切り替え ---------- */
+let activeSection = 'weight';
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
     document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('section-' + btn.dataset.section).classList.add('active');
+    activeSection = btn.dataset.section;
+    document.getElementById('section-' + activeSection).classList.add('active');
     document.getElementById('pageTitle').textContent = btn.dataset.title;
-    document.getElementById('fabBtn').style.display =
-      (btn.dataset.section === 'weight') ? 'flex' : 'none';
+    const fabSections = ['weight','exercises','workout'];
+    document.getElementById('fabBtn').style.display = fabSections.includes(activeSection) ? 'flex' : 'none';
   });
 });
 
-/* ---------- 認証 ---------- */
+document.getElementById('fabBtn').addEventListener('click', ()=>{
+  if (activeSection === 'weight') openWeightModal(null);
+  else if (activeSection === 'exercises') openExerciseModal(null);
+  else if (activeSection === 'workout') openWorkoutModal(null);
+});
+
+/* =========================================================
+   認証 + Face ID / Touch ID ロック
+   ========================================================= */
+const webAuthnSupported = typeof window.PublicKeyCredential !== 'undefined';
+let sessionUnlocked = false;
+
 document.getElementById('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const email = document.getElementById('loginEmail').value;
@@ -605,6 +879,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
   errEl.textContent = '';
   try{
     await signInWithEmailAndPassword(auth, email, password);
+    sessionUnlocked = true;
+    if (webAuthnSupported && localStorage.getItem('muscleLogFaceIdOffered') !== '1'){
+      localStorage.setItem('muscleLogFaceIdOffered', '1');
+      setTimeout(()=> openModal('faceIdOfferModal'), 500);
+    }
   }catch(err){
     errEl.textContent = 'ログインに失敗しました（メールアドレスまたはパスワードが正しくありません）';
     console.error(err);
@@ -616,36 +895,136 @@ document.getElementById('logoutBtn').addEventListener('click', async ()=>{
   catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
 });
 
-let unsubWeight = null;
-let unsubTarget = null;
+document.getElementById('settingsBtn').addEventListener('click', ()=> openModal('settingsModal'));
+
+document.getElementById('settingsEnableFaceIdBtn').addEventListener('click', registerDeviceLock);
+document.getElementById('settingsDisableFaceIdBtn').addEventListener('click', ()=>{
+  disableDeviceLock();
+  closeModal('settingsModal');
+});
+document.getElementById('faceIdOfferYesBtn').addEventListener('click', async ()=>{
+  await registerDeviceLock();
+  closeModal('faceIdOfferModal');
+});
+
+async function registerDeviceLock(){
+  if (!webAuthnSupported){
+    showToast('この端末・ブラウザはFace ID / Touch IDに対応していません');
+    return;
+  }
+  const user = auth.currentUser;
+  if (!user) return;
+  try{
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: 'MuscleLog' },
+        user: {
+          id: new TextEncoder().encode(user.uid),
+          name: user.email || 'user',
+          displayName: user.email || 'user'
+        },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+        timeout: 60000
+      }
+    });
+    const credIdB64 = btoa(String.fromCharCode(...new Uint8Array(cred.rawId)));
+    localStorage.setItem('muscleLogFaceIdCredId', credIdB64);
+    localStorage.setItem('muscleLogFaceIdEnabled', '1');
+    showToast('Face ID / Touch IDロックを設定しました');
+  }catch(err){
+    console.error(err);
+    showToast('Face ID / Touch IDの設定に失敗しました: ' + err.message);
+  }
+}
+
+function disableDeviceLock(){
+  localStorage.removeItem('muscleLogFaceIdCredId');
+  localStorage.removeItem('muscleLogFaceIdEnabled');
+  showToast('Face ID / Touch IDロックを解除しました');
+}
+
+async function unlockWithFaceId(){
+  const credIdB64 = localStorage.getItem('muscleLogFaceIdCredId');
+  if (!credIdB64) return false;
+  try{
+    const raw = Uint8Array.from(atob(credIdB64), c => c.charCodeAt(0));
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ id: raw, type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+    return true;
+  }catch(err){
+    console.error(err);
+    return false;
+  }
+}
+
+function showLockScreen(){
+  document.getElementById('lockScreen').classList.add('active');
+  document.getElementById('appScreen').classList.remove('active');
+}
+function hideLockScreen(){
+  document.getElementById('lockScreen').classList.remove('active');
+}
+
+document.getElementById('faceIdUnlockBtn').addEventListener('click', async ()=>{
+  const ok = await unlockWithFaceId();
+  if (ok){
+    sessionUnlocked = true;
+    hideLockScreen();
+    document.getElementById('appScreen').classList.add('active');
+  } else {
+    showToast('認証に失敗しました。もう一度お試しください');
+  }
+});
+document.getElementById('lockPasswordFallbackBtn').addEventListener('click', async ()=>{
+  try{ await signOut(auth); }
+  catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
+});
+
+let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null;
 
 onAuthStateChanged(auth, (user)=>{
   if (user){
     document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('appScreen').classList.add('active');
+    const lockEnabled = localStorage.getItem('muscleLogFaceIdEnabled') === '1'
+      && !!localStorage.getItem('muscleLogFaceIdCredId');
+    if (lockEnabled && !sessionUnlocked){
+      showLockScreen();
+    } else {
+      hideLockScreen();
+      document.getElementById('appScreen').classList.add('active');
+    }
     startListeners(user.uid);
   } else {
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('appScreen').classList.remove('active');
+    hideLockScreen();
+    sessionUnlocked = false;
     if (unsubWeight) unsubWeight();
     if (unsubTarget) unsubTarget();
+    if (unsubExercises) unsubExercises();
+    if (unsubWorkoutLogs) unsubWorkoutLogs();
   }
 });
 
-/* =========================================================
-   ① 体重記録
-   ========================================================= */
-let weightEntries = []; // [{id, date, weight, note}]
-let targetWeight = null;
-
 function startListeners(uid){
   const weightCol = collection(db, 'users', uid, 'bodyWeight');
-  const q = query(weightCol, orderBy('date', 'desc'));
-  unsubWeight = onSnapshot(q, (snap)=>{
+  const wq = query(weightCol, orderBy('date', 'desc'));
+  unsubWeight = onSnapshot(wq, (snap)=>{
     weightEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderWeightSummary();
     renderWeightChart();
     renderWeightList();
+    renderBig3();
   }, (err)=>{
     console.error(err);
     showToast('体重データの読み込みに失敗しました: ' + err.message);
@@ -660,11 +1039,40 @@ function startListeners(uid){
     console.error(err);
     showToast('目標体重の読み込みに失敗しました: ' + err.message);
   });
+
+  const exCol = collection(db, 'users', uid, 'exercises');
+  unsubExercises = onSnapshot(exCol, (snap)=>{
+    exercises = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a,b)=> (a.bodyPart||'').localeCompare(b.bodyPart||'', 'ja') || (a.name||'').localeCompare(b.name||'', 'ja'));
+    renderExerciseList();
+    updateExerciseDatalist();
+  }, (err)=>{
+    console.error(err);
+    showToast('種目データの読み込みに失敗しました: ' + err.message);
+  });
+
+  const woCol = collection(db, 'users', uid, 'workoutLogs');
+  const woQ = query(woCol, orderBy('date', 'desc'));
+  unsubWorkoutLogs = onSnapshot(woQ, (snap)=>{
+    workoutLogs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderWorkoutList();
+    renderCalendar();
+    renderBig3();
+  }, (err)=>{
+    console.error(err);
+    showToast('トレーニング記録の読み込みに失敗しました: ' + err.message);
+  });
 }
+
+/* =========================================================
+   ① 体重記録
+   ========================================================= */
+let weightEntries = [];
+let targetWeight = null;
 
 function renderWeightSummary(){
   const cur = weightEntries.length ? weightEntries[0].weight : null;
-  document.getElementById('currentWeightVal').textContent = cur !== null ? cur.toFixed(1) : '--';
+  document.getElementById('currentWeightVal').textContent = cur !== null ? Number(cur).toFixed(1) : '--';
   document.getElementById('targetWeightVal').textContent = targetWeight !== null ? Number(targetWeight).toFixed(1) : '--';
 
   const diffEl = document.getElementById('diffWeightVal');
@@ -686,7 +1094,7 @@ function renderWeightSummary(){
 let weightChartInstance = null;
 function renderWeightChart(){
   const sorted = [...weightEntries].sort((a,b)=> a.date.localeCompare(b.date));
-  const labels = sorted.map(e => e.date.slice(5)); // MM-DD
+  const labels = sorted.map(e => e.date.slice(5));
   const data = sorted.map(e => e.weight);
 
   const datasets = [{
@@ -718,9 +1126,7 @@ function renderWeightChart(){
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: '#9a9aa0', font: { size: 11 } } }
-      },
+      plugins: { legend: { labels: { color: '#9a9aa0', font: { size: 11 } } } },
       scales: {
         x: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } },
         y: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } }
@@ -751,12 +1157,6 @@ function renderWeightList(){
   });
 }
 
-function escapeHtml(str){
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
-}
-
 function openWeightModal(entry){
   document.getElementById('weightModalTitle').textContent = entry ? '体重を編集' : '体重を記録';
   document.getElementById('weightDocId').value = entry ? entry.id : '';
@@ -766,8 +1166,6 @@ function openWeightModal(entry){
   document.getElementById('weightDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
   openModal('weightModal');
 }
-
-document.getElementById('fabBtn').addEventListener('click', ()=> openWeightModal(null));
 
 document.getElementById('weightForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
@@ -805,7 +1203,6 @@ document.getElementById('weightDeleteBtn').addEventListener('click', ()=>{
   });
 });
 
-/* 目標体重 */
 document.getElementById('editTargetBtn').addEventListener('click', ()=>{
   document.getElementById('targetValue').value = targetWeight !== null ? targetWeight : '';
   openModal('targetModal');
@@ -829,6 +1226,556 @@ document.getElementById('targetForm').addEventListener('submit', async (e)=>{
     showToast('目標体重の保存に失敗しました: ' + err.message);
   }
 });
+
+/* =========================================================
+   ④ 種目登録（マスタデータ）
+   ========================================================= */
+let exercises = [];
+
+function renderExerciseList(){
+  const wrap = document.getElementById('exerciseList');
+  if (!exercises.length){
+    wrap.innerHTML = '<div class="empty-msg">まだ種目が登録されていません</div>';
+    return;
+  }
+  wrap.innerHTML = exercises.map(e => `
+    <div class="list-item" data-id="${e.id}">
+      <div>
+        <span class="tag">${escapeHtml(e.bodyPart || '未設定')}</span>
+        <div class="main-val" style="margin-top:6px;">${escapeHtml(e.name)}</div>
+      </div>
+      <div class="main-val">${e.points ?? '-'} pt</div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.list-item').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const ex = exercises.find(e=>e.id===row.dataset.id);
+      openExerciseModal(ex);
+    });
+  });
+}
+
+function openExerciseModal(entry){
+  document.getElementById('exerciseModalTitle').textContent = entry ? '種目を編集' : '種目を登録';
+  document.getElementById('exerciseDocId').value = entry ? entry.id : '';
+  document.getElementById('exerciseBodyPart').value = entry ? entry.bodyPart : '';
+  document.getElementById('exerciseName').value = entry ? entry.name : '';
+  document.getElementById('exercisePoints').value = entry && entry.points != null ? entry.points : '';
+  document.getElementById('exerciseDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
+  openModal('exerciseModal');
+}
+
+document.getElementById('exerciseForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const id = document.getElementById('exerciseDocId').value;
+  const bodyPart = document.getElementById('exerciseBodyPart').value.trim();
+  const name = document.getElementById('exerciseName').value.trim();
+  const pointsRaw = document.getElementById('exercisePoints').value;
+  const points = pointsRaw === '' ? null : Number(pointsRaw);
+  if (!bodyPart || !name){
+    showToast('部位と種目名を入力してください');
+    return;
+  }
+  try{
+    const data = { bodyPart, name, points, updatedAt: serverTimestamp() };
+    if (id){
+      await setDoc(doc(db, 'users', user.uid, 'exercises', id), data, { merge: true });
+    } else {
+      await addDoc(collection(db, 'users', user.uid, 'exercises'), data);
+    }
+    closeModal('exerciseModal');
+  }catch(err){
+    console.error(err);
+    showToast('保存に失敗しました: ' + err.message);
+  }
+});
+
+document.getElementById('exerciseDeleteBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('exerciseDocId').value;
+  if (!id) return;
+  askConfirm('この種目を削除しますか？（過去のトレーニング記録は削除されません）', async ()=>{
+    const user = auth.currentUser;
+    try{
+      await deleteDoc(doc(db, 'users', user.uid, 'exercises', id));
+      closeModal('exerciseModal');
+    }catch(err){
+      console.error(err);
+      showToast('削除に失敗しました: ' + err.message);
+    }
+  });
+});
+
+function updateExerciseDatalist(){
+  const dl = document.getElementById('exerciseDatalist');
+  dl.innerHTML = exercises.map(e => `<option value="${escapeHtml(e.name)}"></option>`).join('');
+}
+
+/* =========================================================
+   ③ 筋トレメニュー記録
+   ========================================================= */
+let workoutLogs = [];
+let currentSets = [];
+
+function renderWorkoutList(){
+  const wrap = document.getElementById('workoutList');
+  if (!workoutLogs.length){
+    wrap.innerHTML = '<div class="empty-msg">まだ記録がありません</div>';
+    return;
+  }
+  wrap.innerHTML = workoutLogs.map(l => `
+    <div class="list-item" data-id="${l.id}">
+      <div>
+        <div class="date">${l.date}</div>
+        <div class="main-val" style="margin-top:4px;">${escapeHtml(l.exerciseName)}</div>
+        <div class="note">${(l.sets||[]).map(s=>`${s.weight}kg×${s.reps}`).join(', ')}</div>
+      </div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.list-item').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const entry = workoutLogs.find(l=>l.id===row.dataset.id);
+      openWorkoutModal(entry);
+    });
+  });
+}
+
+function renderSetsUI(){
+  const wrap = document.getElementById('setsContainer');
+  wrap.innerHTML = '';
+  currentSets.forEach((s,i)=>{
+    const row = document.createElement('div');
+    row.className = 'set-row';
+    row.innerHTML = `
+      <span class="set-idx">${i+1}</span>
+      <input type="number" step="0.5" placeholder="重量kg" value="${s.weight}" data-i="${i}" data-f="weight">
+      <input type="number" step="1" placeholder="回数" value="${s.reps}" data-i="${i}" data-f="reps">
+      <button type="button" data-remove="${i}">×</button>
+    `;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      currentSets[+inp.dataset.i][inp.dataset.f] = inp.value;
+    });
+  });
+  wrap.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      currentSets.splice(+btn.dataset.remove, 1);
+      renderSetsUI();
+    });
+  });
+}
+
+document.getElementById('addSetBtn').addEventListener('click', ()=>{
+  currentSets.push({ weight: '', reps: '' });
+  renderSetsUI();
+});
+
+function updateWorkoutExerciseInfo(){
+  const name = document.getElementById('workoutExerciseName').value.trim();
+  const match = exercises.find(e => e.name === name);
+  const info = document.getElementById('workoutExerciseInfo');
+  if (match){
+    info.textContent = `部位: ${match.bodyPart || '未設定'} ・ ポイント: ${match.points ?? '-'}`;
+    info.style.color = 'var(--text-dim)';
+  } else if (name){
+    info.textContent = '※ 未登録の種目です（部位・ポイントは自動入力されません）';
+    info.style.color = 'var(--orange)';
+  } else {
+    info.textContent = '';
+  }
+}
+document.getElementById('workoutExerciseName').addEventListener('input', updateWorkoutExerciseInfo);
+
+function openWorkoutModal(entry){
+  document.getElementById('workoutModalTitle').textContent = entry ? 'トレーニングを編集' : 'トレーニングを記録';
+  document.getElementById('workoutDocId').value = entry ? entry.id : '';
+  document.getElementById('workoutDate').value = entry ? entry.date : todayStr();
+  document.getElementById('workoutExerciseName').value = entry ? entry.exerciseName : '';
+  currentSets = entry ? entry.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps) })) : [{ weight: '', reps: '' }];
+  renderSetsUI();
+  updateWorkoutExerciseInfo();
+  document.getElementById('workoutDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
+  openModal('workoutModal');
+}
+
+document.getElementById('workoutForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const id = document.getElementById('workoutDocId').value;
+  const date = document.getElementById('workoutDate').value;
+  const exerciseName = document.getElementById('workoutExerciseName').value.trim();
+  if (!date || !exerciseName){
+    showToast('日付と種目名を入力してください');
+    return;
+  }
+  const sets = currentSets
+    .filter(s => s.weight !== '' && s.reps !== '')
+    .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }));
+  if (!sets.length){
+    showToast('セットを1つ以上入力してください');
+    return;
+  }
+  const match = exercises.find(ex => ex.name === exerciseName);
+  try{
+    const data = {
+      date, exerciseName,
+      bodyPart: match ? match.bodyPart : '',
+      points: match ? match.points : null,
+      sets,
+      updatedAt: serverTimestamp()
+    };
+    if (id){
+      await setDoc(doc(db, 'users', user.uid, 'workoutLogs', id), data, { merge: true });
+    } else {
+      await addDoc(collection(db, 'users', user.uid, 'workoutLogs'), data);
+    }
+    closeModal('workoutModal');
+  }catch(err){
+    console.error(err);
+    showToast('保存に失敗しました: ' + err.message);
+  }
+});
+
+document.getElementById('workoutDeleteBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('workoutDocId').value;
+  if (!id) return;
+  askConfirm('この記録を削除しますか？', async ()=>{
+    const user = auth.currentUser;
+    try{
+      await deleteDoc(doc(db, 'users', user.uid, 'workoutLogs', id));
+      closeModal('workoutModal');
+    }catch(err){
+      console.error(err);
+      showToast('削除に失敗しました: ' + err.message);
+    }
+  });
+});
+
+/* =========================================================
+   ⑥ ジムカレンダー
+   ========================================================= */
+let calYear, calMonth;
+(function initCal(){
+  const now = new Date();
+  calYear = now.getFullYear();
+  calMonth = now.getMonth();
+})();
+
+document.getElementById('calPrevBtn').addEventListener('click', ()=>{
+  calMonth--; if (calMonth < 0){ calMonth = 11; calYear--; }
+  renderCalendar();
+});
+document.getElementById('calNextBtn').addEventListener('click', ()=>{
+  calMonth++; if (calMonth > 11){ calMonth = 0; calYear++; }
+  renderCalendar();
+});
+
+function renderCalendar(){
+  document.getElementById('calLabel').textContent = `${calYear}年${calMonth+1}月`;
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  ['日','月','火','水','木','金','土'].forEach(d=>{
+    const el = document.createElement('div');
+    el.className = 'cal-dow';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+  const firstDay = new Date(calYear, calMonth, 1).getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const logDates = new Set(workoutLogs.map(l=>l.date));
+  const todayS = todayStr();
+
+  for (let i=0; i<firstDay; i++){
+    const el = document.createElement('div');
+    el.className = 'cal-day empty';
+    grid.appendChild(el);
+  }
+  for (let d=1; d<=daysInMonth; d++){
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const hasLog = logDates.has(dateStr);
+    const el = document.createElement('div');
+    el.className = 'cal-day' + (hasLog ? ' has-log' : '') + (dateStr === todayS ? ' today' : '');
+    el.innerHTML = hasLog
+      ? `<span class="emoji">💪</span><span class="daynum">${d}</span>`
+      : `<span class="daynum">${d}</span>`;
+    if (hasLog){
+      el.addEventListener('click', ()=> openDayDetail(dateStr));
+    }
+    grid.appendChild(el);
+  }
+}
+
+function openDayDetail(dateStr){
+  document.getElementById('dayDetailTitle').textContent = dateStr + ' の記録';
+  const logs = workoutLogs.filter(l => l.date === dateStr);
+  const wrap = document.getElementById('dayDetailList');
+  wrap.innerHTML = logs.map(l => `
+    <div class="list-item" data-id="${l.id}">
+      <div>
+        <div class="main-val">${escapeHtml(l.exerciseName)}</div>
+        <div class="note">${(l.sets||[]).map(s=>`${s.weight}kg×${s.reps}`).join(', ')}</div>
+      </div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.list-item').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const entry = workoutLogs.find(l=>l.id===row.dataset.id);
+      closeModal('dayDetailModal');
+      openWorkoutModal(entry);
+    });
+  });
+  openModal('dayDetailModal');
+}
+
+/* =========================================================
+   ② BIG3・体重比の推移
+   ========================================================= */
+const BIG3_CONFIG = [
+  { key: 'squat', label: 'スクワット', keywords: ['スクワット','squat'], color: '#ff3b3b' },
+  { key: 'bench', label: 'ベンチプレス', keywords: ['ベンチプレス','ベンチ','bench'], color: '#ff8c1a' },
+  { key: 'deadlift', label: 'デッドリフト', keywords: ['デッドリフト','デッド','deadlift'], color: '#39ff88' }
+];
+const big3Charts = {};
+
+function matchBig3(name){
+  const lower = (name || '').toLowerCase();
+  for (const cfg of BIG3_CONFIG){
+    if (cfg.keywords.some(w => lower.includes(w.toLowerCase()))) return cfg.key;
+  }
+  return null;
+}
+
+function bodyweightAtDate(dateStr){
+  // weightEntries は date 降順（最新が先頭）なので、date <= dateStr の最初の要素が
+  // 「その日付時点でわかっている一番新しい体重」になる
+  const found = weightEntries.find(e => e.date <= dateStr);
+  return found ? Number(found.weight) : null;
+}
+
+function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function renderBig3(){
+  BIG3_CONFIG.forEach(cfg=>{
+    const logs = workoutLogs
+      .filter(l => matchBig3(l.exerciseName) === cfg.key)
+      .slice()
+      .sort((a,b)=> a.date.localeCompare(b.date));
+
+    const sessions = logs.map(l=>{
+      const weights = (l.sets || []).map(s => Number(s.weight) || 0);
+      const maxWeight = weights.length ? Math.max(...weights) : 0;
+      const bw = bodyweightAtDate(l.date);
+      const ratio = bw ? maxWeight / bw : null;
+      return { date: l.date, maxWeight, bw, ratio };
+    });
+
+    let runningMax = 0;
+    sessions.forEach(s=>{
+      s.isPR = s.ratio !== null && s.ratio > runningMax + 0.0001;
+      if (s.ratio !== null && s.ratio > runningMax) runningMax = s.ratio;
+    });
+
+    renderBig3Stats(cfg.key, sessions);
+    renderBig3Chart(cfg, sessions);
+    renderBig3List(cfg.key, sessions);
+  });
+}
+
+function renderBig3Stats(key, sessions){
+  const bestWeight = sessions.length ? Math.max(...sessions.map(s=>s.maxWeight)) : null;
+  const ratios = sessions.filter(s=>s.ratio !== null).map(s=>s.ratio);
+  const bestRatio = ratios.length ? Math.max(...ratios) : null;
+  const wrap = document.getElementById('big3Stats' + capitalize(key));
+  wrap.innerHTML = `
+    <div class="summary-box">
+      <div class="label">自己ベスト重量</div>
+      <div class="value num">${bestWeight !== null ? bestWeight.toFixed(1) : '--'}</div>
+      <div class="unit">kg</div>
+    </div>
+    <div class="summary-box">
+      <div class="label">体重比ベスト</div>
+      <div class="value num" style="color:var(--green)">${bestRatio !== null ? bestRatio.toFixed(2) : '--'}</div>
+      <div class="unit">倍</div>
+    </div>
+  `;
+}
+
+function renderBig3Chart(cfg, sessions){
+  const ctx = document.getElementById('big3Chart' + capitalize(cfg.key));
+  const labels = sessions.map(s => s.date.slice(5));
+  const weightData = sessions.map(s => s.maxWeight);
+  const bwData = sessions.map(s => s.bw);
+  if (big3Charts[cfg.key]) big3Charts[cfg.key].destroy();
+  big3Charts[cfg.key] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: cfg.label + '重量', data: weightData, borderColor: cfg.color, backgroundColor: cfg.color + '33', yAxisID: 'y', tension: 0.25, pointRadius: 3 },
+        { label: '体重', data: bwData, borderColor: '#9a9aa0', borderDash: [4,3], yAxisID: 'y1', tension: 0.25, pointRadius: 2 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#9a9aa0', font: { size: 10 } } } },
+      scales: {
+        x: { ticks: { color: '#6b6b70', font: { size: 9 } }, grid: { color: '#2d2e33' } },
+        y: { position: 'left', ticks: { color: '#6b6b70', font: { size: 9 } }, grid: { color: '#2d2e33' } },
+        y1: { position: 'right', ticks: { color: '#6b6b70', font: { size: 9 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderBig3List(key, sessions){
+  const wrap = document.getElementById('big3List' + capitalize(key));
+  if (!sessions.length){
+    wrap.innerHTML = '<div class="empty-msg">記録がありません</div>';
+    return;
+  }
+  wrap.innerHTML = sessions.slice().reverse().map(s => `
+    <div class="list-item" style="cursor:default;">
+      <div>
+        <div class="date">${s.date}</div>
+        ${s.isPR ? '<div class="pr-badge">🏆 体重比PR更新</div>' : ''}
+      </div>
+      <div style="text-align:right;">
+        <div class="main-val">${s.maxWeight.toFixed(1)} kg</div>
+        <div class="note">${s.ratio !== null ? '体重比 ' + s.ratio.toFixed(2) : '体重データなし'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* =========================================================
+   ⑤ ストップウォッチ・タイマー（Firestoreには保存しない）
+   ========================================================= */
+document.querySelectorAll('.subtab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.subtab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const mode = btn.dataset.mode;
+    document.getElementById('stopwatchPanel').style.display = mode === 'stopwatch' ? 'block' : 'none';
+    document.getElementById('timerPanel').style.display = mode === 'timer' ? 'block' : 'none';
+  });
+});
+
+/* ストップウォッチ */
+let swRunning = false, swStartTs = 0, swElapsed = 0, swRAF = null;
+function formatSw(ms){
+  const cs = Math.floor((ms % 1000) / 100);
+  const totalSec = Math.floor(ms / 1000);
+  const s = totalSec % 60;
+  const m = Math.floor(totalSec / 60);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${cs}`;
+}
+function swTick(){
+  if (!swRunning) return;
+  swElapsed = Date.now() - swStartTs;
+  document.getElementById('swDisplay').textContent = formatSw(swElapsed);
+  swRAF = requestAnimationFrame(swTick);
+}
+document.getElementById('swStartBtn').addEventListener('click', (e)=>{
+  if (!swRunning){
+    swRunning = true;
+    swStartTs = Date.now() - swElapsed;
+    swTick();
+    e.target.textContent = '停止';
+  } else {
+    swRunning = false;
+    cancelAnimationFrame(swRAF);
+    e.target.textContent = '開始';
+  }
+});
+document.getElementById('swResetBtn').addEventListener('click', ()=>{
+  swRunning = false;
+  cancelAnimationFrame(swRAF);
+  swElapsed = 0;
+  document.getElementById('swDisplay').textContent = formatSw(0);
+  document.getElementById('swStartBtn').textContent = '開始';
+});
+
+/* タイマー */
+function beep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.5);
+  }catch(e){ /* 音が鳴らせない環境では無視 */ }
+}
+
+let timerRunning = false, timerEndTs = 0, timerRAF = null, timerSet = false, timerRemainingPaused = 0;
+function formatTimer(ms){
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const s = totalSec % 60;
+  const m = Math.floor(totalSec / 60);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function timerTick(){
+  if (!timerRunning) return;
+  const remaining = timerEndTs - Date.now();
+  if (remaining <= 0){
+    timerRunning = false;
+    timerSet = false;
+    document.getElementById('timerDisplay').textContent = '00:00';
+    document.getElementById('timerStartBtn').textContent = '開始';
+    beep();
+    return;
+  }
+  document.getElementById('timerDisplay').textContent = formatTimer(remaining);
+  timerRAF = requestAnimationFrame(timerTick);
+}
+document.getElementById('timerStartBtn').addEventListener('click', (e)=>{
+  if (!timerRunning){
+    let remaining;
+    if (!timerSet){
+      const min = parseInt(document.getElementById('timerMinInput').value) || 0;
+      const sec = parseInt(document.getElementById('timerSecInput').value) || 0;
+      remaining = (min*60 + sec) * 1000;
+      if (remaining <= 0){ showToast('タイマーの時間を設定してください'); return; }
+    } else {
+      remaining = timerRemainingPaused;
+    }
+    timerRunning = true;
+    timerSet = true;
+    timerEndTs = Date.now() + remaining;
+    timerTick();
+    e.target.textContent = '一時停止';
+  } else {
+    timerRunning = false;
+    cancelAnimationFrame(timerRAF);
+    timerRemainingPaused = timerEndTs - Date.now();
+    e.target.textContent = '再開';
+  }
+});
+document.getElementById('timerResetBtn').addEventListener('click', ()=>{
+  timerRunning = false;
+  cancelAnimationFrame(timerRAF);
+  timerSet = false;
+  timerRemainingPaused = 0;
+  const min = parseInt(document.getElementById('timerMinInput').value) || 0;
+  const sec = parseInt(document.getElementById('timerSecInput').value) || 0;
+  document.getElementById('timerDisplay').textContent = formatTimer((min*60 + sec) * 1000);
+  document.getElementById('timerStartBtn').textContent = '開始';
+});
+function updateTimerPreview(){
+  if (timerSet) return;
+  const min = parseInt(document.getElementById('timerMinInput').value) || 0;
+  const sec = parseInt(document.getElementById('timerSecInput').value) || 0;
+  document.getElementById('timerDisplay').textContent = formatTimer((min*60 + sec) * 1000);
+}
+document.getElementById('timerMinInput').addEventListener('input', updateTimerPreview);
+document.getElementById('timerSecInput').addEventListener('input', updateTimerPreview);
 </script>
 </body>
 </html>
