@@ -33,7 +33,7 @@
     --radius:14px;
     --radius-sm:9px;
     --tabbar-h:64px;
-    --header-h:52px;
+    --header-h:60px;
     font-variant-numeric: tabular-nums;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -147,7 +147,7 @@
     align-items:center;
     justify-content:space-between;
     padding:0 16px;
-    padding-top:env(safe-area-inset-top);
+    padding-top:calc(env(safe-area-inset-top) + 10px);
     border-bottom:1px solid var(--border);
     position:sticky; top:0; z-index:10;
     background:rgba(12,12,14,0.92);
