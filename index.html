@@ -30,6 +30,8 @@
     --orange:#ff8c1a;
     --green:#39ff88;
     --green-dim:#0f3d26;
+    --cyan:#2fb8c9;
+    --cyan-dim:#0f2b30;
     --radius:14px;
     --radius-sm:9px;
     --tabbar-h:64px;
@@ -238,7 +240,15 @@
   .list-item:last-child{border-bottom:none;}
   .list-item .date{font-size:12px; color:var(--text-dim);}
   .list-item .main-val{font-family:'Oswald',sans-serif; font-size:18px; font-weight:600;}
+  .list-item .main-val-row{display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
   .list-item .note{font-size:12px; color:var(--text-faint); margin-top:2px;}
+  .cat-badge{
+    display:inline-flex; align-items:center; flex-shrink:0; font-size:10px; font-weight:700;
+    padding:2px 8px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+  }
+  .cat-badge[data-cat="max"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
+  .cat-badge[data-cat="heavy"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .cat-badge[data-cat="medium"]{ background:var(--cyan-dim); border-color:var(--cyan); color:var(--cyan); }
   .empty-msg{color:var(--text-faint); font-size:13px; text-align:center; padding:30px 0;}
   .tag{
     display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px;
@@ -316,8 +326,10 @@
     padding:12px; margin-bottom:10px; font-size:12px; color:var(--text-dim); line-height:1.8;
   }
   .pr-info b{ color:var(--text); }
-  .pr-cat-row{ display:flex; align-items:baseline; gap:8px; }
+  .pr-cat-row{ display:flex; align-items:baseline; gap:8px; padding:2px 6px; border-radius:6px; }
   .pr-cat-row:first-of-type{ margin-top:2px; }
+  .pr-cat-row.active{ background:rgba(255,255,255,0.05); }
+  .pr-cat-row.active .pr-cat-label{ color:var(--text); }
   .pr-cat-label{
     font-weight:700; color:var(--text-dim); flex-shrink:0; min-width:60px;
     font-family:'Oswald',sans-serif; font-size:11.5px;
@@ -329,12 +341,17 @@
     background:var(--green-dim); border:1px solid var(--green); border-radius:20px;
     padding:5px 10px;
   }
-  .set-cat-row{ display:flex; gap:6px; margin:-4px 0 12px 26px; }
-  .set-cat-chip{
-    flex:1; background:var(--surface-2); border:1px solid var(--border); color:var(--text-faint);
-    border-radius:14px; padding:5px 4px; font-size:10.5px; font-weight:600; cursor:pointer; text-align:center;
+
+  /* ---------- 記録の強度（MAX挑戦・高重量・中重量）選択 ---------- */
+  .entry-cat-row{ display:flex; gap:8px; }
+  .entry-cat-chip{
+    flex:1; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:var(--radius-sm); padding:11px 6px; font-size:13px; font-weight:700; cursor:pointer; text-align:center;
   }
-  .set-cat-chip.active{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
+  .entry-cat-chip.active[data-cat="max"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
+  .entry-cat-chip.active[data-cat="heavy"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .entry-cat-chip.active[data-cat="medium"]{ background:var(--cyan-dim); border-color:var(--cyan); color:var(--cyan); }
+  .memo-hint-note{ font-size:11px; color:var(--text-faint); margin-top:5px; }
 
   /* ---------- Tab bar ---------- */
   .tabbar{
@@ -1042,6 +1059,10 @@
         </select>
       </div>
       <div id="workoutExerciseInfo"></div>
+      <div class="field" id="entryCategoryFieldWrap" style="display:none;">
+        <label>強度</label>
+        <div class="entry-cat-row" id="entryCategoryRow"></div>
+      </div>
       <div class="field" id="setsFieldWrap">
         <label>セット <span class="field-hint" id="setsBestHint"></span></label>
         <div id="setsContainer"></div>
@@ -1051,6 +1072,11 @@
         <label>区間（距離と時速） <span class="field-hint" id="cardioBestHint"></span></label>
         <div id="cardioSegments"></div>
         <button type="button" class="add-set-btn" id="addCardioSegmentBtn">＋ 区間を追加</button>
+      </div>
+      <div class="field" id="workoutMemoFieldWrap">
+        <label for="workoutMemo">メモ（任意）</label>
+        <textarea id="workoutMemo" rows="2" placeholder="例: 右肩が張る、次回は85kgから"></textarea>
+        <div class="memo-hint-note" id="workoutMemoHint"></div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger" id="workoutDeleteBtn" style="display:none;">削除</button>
@@ -1932,10 +1958,19 @@ function formatDurationShort(totalSeconds){
 let currentSets = [];
 let currentCardio = [];
 let editingWorkoutId = null;
+let currentEntryCategory = 'medium'; // 'max' | 'heavy' | 'medium'（記録全体で1つ。セットごとには持たない）
 const CARDIO_BODY_PART = '有酸素';
 
 function isCardioLog(l){
   return l.bodyPart === CARDIO_BODY_PART && Array.isArray(l.cardioSegments) && l.cardioSegments.length > 0;
+}
+
+/* その記録が MAX挑戦・高重量・中重量 のどれかを返す。
+   旧スキーマ（セットごとにカテゴリを持っていた版）のデータも後方互換で読み取る */
+function logCategory(l){
+  if (l && l.category) return l.category;
+  if (l && l.sets && l.sets[0] && l.sets[0].category) return l.sets[0].category;
+  return 'medium';
 }
 
 function formatPace(speedKmh){
@@ -2041,14 +2076,24 @@ function groupWorkoutLogs(logs, mode){
   return groups;
 }
 
+function categoryBadgeHtml(l){
+  if (isCardioLog(l)) return '';
+  const cat = logCategory(l);
+  return `<span class="cat-badge" data-cat="${cat}">${escapeHtml(setCategoryLabel(cat))}</span>`;
+}
+
 function workoutItemHtml(l, idx){
   const rec = idx[l.id];
   return `
     <div class="list-item" data-id="${l.id}">
       <div>
         <div class="date">${l.date}</div>
-        <div class="main-val" style="margin-top:4px;">${escapeHtml(l.exerciseName)}</div>
+        <div class="main-val-row" style="margin-top:4px;">
+          <span class="main-val">${escapeHtml(l.exerciseName)}</span>
+          ${categoryBadgeHtml(l)}
+        </div>
         <div class="note">${escapeHtml(formatLogSummary(l))}</div>
+        ${l.memo ? `<div class="note">📝 ${escapeHtml(l.memo)}</div>` : ''}
         ${rec ? badgeHtml(rec) : ''}
       </div>
     </div>
@@ -2167,7 +2212,6 @@ function renderSetsUI(){
   const wrap = document.getElementById('setsContainer');
   wrap.innerHTML = '';
   currentSets.forEach((s,i)=>{
-    const cat = s.category || 'medium';
     const row = document.createElement('div');
     row.className = 'set-row';
     row.innerHTML = `
@@ -2177,12 +2221,6 @@ function renderSetsUI(){
       <button type="button" data-remove="${i}">×</button>
     `;
     wrap.appendChild(row);
-    const catRow = document.createElement('div');
-    catRow.className = 'set-cat-row';
-    catRow.innerHTML = SET_CATEGORIES.map(c =>
-      `<button type="button" class="set-cat-chip${cat === c.key ? ' active' : ''}" data-i="${i}" data-cat="${c.key}">${escapeHtml(c.label)}</button>`
-    ).join('');
-    wrap.appendChild(catRow);
   });
   wrap.querySelectorAll('input').forEach(inp=>{
     inp.addEventListener('input', ()=>{
@@ -2197,22 +2235,11 @@ function renderSetsUI(){
       checkLivePR();
     });
   });
-  wrap.querySelectorAll('.set-cat-chip').forEach(chip=>{
-    chip.addEventListener('click', ()=>{
-      const i = +chip.dataset.i;
-      currentSets[i].category = chip.dataset.cat;
-      wrap.querySelectorAll(`.set-cat-chip[data-i="${i}"]`).forEach(c=>{
-        c.classList.toggle('active', c.dataset.cat === chip.dataset.cat);
-      });
-      applySetPlaceholderHints();
-      checkLivePR();
-    });
-  });
   applySetPlaceholderHints();
 }
 
 /* 過去の自己ベスト（重量・回数）を、入力欄のプレースホルダーにうっすら表示する。
-   MAX挑戦・高重量・中重量ごとにその種類の自己ベストを表示する（目的に応じた数値を見たいというニーズに対応） */
+   今選んでいる強度（MAX挑戦・高重量・中重量）の自己ベストを表示する（目的に応じた数値を見たいというニーズに対応） */
 function applySetPlaceholderHints(){
   const name = document.getElementById('workoutExerciseSelect').value;
   const wrap = document.getElementById('setsContainer');
@@ -2224,24 +2251,20 @@ function applySetPlaceholderHints(){
     return;
   }
   const recByCat = getBestRecordsByCategory(name, editingWorkoutId);
+  const rec = recByCat[currentEntryCategory] || recByCat.medium;
   wrap.querySelectorAll('input[data-f="weight"]').forEach(inp=>{
-    const s = currentSets[+inp.dataset.i];
-    const rec = recByCat[(s && s.category) || 'medium'];
     inp.placeholder = rec.bestWeight !== null ? `最高${+rec.bestWeight.toFixed(1)}kg` : '過去記録なし';
   });
   wrap.querySelectorAll('input[data-f="reps"]').forEach(inp=>{
-    const s = currentSets[+inp.dataset.i];
-    const rec = recByCat[(s && s.category) || 'medium'];
     inp.placeholder = rec.bestReps !== null ? `最高${rec.bestReps}回` : '過去記録なし';
   });
   if (hintEl){
-    const total = getBestRecords(name, editingWorkoutId);
-    hintEl.textContent = total.bestSetCount !== null ? `（最高${total.bestSetCount}セット）` : '（過去記録なし）';
+    hintEl.textContent = rec.bestSetCount !== null ? `（最高${rec.bestSetCount}セット）` : '（過去記録なし）';
   }
 }
 
 document.getElementById('addSetBtn').addEventListener('click', ()=>{
-  currentSets.push({ weight: '', reps: '', category: 'medium' });
+  currentSets.push({ weight: '', reps: '' });
   renderSetsUI();
 });
 
@@ -2323,6 +2346,8 @@ function toggleWorkoutInputMode(){
   const isCardio = document.getElementById('workoutBodyPartSelect').value === CARDIO_BODY_PART;
   document.getElementById('setsFieldWrap').style.display = isCardio ? 'none' : 'block';
   document.getElementById('cardioFieldWrap').style.display = isCardio ? 'block' : 'none';
+  const catWrap = document.getElementById('entryCategoryFieldWrap');
+  if (catWrap) catWrap.style.display = isCardio ? 'none' : 'block';
 }
 
 function getBestCardioRecords(exerciseName, excludeId){
@@ -2394,28 +2419,98 @@ function setCategoryLabel(cat){
 function getBestRecordsByCategory(exerciseName, excludeId){
   const result = {};
   SET_CATEGORIES.forEach(({key})=>{ result[key] = { bestWeight: null, bestReps: null, bestVolume: null, bestSetCount: null }; });
-  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId);
+  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l));
   logs.forEach(l=>{
-    const volByCat = { max: 0, heavy: 0, medium: 0 };
-    const countByCat = { max: 0, heavy: 0, medium: 0 };
+    const cat = logCategory(l);
+    const rec = result[cat];
+    let vol = 0;
     (l.sets || []).forEach(s=>{
-      const cat = s.category || 'medium';
       const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
-      const rec = result[cat];
       if (rec.bestWeight === null || w > rec.bestWeight) rec.bestWeight = w;
       if (rec.bestReps === null || r > rec.bestReps) rec.bestReps = r;
-      volByCat[cat] += w * r;
-      countByCat[cat] += 1;
+      vol += w * r;
     });
-    Object.keys(volByCat).forEach(cat=>{
-      if (countByCat[cat] > 0){
-        const rec = result[cat];
-        if (rec.bestVolume === null || volByCat[cat] > rec.bestVolume) rec.bestVolume = volByCat[cat];
-        if (rec.bestSetCount === null || countByCat[cat] > rec.bestSetCount) rec.bestSetCount = countByCat[cat];
-      }
-    });
+    if (rec.bestVolume === null || vol > rec.bestVolume) rec.bestVolume = vol;
+    const setCount = (l.sets || []).length;
+    if (rec.bestSetCount === null || setCount > rec.bestSetCount) rec.bestSetCount = setCount;
   });
   return result;
+}
+
+/* 種目＋強度（カテゴリ）を指定して、その中で最もボリューム（重量×回数の合計）が高い記録＝自己ベストの記録そのものを返す。
+   セット数入力欄への自動入力（訂正案 2・3）で「その強度の自己ベストの各セット」を再現するために使う */
+function findBestLogByCategory(exerciseName, cat, excludeId){
+  let best = null, bestVol = -1;
+  workoutLogs.forEach(l=>{
+    if (l.exerciseName !== exerciseName || l.id === excludeId || isCardioLog(l)) return;
+    if (logCategory(l) !== cat) return;
+    const vol = (l.sets || []).reduce((sum,s)=> sum + (Number(s.weight)||0) * (Number(s.reps)||0), 0);
+    if (vol > bestVol){ bestVol = vol; best = l; }
+  });
+  return best;
+}
+
+/* 強度を選んだ段階で、その強度の自己ベストの各セットの重量・回数を、セット欄に自動入力する（編集は可能） */
+function autofillSetsFromCategory(cat){
+  const name = document.getElementById('workoutExerciseSelect').value;
+  if (!name) return;
+  const ref = findBestLogByCategory(name, cat, editingWorkoutId);
+  currentSets = (ref && ref.sets && ref.sets.length)
+    ? ref.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps) }))
+    : [{ weight: '', reps: '' }];
+  renderSetsUI();
+  checkLivePR();
+}
+
+/* 種目＋強度ごとの「前回のメモ」を探す（同じ強度で最後に記録したときのメモ） */
+function findLastMemo(exerciseName, cat, excludeId){
+  const matches = workoutLogs.filter(l =>
+    l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l) && logCategory(l) === cat && l.memo
+  );
+  if (!matches.length) return '';
+  matches.sort((a,b)=>{
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return recordedAtMs(b) - recordedAtMs(a);
+  });
+  return matches[0].memo;
+}
+
+/* 新規記録の場合のみ、前回の同じ強度のメモを編集可能な状態で自動表示する */
+function applyMemoPrefill(){
+  if (editingWorkoutId) return;
+  const name = document.getElementById('workoutExerciseSelect').value;
+  const memoEl = document.getElementById('workoutMemo');
+  const hintEl = document.getElementById('workoutMemoHint');
+  if (!name){ if (hintEl) hintEl.textContent = ''; return; }
+  const last = findLastMemo(name, currentEntryCategory, null);
+  if (last){
+    memoEl.value = last;
+    if (hintEl) hintEl.textContent = '（前回のメモを表示中。編集できます）';
+  } else {
+    memoEl.value = '';
+    if (hintEl) hintEl.textContent = '';
+  }
+}
+
+function renderEntryCategoryUI(){
+  const row = document.getElementById('entryCategoryRow');
+  if (!row) return;
+  row.innerHTML = SET_CATEGORIES.map(c =>
+    `<button type="button" class="entry-cat-chip${currentEntryCategory === c.key ? ' active' : ''}" data-cat="${c.key}">${escapeHtml(c.label)}</button>`
+  ).join('');
+  row.querySelectorAll('.entry-cat-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      currentEntryCategory = chip.dataset.cat;
+      renderEntryCategoryUI();
+      if (!editingWorkoutId){
+        autofillSetsFromCategory(currentEntryCategory);
+        applyMemoPrefill();
+      } else {
+        applySetPlaceholderHints();
+      }
+      updateWorkoutExerciseInfo();
+    });
+  });
 }
 
 function updateWorkoutExerciseInfo(){
@@ -2437,7 +2532,7 @@ function updateWorkoutExerciseInfo(){
         const body = rec.bestWeight !== null
           ? `<b>重量</b> ${rec.bestWeight.toFixed(1)}kg ・ <b>回数</b> ${rec.bestReps}回 ・ <b>Vol</b> ${rec.bestVolume.toFixed(0)}`
           : `<span class="pr-cat-none">記録なし</span>`;
-        return `<div class="pr-cat-row"><span class="pr-cat-label">${escapeHtml(label)}</span>${body}</div>`;
+        return `<div class="pr-cat-row${key === currentEntryCategory ? ' active' : ''}"><span class="pr-cat-label">${escapeHtml(label)}</span>${body}</div>`;
       }).join('')}
     </div>`;
   } else {
@@ -2454,8 +2549,13 @@ function updateWorkoutExerciseInfo(){
 }
 document.getElementById('workoutExerciseSelect').addEventListener('change', ()=>{
   updateWorkoutExerciseInfo();
-  applySetPlaceholderHints();
   applyCardioPlaceholderHints();
+  if (!editingWorkoutId){
+    autofillSetsFromCategory(currentEntryCategory);
+    applyMemoPrefill();
+  } else {
+    applySetPlaceholderHints();
+  }
 });
 
 function checkLivePR(){
@@ -2465,30 +2565,22 @@ function checkLivePR(){
   const existingBadgeRow = info.querySelector('.pr-live-badge-row');
   if (existingBadgeRow) existingBadgeRow.remove();
   const recByCat = getBestRecordsByCategory(name, editingWorkoutId);
+  const rec = recByCat[currentEntryCategory] || recByCat.medium;
   const validSets = currentSets
     .filter(s => s.weight !== '' && s.reps !== '')
-    .map(s => ({ weight: Number(s.weight), reps: Number(s.reps), category: s.category || 'medium' }));
+    .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }));
   if (!validSets.length) return;
-  const byCat = { max: [], heavy: [], medium: [] };
-  validSets.forEach(s => byCat[s.category].push(s));
-  const lines = [];
-  SET_CATEGORIES.forEach(({ key, label })=>{
-    const sets = byCat[key];
-    if (!sets.length) return;
-    const rec = recByCat[key];
-    const curMaxWeight = Math.max(...sets.map(s=>s.weight));
-    const curMaxReps = Math.max(...sets.map(s=>s.reps));
-    const curVolume = sets.reduce((sum,s)=> sum + s.weight*s.reps, 0);
-    const badges = [];
-    if (rec.bestWeight === null || curMaxWeight > rec.bestWeight) badges.push('🏋️重量更新');
-    if (rec.bestReps === null || curMaxReps > rec.bestReps) badges.push('🔁回数更新');
-    if (rec.bestVolume === null || curVolume > rec.bestVolume) badges.push('📊ボリューム更新');
-    if (badges.length) lines.push(`🔥 ${label}: ${badges.join(' ')}`);
-  });
-  if (lines.length){
+  const curMaxWeight = Math.max(...validSets.map(s=>s.weight));
+  const curMaxReps = Math.max(...validSets.map(s=>s.reps));
+  const curVolume = validSets.reduce((sum,s)=> sum + s.weight*s.reps, 0);
+  const badges = [];
+  if (rec.bestWeight === null || curMaxWeight > rec.bestWeight) badges.push('🏋️重量更新');
+  if (rec.bestReps === null || curMaxReps > rec.bestReps) badges.push('🔁回数更新');
+  if (rec.bestVolume === null || curVolume > rec.bestVolume) badges.push('📊ボリューム更新');
+  if (badges.length){
     const rowEl = document.createElement('div');
     rowEl.className = 'pr-live-badge-row';
-    rowEl.innerHTML = lines.map(l => `<span class="pr-live-badge">${escapeHtml(l)}</span>`).join('');
+    rowEl.innerHTML = `<span class="pr-live-badge">🔥 ${escapeHtml(setCategoryLabel(currentEntryCategory))}: ${badges.join(' ')}</span>`;
     info.appendChild(rowEl);
   }
 }
@@ -2534,6 +2626,8 @@ function collectWorkoutDraft(){
     date: document.getElementById('workoutDate').value,
     bodyPart: document.getElementById('workoutBodyPartSelect').value,
     exerciseName: document.getElementById('workoutExerciseSelect').value,
+    category: currentEntryCategory,
+    memo: document.getElementById('workoutMemo').value,
     sets: currentSets,
     cardio: currentCardio
   };
@@ -2590,23 +2684,43 @@ function openWorkoutModal(entry, prefill){
   const entryIsCardio = entry ? isCardioLog(entry) : (bp === CARDIO_BODY_PART);
 
   if (entry){
-    currentSets = !entryIsCardio ? entry.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps), category: s.category || 'medium' })) : [{ weight: '', reps: '', category: 'medium' }];
+    currentSets = !entryIsCardio ? entry.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps) })) : [{ weight: '', reps: '' }];
     currentCardio = entryIsCardio ? entry.cardioSegments.map(c => ({ distanceM: String(c.distanceM), speedKmh: String(c.speedKmh) })) : [{ distanceM: '', speedKmh: '' }];
+    currentEntryCategory = entryIsCardio ? 'medium' : logCategory(entry);
   } else if (prefill){
-    // 「保存して次のセットへ」: 部位・種目はそのまま、セットは空欄から
-    currentSets = [{ weight: '', reps: '', category: 'medium' }];
+    // 「保存して次のセットへ」: 部位・種目・強度はそのまま、セットは空欄から
+    currentSets = [{ weight: '', reps: '' }];
     currentCardio = [{ distanceM: '', speedKmh: '' }];
+    currentEntryCategory = prefill.category || 'medium';
   } else if (draft){
-    currentSets = (draft.sets && draft.sets.length) ? draft.sets.map(s => ({ ...s, category: s.category || 'medium' })) : [{ weight: '', reps: '', category: 'medium' }];
+    currentSets = (draft.sets && draft.sets.length) ? draft.sets.map(s => ({ weight: s.weight, reps: s.reps })) : [{ weight: '', reps: '' }];
     currentCardio = (draft.cardio && draft.cardio.length) ? draft.cardio : [{ distanceM: '', speedKmh: '' }];
+    currentEntryCategory = draft.category || 'medium';
   } else {
-    currentSets = [{ weight: '', reps: '', category: 'medium' }];
+    currentSets = [{ weight: '', reps: '' }];
     currentCardio = [{ distanceM: '', speedKmh: '' }];
+    currentEntryCategory = 'medium';
   }
+  renderEntryCategoryUI();
   renderSetsUI();
   renderCardioUI();
   toggleWorkoutInputMode();
   updateWorkoutExerciseInfo();
+
+  const memoEl = document.getElementById('workoutMemo');
+  const memoHintEl = document.getElementById('workoutMemoHint');
+  if (entry){
+    memoEl.value = entry.memo || '';
+    memoHintEl.textContent = '';
+  } else if (draft && typeof draft.memo === 'string' && draft.memo){
+    memoEl.value = draft.memo;
+    memoHintEl.textContent = '';
+  } else {
+    memoEl.value = '';
+    memoHintEl.textContent = '';
+    if (src && src.exerciseName) applyMemoPrefill();
+  }
+
   document.getElementById('workoutDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
   document.getElementById('workoutSecondaryActions').style.display = entry ? 'none' : 'flex';
   document.getElementById('workoutDraftClearBtn').style.display = (!entry && !prefill && draft) ? 'block' : 'none';
@@ -2639,12 +2753,13 @@ async function performWorkoutSave(){
   } else {
     sets = currentSets
       .filter(s => s.weight !== '' && s.reps !== '')
-      .map(s => ({ weight: Number(s.weight), reps: Number(s.reps), category: s.category || 'medium' }));
+      .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }));
     if (!sets.length){
       showToast('セットを1つ以上入力してください');
       return { ok: false };
     }
   }
+  const memo = document.getElementById('workoutMemo').value.trim();
   const match = exercises.find(ex => ex.name === exerciseName);
   const finalBodyPart = match ? match.bodyPart : bodyPart;
   try{
@@ -2652,6 +2767,8 @@ async function performWorkoutSave(){
       date, exerciseName,
       bodyPart: finalBodyPart,
       cue: match ? (match.cue || '') : '',
+      category: isCardio ? null : currentEntryCategory,
+      memo,
       sets,
       cardioSegments,
       updatedAt: serverTimestamp()
@@ -2663,7 +2780,7 @@ async function performWorkoutSave(){
       await addDoc(collection(db, 'users', user.uid, 'workoutLogs'), { ...data, createdAt: serverTimestamp() });
       clearWorkoutDraft();
     }
-    return { ok: true, date, bodyPart: finalBodyPart, exerciseName };
+    return { ok: true, date, bodyPart: finalBodyPart, exerciseName, category: data.category };
   }catch(err){
     console.error(err);
     showToast('保存に失敗しました: ' + err.message);
@@ -2691,7 +2808,7 @@ document.getElementById('workoutSaveContinueBtn').addEventListener('click', asyn
   if (result.ok){
     closeModal('workoutModal');
     showToast('保存しました。続けて記録できます');
-    openWorkoutModal(null, { date: result.date, bodyPart: result.bodyPart, exerciseName: result.exerciseName });
+    openWorkoutModal(null, { date: result.date, bodyPart: result.bodyPart, exerciseName: result.exerciseName, category: result.category });
   }
 });
 
@@ -2922,8 +3039,12 @@ function openDayDetail(dateStr){
     return `
       <div class="list-item" data-id="${l.id}">
         <div>
-          <div class="main-val">${escapeHtml(l.exerciseName)}</div>
+          <div class="main-val-row">
+            <span class="main-val">${escapeHtml(l.exerciseName)}</span>
+            ${categoryBadgeHtml(l)}
+          </div>
           <div class="note">${escapeHtml(formatLogSummary(l))}</div>
+          ${l.memo ? `<div class="note">📝 ${escapeHtml(l.memo)}</div>` : ''}
           ${rec ? badgeHtml(rec) : ''}
         </div>
       </div>
