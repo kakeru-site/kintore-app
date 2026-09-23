@@ -107,6 +107,12 @@
     outline:none;
     border-color:var(--red);
   }
+  /* iOS Safariのinput[type=date]は指定したwidthを無視して枠からはみ出すことがあるため、
+     width:1px + min-width:100% のテクニックで強制的にコンテナ幅に収める */
+  .field input[type="date"]{
+    width:1px;
+    min-width:100%;
+  }
   .btn{
     display:inline-flex;
     align-items:center;
@@ -136,11 +142,12 @@
   #appScreen{display:none; min-height:100%; flex-direction:column; max-width:100%; overflow-x:hidden;}
   #appScreen.active{display:flex;}
   header.appbar{
-    height:var(--header-h);
+    min-height:var(--header-h);
     display:flex;
     align-items:center;
     justify-content:space-between;
     padding:0 16px;
+    padding-top:env(safe-area-inset-top);
     border-bottom:1px solid var(--border);
     position:sticky; top:0; z-index:10;
     background:rgba(12,12,14,0.92);
@@ -163,7 +170,7 @@
     overflow-y:auto;
     overflow-x:hidden;
     max-width:100%;
-    padding:16px 16px calc(var(--tabbar-h) + 90px) 16px;
+    padding:16px 16px calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 24px) 16px;
   }
   .section{display:none;}
   .section.active{display:block;}
