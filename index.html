@@ -341,6 +341,15 @@
     background:var(--green-dim); border:1px solid var(--green); border-radius:20px;
     padding:5px 10px;
   }
+  .pr-suggest{
+    background:var(--cyan-dim); border:1px solid var(--cyan); border-radius:var(--radius-sm);
+    padding:10px 12px; margin-bottom:10px; font-size:12.5px; color:var(--text); line-height:1.7;
+  }
+  .pr-suggest b{ color:var(--cyan); }
+  .stats-link-btn{
+    display:block; width:100%; background:none; border:1px dashed var(--border); color:var(--text-dim);
+    border-radius:var(--radius-sm); padding:8px; font-size:12px; font-weight:600; cursor:pointer; margin-bottom:10px;
+  }
 
   /* ---------- 記録の強度（MAX挑戦・高重量・中重量）選択 ---------- */
   .entry-cat-row{ display:flex; gap:8px; }
@@ -352,6 +361,61 @@
   .entry-cat-chip.active[data-cat="heavy"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
   .entry-cat-chip.active[data-cat="medium"]{ background:var(--cyan-dim); border-color:var(--cyan); color:var(--cyan); }
   .memo-hint-note{ font-size:11px; color:var(--text-faint); margin-top:5px; }
+
+  /* ---------- 種目一覧：推移グラフへのショートカット ---------- */
+  .stats-icon-btn{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    width:34px; height:34px; border-radius:50%; font-size:14px; cursor:pointer; flex-shrink:0;
+  }
+
+  /* ---------- 継続後押し：ストリーク・週間目標カード ---------- */
+  .streak-card{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:14px; margin-bottom:12px;
+  }
+  .streak-card:empty{ display:none; }
+  .streak-stat{ display:flex; flex-direction:column; gap:2px; }
+  .streak-stat .streak-num{ font-family:'Oswald',sans-serif; font-size:20px; font-weight:700; }
+  .streak-stat .streak-label{ font-size:10.5px; color:var(--text-faint); }
+  .streak-goal-edit-btn{
+    font-size:11px; color:var(--text-faint); background:none; border:none; text-decoration:underline; cursor:pointer;
+  }
+  .streak-week-progress{ flex:1; max-width:120px; }
+  .streak-week-bar{ height:6px; background:var(--surface-2); border-radius:4px; overflow:hidden; margin-top:4px; }
+  .streak-week-bar-fill{ height:100%; background:var(--green); border-radius:4px; }
+
+  .workout-quick-actions{ margin-bottom:12px; }
+  .workout-quick-actions .btn{ width:100%; }
+
+  /* ---------- ルーティン ---------- */
+  .routine-progress-banner{
+    background:var(--cyan-dim); border:1px solid var(--cyan); color:var(--cyan);
+    border-radius:var(--radius-sm); padding:9px 12px; font-size:12.5px; font-weight:600;
+    margin-bottom:16px;
+  }
+  .routine-item-actions{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .btn-sm{ padding:8px 14px; font-size:12.5px; }
+  .btn-icon-sm{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    width:32px; height:32px; border-radius:50%; font-size:13px; cursor:pointer; flex-shrink:0;
+  }
+  .routine-picker{ display:flex; flex-wrap:wrap; gap:6px; max-height:180px; overflow-y:auto; padding:2px; }
+  .routine-picker-chip{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:20px; padding:7px 12px; font-size:12px; font-weight:600; cursor:pointer;
+  }
+  .routine-picker-chip.selected{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
+  .routine-selected-row{
+    display:flex; align-items:center; gap:8px; padding:8px 4px; border-bottom:1px solid var(--border); font-size:13px;
+  }
+  .routine-selected-row:last-child{ border-bottom:none; }
+  .routine-selected-idx{ color:var(--text-faint); font-family:'Oswald',sans-serif; font-size:12px; width:18px; flex-shrink:0; }
+  .routine-selected-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .routine-selected-row button{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    width:26px; height:26px; border-radius:50%; font-size:11px; cursor:pointer; flex-shrink:0;
+  }
 
   /* ---------- Tab bar ---------- */
   .tabbar{
@@ -438,6 +502,8 @@
     align-items:flex-end;
   }
   .modal-overlay.active{display:flex;}
+  /* 記録モーダルの中から開くことがあるため、通常のモーダルより手前に重ねて表示する */
+  #exerciseStatsModal{ z-index:60; }
   .modal-box{
     width:100%;
     max-width:100%;
@@ -756,6 +822,12 @@
     <section class="section" id="section-workout">
       <div class="section-title">トレーニング記録</div>
 
+      <div class="streak-card" id="streakCard"></div>
+
+      <div class="workout-quick-actions">
+        <button type="button" class="btn btn-ghost" id="openRoutineListBtn">📋 ルーティンで記録</button>
+      </div>
+
       <div class="search-wrap">
         <input type="text" id="workoutSearchInput" class="search-input" placeholder="種目名で検索（例: ベンチプレス）" autocomplete="off">
         <button type="button" id="workoutSearchClearBtn" class="search-clear-btn" aria-label="検索をクリア">✕</button>
@@ -1033,6 +1105,78 @@
   </div>
 </div>
 
+<!-- 種目別の推移（推定1RM）モーダル -->
+<div class="modal-overlay" id="exerciseStatsModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="exerciseStatsTitle">種目の推移</h2>
+      <button class="modal-close" data-close="exerciseStatsModal">×</button>
+    </div>
+    <div class="chart-wrap"><canvas id="exerciseStatsChart"></canvas></div>
+    <div id="exerciseStatsSummary"></div>
+  </div>
+</div>
+
+<!-- ルーティン一覧モーダル -->
+<div class="modal-overlay" id="routineListModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>ルーティン</h2>
+      <button class="modal-close" data-close="routineListModal">×</button>
+    </div>
+    <div id="routineListWrap"></div>
+    <button type="button" class="btn btn-ghost" id="routineAddNewBtn" style="width:100%; margin-top:10px;">＋ 新規ルーティンを作成</button>
+  </div>
+</div>
+
+<!-- ルーティン 追加/編集モーダル -->
+<div class="modal-overlay" id="routineEditModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="routineEditModalTitle">ルーティンを作成</h2>
+      <button class="modal-close" data-close="routineEditModal">×</button>
+    </div>
+    <form id="routineEditForm">
+      <input type="hidden" id="routineDocId">
+      <div class="field">
+        <label for="routineNameInput">ルーティン名</label>
+        <input type="text" id="routineNameInput" placeholder="例: Push Day A" required>
+      </div>
+      <div class="field">
+        <label>種目（タップした順番で登録されます）</label>
+        <div id="routineExercisePicker" class="routine-picker"></div>
+      </div>
+      <div class="field">
+        <label>登録順 <span class="field-hint">（×で削除、↑↓で並べ替え）</span></label>
+        <div id="routineSelectedList"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="routineDeleteBtn" style="display:none;">削除</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 週間目標 モーダル -->
+<div class="modal-overlay" id="weeklyGoalModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>週の目標回数</h2>
+      <button class="modal-close" data-close="weeklyGoalModal">×</button>
+    </div>
+    <form id="weeklyGoalForm">
+      <div class="field">
+        <label for="weeklyGoalValue">週に何回トレーニングしたいですか？</label>
+        <input type="number" id="weeklyGoalValue" step="1" min="1" max="14" inputmode="numeric" required>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- トレ記録 追加/編集モーダル -->
 <div class="modal-overlay" id="workoutModal">
   <div class="modal-box">
@@ -1042,6 +1186,7 @@
     </div>
     <form id="workoutForm">
       <input type="hidden" id="workoutDocId">
+      <div class="routine-progress-banner" id="routineProgressBanner" style="display:none;"></div>
       <div class="field">
         <label for="workoutDate">日付</label>
         <input type="date" id="workoutDate" required>
@@ -1312,10 +1457,19 @@ function escapeHtml(str){
 function openModal(id){ document.getElementById(id).classList.add('active'); }
 function closeModal(id){ document.getElementById(id).classList.remove('active'); }
 document.querySelectorAll('[data-close]').forEach(btn=>{
-  btn.addEventListener('click', ()=> closeModal(btn.dataset.close));
+  btn.addEventListener('click', ()=>{
+    // ルーティン実行中に記録モーダルを閉じたら、ルーティンは中断扱いにする
+    if (btn.dataset.close === 'workoutModal' && activeRoutine) cancelRoutine();
+    closeModal(btn.dataset.close);
+  });
 });
 document.querySelectorAll('.modal-overlay').forEach(ov=>{
-  ov.addEventListener('click', (e)=>{ if(e.target === ov) ov.classList.remove('active'); });
+  ov.addEventListener('click', (e)=>{
+    if (e.target === ov){
+      if (ov.id === 'workoutModal' && activeRoutine) cancelRoutine();
+      ov.classList.remove('active');
+    }
+  });
 });
 
 let confirmCallback = null;
@@ -1357,12 +1511,16 @@ document.getElementById('fabBtn').addEventListener('click', ()=>{
     const preset = (currentBPFilter && currentBPFilter !== 'その他') ? currentBPFilter : '';
     openExerciseModal(null, preset);
   }
-  else if (activeSection === 'workout') openWorkoutModal(null);
+  else if (activeSection === 'workout'){
+    if (activeRoutine) cancelRoutine(); // FABから別の記録を始めたら、実行中のルーティンは中断扱いにする
+    openWorkoutModal(null);
+  }
 });
 
 document.getElementById('quickJumpToTimerBtn').addEventListener('click', ()=> switchToSection('timer'));
 document.getElementById('quickJumpToWorkoutBtn').addEventListener('click', ()=>{
   switchToSection('workout');
+  if (activeRoutine) cancelRoutine();
   openWorkoutModal(null);
 });
 
@@ -1536,7 +1694,7 @@ document.getElementById('lockPasswordFallbackBtn').addEventListener('click', asy
   catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
 });
 
-let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null, unsubTrainingDuration = null;
+let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null, unsubTrainingDuration = null, unsubRoutines = null, unsubWeeklyGoal = null;
 
 onAuthStateChanged(auth, (user)=>{
   if (user){
@@ -1563,6 +1721,8 @@ onAuthStateChanged(auth, (user)=>{
     if (unsubBig3Target) unsubBig3Target();
     if (unsubBig3LiftTargets) unsubBig3LiftTargets();
     if (unsubTrainingDuration) unsubTrainingDuration();
+    if (unsubRoutines) unsubRoutines();
+    if (unsubWeeklyGoal) unsubWeeklyGoal();
   }
 });
 
@@ -1615,6 +1775,7 @@ function startListeners(uid){
     renderCalendar();
     renderBig3();
     renderBodyPartBalance();
+    renderStreakCard();
   }, (err)=>{
     console.error(err);
     showToast('トレーニング記録の読み込みに失敗しました: ' + err.message);
@@ -1662,6 +1823,24 @@ function startListeners(uid){
   }, (err)=>{
     console.error(err);
     showToast('BIG3種目別目標の読み込みに失敗しました: ' + err.message);
+  });
+
+  const routinesCol = collection(db, 'users', uid, 'routines');
+  unsubRoutines = onSnapshot(routinesCol, (snap)=>{
+    routines = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a,b)=> (a.name||'').localeCompare(b.name||'', 'ja'));
+    renderRoutineList();
+  }, (err)=>{
+    console.error(err);
+    showToast('ルーティンの読み込みに失敗しました: ' + err.message);
+  });
+
+  const weeklyGoalRef = doc(db, 'users', uid, 'settings', 'weeklyGoal');
+  unsubWeeklyGoal = onSnapshot(weeklyGoalRef, (snap)=>{
+    weeklyGoalSessions = snap.exists() && snap.data().value ? Number(snap.data().value) : null;
+    renderStreakCard();
+  }, (err)=>{
+    console.error(err);
   });
 }
 
@@ -1873,12 +2052,19 @@ function renderExerciseList(){
         <div class="main-val" style="margin-top:4px;">${escapeHtml(e.name)}</div>
         ${e.cue ? `<div class="note">${escapeHtml(e.cue)}</div>` : ''}
       </div>
+      <button type="button" class="stats-icon-btn" data-stats-name="${escapeHtml(e.name)}" aria-label="推移を見る">📈</button>
     </div>
   `).join('');
   wrap.querySelectorAll('.list-item').forEach(row=>{
     row.addEventListener('click', ()=>{
       const ex = exercises.find(x=>x.id===row.dataset.id);
       openExerciseModal(ex);
+    });
+  });
+  wrap.querySelectorAll('.stats-icon-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openExerciseStatsModal(btn.dataset.statsName);
     });
   });
 }
@@ -1939,6 +2125,11 @@ document.getElementById('exerciseDeleteBtn').addEventListener('click', ()=>{
    ========================================================= */
 let workoutLogs = [];
 let trainingDurations = {}; // { 'YYYY-MM-DD': 秒数 } ストップウォッチから記録したその日のトレーニング時間
+let routines = [];
+let weeklyGoalSessions = null;
+let exerciseStatsChartInstance = null;
+let activeRoutine = null;
+let activeRoutineIndex = 0;
 
 function recordedAtMs(l){
   const ts = l.createdAt || l.updatedAt;
@@ -2035,6 +2226,77 @@ function workoutBodyPartSortIndex(bp){
   const i = WORKOUT_BODY_PART_ORDER.indexOf(bp);
   return i === -1 ? 999 : i;
 }
+
+/* ---------- 継続後押し：連続週数ストリーク・週間目標 ---------- */
+function computeWeekStreak(){
+  if (!workoutLogs.length) return 0;
+  const weekKeys = new Set(workoutLogs.map(l => toYmd(mondayOfWeek(l.date))));
+  let cursor = mondayOfWeek(todayStr());
+  // 今週はまだこれからなので、今週の記録が無くても先週までの連続は途切れさせない
+  if (!weekKeys.has(toYmd(cursor))) cursor.setDate(cursor.getDate() - 7);
+  let streak = 0;
+  while (weekKeys.has(toYmd(cursor))){
+    streak++;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+  return streak;
+}
+function currentWeekSessionCount(){
+  const mon = mondayOfWeek(todayStr());
+  const monStr = toYmd(mon);
+  const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+  const sunStr = toYmd(sun);
+  const dates = new Set(workoutLogs.filter(l => l.date >= monStr && l.date <= sunStr).map(l => l.date));
+  return dates.size;
+}
+function renderStreakCard(){
+  const el = document.getElementById('streakCard');
+  if (!el) return;
+  const streak = computeWeekStreak();
+  const weekCount = currentWeekSessionCount();
+  let html = `
+    <div class="streak-stat">
+      <span class="streak-num">🔥 ${streak}週</span>
+      <span class="streak-label">連続トレーニング</span>
+    </div>
+  `;
+  if (weeklyGoalSessions){
+    const pct = Math.min(100, Math.round((weekCount / weeklyGoalSessions) * 100));
+    html += `
+      <div class="streak-week-progress">
+        <span class="streak-label">今週 ${weekCount}/${weeklyGoalSessions}回<button type="button" class="streak-goal-edit-btn" id="streakGoalEditBtn">編集</button></span>
+        <div class="streak-week-bar"><div class="streak-week-bar-fill" style="width:${pct}%;"></div></div>
+      </div>
+    `;
+  } else {
+    html += `<button type="button" class="streak-goal-edit-btn" id="streakGoalEditBtn">週の目標回数を設定</button>`;
+  }
+  el.innerHTML = html;
+  const editBtn = document.getElementById('streakGoalEditBtn');
+  if (editBtn) editBtn.addEventListener('click', ()=>{
+    document.getElementById('weeklyGoalValue').value = weeklyGoalSessions || '';
+    openModal('weeklyGoalModal');
+  });
+}
+
+document.getElementById('weeklyGoalForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const value = parseInt(document.getElementById('weeklyGoalValue').value, 10);
+  if (!value || value < 1){
+    showToast('週の目標回数を正しく入力してください');
+    return;
+  }
+  try{
+    const ref = doc(db, 'users', user.uid, 'settings', 'weeklyGoal');
+    await setDoc(ref, { value, updatedAt: serverTimestamp() }, { merge: true });
+    closeModal('weeklyGoalModal');
+  }catch(err){
+    console.error(err);
+    showToast('週の目標回数の保存に失敗しました: ' + err.message);
+  }
+});
 
 function groupWorkoutLogs(logs, mode){
   const map = new Map();
@@ -2437,6 +2699,129 @@ function getBestRecordsByCategory(exerciseName, excludeId){
   return result;
 }
 
+/* Epley式で推定1RMを計算する（強度をまたいで成長を1本の指標で比較するため） */
+function estimate1RM(weight, reps){
+  const w = Number(weight) || 0, r = Number(reps) || 0;
+  if (!w || r <= 0) return 0;
+  if (r === 1) return w;
+  return w * (1 + r / 30);
+}
+function logBest1RM(l){
+  return (l.sets || []).reduce((mx, s) => Math.max(mx, estimate1RM(s.weight, s.reps)), 0);
+}
+function getBest1RMByCategory(exerciseName, excludeId){
+  const result = { max: 0, heavy: 0, medium: 0 };
+  workoutLogs.forEach(l=>{
+    if (l.exerciseName !== exerciseName || l.id === excludeId || isCardioLog(l)) return;
+    const cat = logCategory(l);
+    (l.sets || []).forEach(s=>{
+      const rm = estimate1RM(s.weight, s.reps);
+      if (rm > result[cat]) result[cat] = rm;
+    });
+  });
+  return result;
+}
+
+/* プログレッシブオーバーロードの土台：その種目・強度の「直近の記録」を見て、
+   ダブルプログレッション方式（回数の上限に届いたら重量を上げる、届いていなければ回数を増やす）で
+   次回の目標を1つ提案する。MAX挑戦は常に少しずつ重量更新を狙う前提にしている。 */
+const CATEGORY_REP_TARGET = {
+  max: { min: 1, max: 1 },
+  heavy: { min: 4, max: 6 },
+  medium: { min: 8, max: 12 }
+};
+const PROGRESSION_WEIGHT_STEP = 2.5;
+function suggestNextTarget(exerciseName, cat){
+  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && !isCardioLog(l) && logCategory(l) === cat);
+  if (!logs.length) return null;
+  logs.sort((a,b)=>{
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return recordedAtMs(b) - recordedAtMs(a);
+  });
+  const lastSets = (logs[0].sets || []).map(s => ({ weight: Number(s.weight) || 0, reps: Number(s.reps) || 0 }));
+  if (!lastSets.length) return null;
+  const topWeight = Math.max(...lastSets.map(s => s.weight));
+  const minRepsAtTopWeight = Math.min(...lastSets.filter(s => s.weight === topWeight).map(s => s.reps));
+
+  if (cat === 'max'){
+    const nextWeight = +(topWeight + PROGRESSION_WEIGHT_STEP).toFixed(1);
+    return `前回 ${topWeight}kg×${minRepsAtTopWeight}回。次は ${nextWeight}kg×1 に挑戦してみましょう`;
+  }
+  const range = CATEGORY_REP_TARGET[cat];
+  if (minRepsAtTopWeight >= range.max){
+    const nextWeight = +(topWeight + PROGRESSION_WEIGHT_STEP).toFixed(1);
+    return `前回 全セットで${range.max}回に到達。次は +${PROGRESSION_WEIGHT_STEP}kg → ${nextWeight}kg×${range.min}回 を目指しましょう`;
+  }
+  return `次は ${topWeight}kg のまま +1回 → ${minRepsAtTopWeight + 1}回 を目指しましょう`;
+}
+
+/* 種目別の推移（強度ごとの推定1RM）をグラフで振り返る */
+function openExerciseStatsModal(exerciseName){
+  document.getElementById('exerciseStatsTitle').textContent = exerciseName + ' の推移';
+  const logs = workoutLogs
+    .filter(l => l.exerciseName === exerciseName && !isCardioLog(l))
+    .slice()
+    .sort((a,b)=> a.date.localeCompare(b.date) || (recordedAtMs(a) - recordedAtMs(b)));
+
+  const byCat = { max: [], heavy: [], medium: [] };
+  logs.forEach(l=>{
+    byCat[logCategory(l)].push({ date: l.date, oneRM: logBest1RM(l) });
+  });
+  const allDates = [...new Set(logs.map(l => l.date))].sort();
+  const colorMap = { max: '#ff3b3b', heavy: '#ff8c1a', medium: '#2fb8c9' };
+  const datasets = SET_CATEGORIES.map(({key, label})=>{
+    const pointsByDate = new Map(byCat[key].map(p => [p.date, p.oneRM]));
+    return {
+      label,
+      data: allDates.map(d => pointsByDate.has(d) ? +pointsByDate.get(d).toFixed(1) : null),
+      borderColor: colorMap[key],
+      backgroundColor: colorMap[key],
+      spanGaps: true,
+      tension: 0.25,
+      pointRadius: 3,
+    };
+  }).filter(ds => ds.data.some(v => v !== null));
+
+  if (exerciseStatsChartInstance){ exerciseStatsChartInstance.destroy(); exerciseStatsChartInstance = null; }
+  const summaryEl = document.getElementById('exerciseStatsSummary');
+  if (!datasets.length){
+    summaryEl.innerHTML = '<div class="empty-msg">まだ記録がありません</div>';
+  } else {
+    // Chart.jsはCDN読み込みのため、オフライン等で読み込めていない場合でもモーダル自体は開けるようにする
+    try{
+      const ctx = document.getElementById('exerciseStatsChart');
+      exerciseStatsChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels: allDates.map(d => d.slice(5)), datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#9a9aa0', font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } },
+            y: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } }
+          }
+        }
+      });
+    }catch(err){
+      console.warn('グラフの描画に失敗しました:', err);
+    }
+    const recByCat = getBestRecordsByCategory(exerciseName, null);
+    summaryEl.innerHTML = `<div class="pr-info">
+      自己ベスト
+      ${SET_CATEGORIES.map(({key, label})=>{
+        const rec = recByCat[key];
+        const body = rec.bestWeight !== null
+          ? `<b>重量</b> ${rec.bestWeight.toFixed(1)}kg ・ <b>回数</b> ${rec.bestReps}回 ・ <b>Vol</b> ${rec.bestVolume.toFixed(0)}`
+          : `<span class="pr-cat-none">記録なし</span>`;
+        return `<div class="pr-cat-row"><span class="pr-cat-label">${escapeHtml(label)}</span>${body}</div>`;
+      }).join('')}
+    </div>
+    <div class="pr-info">推定1RMは Epley式（重量 ×（1 + 回数/30））で算出した目安値です。総セッション数: <b>${logs.length}</b>回</div>`;
+  }
+  openModal('exerciseStatsModal');
+}
+
 /* 種目＋強度（カテゴリ）を指定して、その中で最もボリューム（重量×回数の合計）が高い記録＝自己ベストの記録そのものを返す。
    セット数入力欄への自動入力（訂正案 2・3）で「その強度の自己ベストの各セット」を再現するために使う */
 function findBestLogByCategory(exerciseName, cat, excludeId){
@@ -2525,16 +2910,24 @@ function updateWorkoutExerciseInfo(){
   }
   if (bodyPart !== CARDIO_BODY_PART){
     const recByCat = getBestRecordsByCategory(name, editingWorkoutId);
+    const rmByCat = getBest1RMByCategory(name, editingWorkoutId);
     html += `<div class="pr-info">
       自己ベスト
       ${SET_CATEGORIES.map(({key, label})=>{
         const rec = recByCat[key];
+        const rm = rmByCat[key];
         const body = rec.bestWeight !== null
-          ? `<b>重量</b> ${rec.bestWeight.toFixed(1)}kg ・ <b>回数</b> ${rec.bestReps}回 ・ <b>Vol</b> ${rec.bestVolume.toFixed(0)}`
+          ? `<b>重量</b> ${rec.bestWeight.toFixed(1)}kg ・ <b>回数</b> ${rec.bestReps}回 ・ <b>Vol</b> ${rec.bestVolume.toFixed(0)}` + (rm > 0 ? ` ・ <b>推定1RM</b> ${rm.toFixed(1)}kg` : '')
           : `<span class="pr-cat-none">記録なし</span>`;
         return `<div class="pr-cat-row${key === currentEntryCategory ? ' active' : ''}"><span class="pr-cat-label">${escapeHtml(label)}</span>${body}</div>`;
       }).join('')}
     </div>`;
+    if (!editingWorkoutId){
+      const suggestion = suggestNextTarget(name, currentEntryCategory);
+      if (suggestion){
+        html += `<div class="pr-suggest">🎯 <b>次回の目標</b>（${escapeHtml(setCategoryLabel(currentEntryCategory))}）<br>${escapeHtml(suggestion)}</div>`;
+      }
+    }
   } else {
     const rec = getBestCardioRecords(name, editingWorkoutId);
     html += `<div class="pr-info">
@@ -2543,7 +2936,12 @@ function updateWorkoutExerciseInfo(){
       <b>最速ペース</b> ${rec.bestSpeed !== null ? formatPace(rec.bestSpeed) + '/km（時速' + rec.bestSpeed.toFixed(1) + 'km）' : '記録なし'}
     </div>`;
   }
+  if (bodyPart !== CARDIO_BODY_PART && exercises.some(e => e.name === name)){
+    html += `<button type="button" class="stats-link-btn" id="workoutStatsLinkBtn">📈 推移を見る</button>`;
+  }
   info.innerHTML = html;
+  const statsLinkBtn = document.getElementById('workoutStatsLinkBtn');
+  if (statsLinkBtn) statsLinkBtn.addEventListener('click', ()=> openExerciseStatsModal(name));
   if (bodyPart !== CARDIO_BODY_PART) checkLivePR();
   else checkLiveCardioPR();
 }
@@ -2707,6 +3105,11 @@ function openWorkoutModal(entry, prefill){
   toggleWorkoutInputMode();
   updateWorkoutExerciseInfo();
 
+  // ルーティンで次の種目に進んだ場合は、通常の新規記録と同様に自己ベストのセットを自動入力する
+  if (prefill && prefill.autofill && !entryIsCardio && src && src.exerciseName){
+    autofillSetsFromCategory(currentEntryCategory);
+  }
+
   const memoEl = document.getElementById('workoutMemo');
   const memoHintEl = document.getElementById('workoutMemoHint');
   if (entry){
@@ -2720,6 +3123,8 @@ function openWorkoutModal(entry, prefill){
     memoHintEl.textContent = '';
     if (src && src.exerciseName) applyMemoPrefill();
   }
+
+  renderRoutineProgressBanner();
 
   document.getElementById('workoutDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
   document.getElementById('workoutSecondaryActions').style.display = entry ? 'none' : 'flex';
@@ -2790,8 +3195,13 @@ async function performWorkoutSave(){
 
 document.getElementById('workoutForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
+  const wasEditing = !!editingWorkoutId;
   const result = await performWorkoutSave();
-  if (result.ok) closeModal('workoutModal');
+  if (result.ok){
+    closeModal('workoutModal');
+    // ルーティン実行中の「保存」は、次の種目へ自動的に進む
+    if (activeRoutine && !wasEditing) advanceRoutine();
+  }
 });
 
 document.getElementById('workoutDraftSaveBtn').addEventListener('click', ()=>{
@@ -2826,6 +3236,219 @@ document.getElementById('workoutDeleteBtn').addEventListener('click', ()=>{
     }
   });
 });
+
+/* =========================================================
+   ルーティン（プログラム）機能：種目セットを名前付きテンプレートとして保存し、
+   開始すると種目を1つずつ自動で開いていく（記録の効率化＋プログレッシブオーバーロードの土台作り）
+   ========================================================= */
+function renderRoutineList(){
+  const wrap = document.getElementById('routineListWrap');
+  if (!wrap) return;
+  if (!routines.length){
+    wrap.innerHTML = '<div class="empty-msg">まだルーティンがありません</div>';
+    return;
+  }
+  wrap.innerHTML = routines.map(r => `
+    <div class="list-item routine-list-item" data-id="${r.id}">
+      <div>
+        <div class="main-val">${escapeHtml(r.name)}</div>
+        <div class="note">${escapeHtml((r.exerciseNames || []).join(' → '))}</div>
+      </div>
+      <div class="routine-item-actions">
+        <button type="button" class="btn-icon-sm" data-edit-routine="${r.id}" aria-label="編集">✎</button>
+        <button type="button" class="btn btn-primary btn-sm" data-start-routine="${r.id}">開始</button>
+      </div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-start-routine]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const r = routines.find(x => x.id === btn.dataset.startRoutine);
+      if (r) startRoutine(r);
+    });
+  });
+  wrap.querySelectorAll('[data-edit-routine]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const r = routines.find(x => x.id === btn.dataset.editRoutine);
+      if (r) openRoutineEditModal(r);
+    });
+  });
+}
+
+document.getElementById('openRoutineListBtn').addEventListener('click', ()=>{
+  openModal('routineListModal');
+});
+document.getElementById('routineAddNewBtn').addEventListener('click', ()=>{
+  closeModal('routineListModal');
+  openRoutineEditModal(null);
+});
+
+let routineSelectedNames = [];
+function renderRoutinePicker(){
+  const wrap = document.getElementById('routineExercisePicker');
+  const strengthExercises = exercises.filter(e => e.bodyPart !== CARDIO_BODY_PART);
+  if (!strengthExercises.length){
+    wrap.innerHTML = '<div class="empty-msg">先に「種目」タブから種目を登録してください</div>';
+    return;
+  }
+  wrap.innerHTML = strengthExercises.map(e => `
+    <button type="button" class="routine-picker-chip${routineSelectedNames.includes(e.name) ? ' selected' : ''}" data-name="${escapeHtml(e.name)}">${escapeHtml(e.name)}</button>
+  `).join('');
+  wrap.querySelectorAll('.routine-picker-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const name = chip.dataset.name;
+      const idx = routineSelectedNames.indexOf(name);
+      if (idx === -1) routineSelectedNames.push(name);
+      else routineSelectedNames.splice(idx, 1);
+      renderRoutinePicker();
+      renderRoutineSelectedList();
+    });
+  });
+}
+function renderRoutineSelectedList(){
+  const wrap = document.getElementById('routineSelectedList');
+  if (!routineSelectedNames.length){
+    wrap.innerHTML = '<div class="empty-msg">上の一覧から種目をタップして追加してください</div>';
+    return;
+  }
+  wrap.innerHTML = routineSelectedNames.map((name, i) => `
+    <div class="routine-selected-row">
+      <span class="routine-selected-idx">${i + 1}</span>
+      <span class="routine-selected-name">${escapeHtml(name)}</span>
+      <button type="button" data-move-up="${i}" ${i === 0 ? 'disabled' : ''}>↑</button>
+      <button type="button" data-move-down="${i}" ${i === routineSelectedNames.length - 1 ? 'disabled' : ''}>↓</button>
+      <button type="button" data-remove-idx="${i}">×</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-move-up]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = +btn.dataset.moveUp;
+      [routineSelectedNames[i-1], routineSelectedNames[i]] = [routineSelectedNames[i], routineSelectedNames[i-1]];
+      renderRoutineSelectedList();
+    });
+  });
+  wrap.querySelectorAll('[data-move-down]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = +btn.dataset.moveDown;
+      [routineSelectedNames[i+1], routineSelectedNames[i]] = [routineSelectedNames[i], routineSelectedNames[i+1]];
+      renderRoutineSelectedList();
+    });
+  });
+  wrap.querySelectorAll('[data-remove-idx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      routineSelectedNames.splice(+btn.dataset.removeIdx, 1);
+      renderRoutinePicker();
+      renderRoutineSelectedList();
+    });
+  });
+}
+
+function openRoutineEditModal(routine){
+  document.getElementById('routineEditModalTitle').textContent = routine ? 'ルーティンを編集' : 'ルーティンを作成';
+  document.getElementById('routineDocId').value = routine ? routine.id : '';
+  document.getElementById('routineNameInput').value = routine ? routine.name : '';
+  routineSelectedNames = routine ? (routine.exerciseNames || []).slice() : [];
+  renderRoutinePicker();
+  renderRoutineSelectedList();
+  document.getElementById('routineDeleteBtn').style.display = routine ? 'inline-flex' : 'none';
+  openModal('routineEditModal');
+}
+
+document.getElementById('routineEditForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const name = document.getElementById('routineNameInput').value.trim();
+  if (!name){
+    showToast('ルーティン名を入力してください');
+    return;
+  }
+  if (!routineSelectedNames.length){
+    showToast('種目を1つ以上選んでください');
+    return;
+  }
+  const id = document.getElementById('routineDocId').value;
+  try{
+    const data = { name, exerciseNames: routineSelectedNames.slice(), updatedAt: serverTimestamp() };
+    if (id){
+      await setDoc(doc(db, 'users', user.uid, 'routines', id), data, { merge: true });
+    } else {
+      await addDoc(collection(db, 'users', user.uid, 'routines'), { ...data, createdAt: serverTimestamp() });
+    }
+    closeModal('routineEditModal');
+  }catch(err){
+    console.error(err);
+    showToast('ルーティンの保存に失敗しました: ' + err.message);
+  }
+});
+
+document.getElementById('routineDeleteBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('routineDocId').value;
+  if (!id) return;
+  askConfirm('このルーティンを削除しますか？', async ()=>{
+    const user = auth.currentUser;
+    try{
+      await deleteDoc(doc(db, 'users', user.uid, 'routines', id));
+      closeModal('routineEditModal');
+    }catch(err){
+      console.error(err);
+      showToast('削除に失敗しました: ' + err.message);
+    }
+  });
+});
+
+/* ---- ルーティンの実行（種目を1つずつ自動で開いていく） ---- */
+function renderRoutineProgressBanner(){
+  const el = document.getElementById('routineProgressBanner');
+  if (!el) return;
+  if (!activeRoutine){
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  const total = activeRoutine.exerciseNames.length;
+  const current = activeRoutineIndex + 1;
+  const next = activeRoutine.exerciseNames[activeRoutineIndex + 1];
+  el.style.display = 'block';
+  el.textContent = `📋 ${activeRoutine.name}（${current}/${total}）` + (next ? ` ・ 次は「${next}」` : ' ・ 最後の種目です');
+}
+
+function startRoutine(routine){
+  if (!routine.exerciseNames || !routine.exerciseNames.length){
+    showToast('このルーティンには種目が登録されていません');
+    return;
+  }
+  activeRoutine = routine;
+  activeRoutineIndex = 0;
+  closeModal('routineListModal');
+  openRoutineStep();
+}
+
+function cancelRoutine(){
+  if (!activeRoutine) return;
+  activeRoutine = null;
+  activeRoutineIndex = 0;
+  showToast('ルーティンを中断しました');
+}
+
+function openRoutineStep(){
+  const name = activeRoutine.exerciseNames[activeRoutineIndex];
+  const ex = exercises.find(e => e.name === name);
+  const bodyPart = ex ? ex.bodyPart : '';
+  openWorkoutModal(null, { date: todayStr(), bodyPart, exerciseName: name, autofill: true });
+}
+
+function advanceRoutine(){
+  if (!activeRoutine) return;
+  activeRoutineIndex++;
+  if (activeRoutineIndex >= activeRoutine.exerciseNames.length){
+    const finishedName = activeRoutine.name;
+    activeRoutine = null;
+    activeRoutineIndex = 0;
+    showToast(`🎉「${finishedName}」お疲れ様でした！`);
+  } else {
+    openRoutineStep();
+  }
+}
 
 /* ---- 過去の自己ベスト（重量・回数・ボリューム）の集計 ---- */
 function computeSessionRecords(){
