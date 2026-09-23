@@ -280,7 +280,7 @@
   /* ---------- Tab bar ---------- */
   .tabbar{
     position:fixed; left:0; right:0; bottom:0;
-    height:var(--tabbar-h);
+    height:calc(var(--tabbar-h) + env(safe-area-inset-bottom));
     display:flex;
     background:var(--bg-elevated);
     border-top:1px solid var(--border);
