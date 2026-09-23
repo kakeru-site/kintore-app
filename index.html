@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>筋トレ管理</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0c0c0e">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MUSCLE LOG">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
@@ -398,8 +405,10 @@
     font-family:'Oswald',sans-serif; font-size:15px; font-weight:600; margin-bottom:12px;
   }
   .big3-chart{ height:180px; }
-  .big3-title-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .big3-title-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; }
   .big3-title-row .big3-title{ margin-bottom:0; }
+  .big3-title-actions{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
+  .big3-title-actions .edit-target-btn{ margin-top:0; white-space:nowrap; }
   .big3-add-btn{
     font-size:11px; font-weight:700; color:var(--red); background:var(--surface-2);
     border:1px solid var(--red-dim); border-radius:20px; padding:5px 10px; cursor:pointer; white-space:nowrap; flex-shrink:0;
@@ -460,6 +469,12 @@
   .timer-btn.start{ background:var(--green-dim); color:var(--green); border:2px solid var(--green); }
   .timer-btn.reset{ background:var(--surface); color:var(--text-dim); border:1px solid var(--border); }
   .timer-btn.lap{ background:var(--surface-2); color:var(--text-dim); border:1px solid var(--border); }
+  .timer-presets{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:16px; }
+  .preset-btn{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:20px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer;
+  }
+  .preset-btn.active{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
   .timer-set{ display:flex; gap:10px; justify-content:center; align-items:center; margin-bottom:10px; color:var(--text-dim); font-size:13px; }
   .timer-set input{
     width:64px; text-align:center; background:var(--surface); border:1px solid var(--border);
@@ -611,6 +626,13 @@
 
     <!-- ⑥ ジムカレンダー -->
     <section class="section" id="section-calendar">
+      <div class="card">
+        <div class="section-title" style="margin-bottom:10px;"><span>部位バランス（直近60日）</span></div>
+        <div class="chart-wrap" id="bodyPartBalanceWrap">
+          <canvas id="bodyPartBalanceChart"></canvas>
+        </div>
+        <div class="empty-msg" id="bodyPartBalanceEmpty" style="display:none;">直近60日の記録がありません</div>
+      </div>
       <div class="cal-header">
         <button id="calPrevBtn">‹</button>
         <span class="cal-label" id="calLabel"></span>
@@ -658,7 +680,10 @@
       <div class="card">
         <div class="big3-title-row">
           <div class="big3-title">🏋️ スクワット</div>
-          <button type="button" class="big3-add-btn" data-lift="squat">＋記録を追加</button>
+          <div class="big3-title-actions">
+            <button type="button" class="edit-target-btn" data-lift-target="squat">目標を編集</button>
+            <button type="button" class="big3-add-btn" data-lift="squat">＋記録を追加</button>
+          </div>
         </div>
         <div class="summary-row" id="big3StatsSquat"></div>
         <div class="chart-wrap big3-chart"><canvas id="big3ChartSquat"></canvas></div>
@@ -667,7 +692,10 @@
       <div class="card">
         <div class="big3-title-row">
           <div class="big3-title">🏋️ ベンチプレス</div>
-          <button type="button" class="big3-add-btn" data-lift="bench">＋記録を追加</button>
+          <div class="big3-title-actions">
+            <button type="button" class="edit-target-btn" data-lift-target="bench">目標を編集</button>
+            <button type="button" class="big3-add-btn" data-lift="bench">＋記録を追加</button>
+          </div>
         </div>
         <div class="summary-row" id="big3StatsBench"></div>
         <div class="chart-wrap big3-chart"><canvas id="big3ChartBench"></canvas></div>
@@ -676,7 +704,10 @@
       <div class="card">
         <div class="big3-title-row">
           <div class="big3-title">🏋️ デッドリフト</div>
-          <button type="button" class="big3-add-btn" data-lift="deadlift">＋記録を追加</button>
+          <div class="big3-title-actions">
+            <button type="button" class="edit-target-btn" data-lift-target="deadlift">目標を編集</button>
+            <button type="button" class="big3-add-btn" data-lift="deadlift">＋記録を追加</button>
+          </div>
         </div>
         <div class="summary-row" id="big3StatsDeadlift"></div>
         <div class="chart-wrap big3-chart"><canvas id="big3ChartDeadlift"></canvas></div>
@@ -705,6 +736,13 @@
       </div>
 
       <div id="timerPanel" style="display:none;">
+        <div class="timer-presets">
+          <button type="button" class="preset-btn" data-sec="30">30秒</button>
+          <button type="button" class="preset-btn" data-sec="60">60秒</button>
+          <button type="button" class="preset-btn" data-sec="90">90秒</button>
+          <button type="button" class="preset-btn" data-sec="120">120秒</button>
+          <button type="button" class="preset-btn" data-sec="180">180秒</button>
+        </div>
         <div class="timer-set">
           <input type="number" id="timerMinInput" min="0" max="99" value="1"> 分
           <input type="number" id="timerSecInput" min="0" max="59" value="0"> 秒
@@ -908,17 +946,18 @@
   </div>
 </div>
 
-<!-- BIG3 目標合計 モーダル -->
+<!-- BIG3 目標（合計／種目別）モーダル -->
 <div class="modal-overlay" id="big3TargetModal">
   <div class="modal-box">
     <div class="modal-header">
-      <h2>BIG3 目標合計</h2>
+      <h2 id="big3TargetModalTitle">BIG3 目標合計</h2>
       <button class="modal-close" data-close="big3TargetModal">×</button>
     </div>
     <form id="big3TargetForm">
+      <input type="hidden" id="big3TargetScope" value="total">
       <div class="field">
-        <label for="big3TargetValue">目標合計 (kg・任意)</label>
-        <input type="number" id="big3TargetValue" step="1" inputmode="decimal" placeholder="例: 300">
+        <label for="big3TargetValue" id="big3TargetLabel">目標合計 (kg・任意)</label>
+        <input type="number" id="big3TargetValue" step="0.5" inputmode="decimal" placeholder="例: 300">
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="big3TargetClearBtn">目標をクリア</button>
@@ -1033,12 +1072,27 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot,
-  query, orderBy, serverTimestamp
+  query, orderBy, serverTimestamp, enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// 電波が悪い場所でも直近のデータを見られるよう、Firestoreのオフラインキャッシュを有効化。
+// 複数タブを同時に開いている場合など一部環境では失敗することがあるが、その場合は通常通りオンライン専用で動作する。
+enableIndexedDbPersistence(db).catch((err)=>{
+  console.warn('Firestoreのオフライン永続化を有効化できませんでした:', err.code || err);
+});
+
+// PWA化：service workerを登録し、ホーム画面追加・オフライン起動に対応
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch((err)=>{
+      console.warn('service workerの登録に失敗しました:', err);
+    });
+  });
+}
 
 /* ---------- 共通ユーティリティ ---------- */
 function showToast(message){
@@ -1271,7 +1325,7 @@ document.getElementById('lockPasswordFallbackBtn').addEventListener('click', asy
   catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
 });
 
-let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null;
+let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null;
 
 onAuthStateChanged(auth, (user)=>{
   if (user){
@@ -1296,6 +1350,7 @@ onAuthStateChanged(auth, (user)=>{
     if (unsubWorkoutLogs) unsubWorkoutLogs();
     if (unsubBig3Manual) unsubBig3Manual();
     if (unsubBig3Target) unsubBig3Target();
+    if (unsubBig3LiftTargets) unsubBig3LiftTargets();
   }
 });
 
@@ -1342,6 +1397,7 @@ function startListeners(uid){
     renderWorkoutList();
     renderCalendar();
     renderBig3();
+    renderBodyPartBalance();
   }, (err)=>{
     console.error(err);
     showToast('トレーニング記録の読み込みに失敗しました: ' + err.message);
@@ -1363,6 +1419,20 @@ function startListeners(uid){
   }, (err)=>{
     console.error(err);
     showToast('BIG3目標の読み込みに失敗しました: ' + err.message);
+  });
+
+  const big3LiftTargetsRef = doc(db, 'users', uid, 'settings', 'big3LiftTargets');
+  unsubBig3LiftTargets = onSnapshot(big3LiftTargetsRef, (snap)=>{
+    const d = snap.exists() ? snap.data() : {};
+    big3LiftTargets = {
+      squat: (d.squat !== undefined && d.squat !== null) ? Number(d.squat) : null,
+      bench: (d.bench !== undefined && d.bench !== null) ? Number(d.bench) : null,
+      deadlift: (d.deadlift !== undefined && d.deadlift !== null) ? Number(d.deadlift) : null,
+    };
+    renderBig3();
+  }, (err)=>{
+    console.error(err);
+    showToast('BIG3種目別目標の読み込みに失敗しました: ' + err.message);
   });
 }
 
@@ -2122,6 +2192,57 @@ document.getElementById('calNextBtn').addEventListener('click', ()=>{
   renderCalendar();
 });
 
+/* ---------- 部位バランス（直近60日の円グラフ） ---------- */
+const BODY_PART_COLORS = {
+  '胸': '#ff3b3b', '背中': '#ff8c1a', '肩': '#ffe14d', '腕': '#39ff88',
+  '脚': '#4dc3ff', '腹': '#b366ff', '有酸素': '#ff66b3', '全身': '#9a9aa0'
+};
+function colorForBodyPart(bp){ return BODY_PART_COLORS[bp] || '#6b6b70'; }
+
+let bodyPartBalanceChart = null;
+function renderBodyPartBalance(){
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 60);
+  const cutoffTz = new Date(cutoff.getTime() - cutoff.getTimezoneOffset()*60000);
+  const cutoffStr = cutoffTz.toISOString().slice(0,10);
+  const recent = workoutLogs.filter(l => l.date >= cutoffStr);
+
+  const counts = {};
+  recent.forEach(l=>{
+    const bp = l.bodyPart || 'その他';
+    counts[bp] = (counts[bp] || 0) + 1;
+  });
+  const labels = Object.keys(counts).sort((a,b)=> counts[b] - counts[a]);
+
+  const wrap = document.getElementById('bodyPartBalanceWrap');
+  const emptyMsg = document.getElementById('bodyPartBalanceEmpty');
+  if (!labels.length){
+    wrap.style.display = 'none';
+    emptyMsg.style.display = 'block';
+    if (bodyPartBalanceChart){ bodyPartBalanceChart.destroy(); bodyPartBalanceChart = null; }
+    return;
+  }
+  wrap.style.display = 'block';
+  emptyMsg.style.display = 'none';
+
+  const data = labels.map(l => counts[l]);
+  const colors = labels.map(l => colorForBodyPart(l));
+  const ctx = document.getElementById('bodyPartBalanceChart');
+  if (bodyPartBalanceChart) bodyPartBalanceChart.destroy();
+  bodyPartBalanceChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#151517', borderWidth: 2 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#9a9aa0', font: { size: 11 }, padding: 12 } },
+        tooltip: { callbacks: { label: (c)=> `${c.label}: ${c.parsed}回` } }
+      }
+    }
+  });
+}
+
 function renderCalendar(){
   document.getElementById('calLabel').textContent = `${calYear}年${calMonth+1}月`;
   const grid = document.getElementById('calGrid');
@@ -2197,6 +2318,7 @@ const BIG3_CONFIG = [
 const big3Charts = {};
 let big3ManualEntries = [];
 let big3TargetTotal = null;
+let big3LiftTargets = { squat: null, bench: null, deadlift: null };
 
 function matchBig3(name){
   const lower = (name || '').toLowerCase();
@@ -2315,16 +2437,30 @@ function renderBig3Chart(cfg, sessions){
   const labels = sessions.map(s => s.date.slice(5));
   const weightData = sessions.map(s => s.maxWeight);
   const bwData = sessions.map(s => s.bw);
+
+  const datasets = [
+    { label: cfg.label + '重量', data: weightData, borderColor: cfg.color, backgroundColor: cfg.color + '33', yAxisID: 'y', tension: 0.25, pointRadius: 3 },
+    { label: '体重', data: bwData, borderColor: '#9a9aa0', borderDash: [4,3], yAxisID: 'y1', tension: 0.25, pointRadius: 2 }
+  ];
+
+  const liftTarget = big3LiftTargets[cfg.key];
+  if (liftTarget !== null && liftTarget !== undefined && labels.length){
+    datasets.push({
+      label: '🎯 目標',
+      data: labels.map(()=> liftTarget),
+      borderColor: cfg.color,
+      borderWidth: 2,
+      borderDash: [8,4],
+      pointRadius: 0,
+      yAxisID: 'y',
+      fill: false,
+    });
+  }
+
   if (big3Charts[cfg.key]) big3Charts[cfg.key].destroy();
   big3Charts[cfg.key] = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: cfg.label + '重量', data: weightData, borderColor: cfg.color, backgroundColor: cfg.color + '33', yAxisID: 'y', tension: 0.25, pointRadius: 3 },
-        { label: '体重', data: bwData, borderColor: '#9a9aa0', borderDash: [4,3], yAxisID: 'y1', tension: 0.25, pointRadius: 2 }
-      ]
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -2589,45 +2725,57 @@ document.getElementById('big3QuickDeleteBtn').addEventListener('click', ()=>{
   });
 });
 
-document.getElementById('editBig3TargetBtn').addEventListener('click', ()=>{
-  document.getElementById('big3TargetValue').value = big3TargetTotal !== null ? big3TargetTotal : '';
+function openBig3TargetModal(scope){
+  document.getElementById('big3TargetScope').value = scope;
+  const isTotal = scope === 'total';
+  document.getElementById('big3TargetModalTitle').textContent = isTotal ? 'BIG3 目標合計' : (BIG3_LABELS[scope] + ' 目標重量');
+  document.getElementById('big3TargetLabel').textContent = isTotal ? '目標合計 (kg・任意)' : '目標重量 (kg・任意)';
+  const current = isTotal ? big3TargetTotal : big3LiftTargets[scope];
+  document.getElementById('big3TargetValue').value = (current !== null && current !== undefined) ? current : '';
   openModal('big3TargetModal');
+}
+
+document.getElementById('editBig3TargetBtn').addEventListener('click', ()=> openBig3TargetModal('total'));
+document.querySelectorAll('[data-lift-target]').forEach(btn=>{
+  btn.addEventListener('click', ()=> openBig3TargetModal(btn.dataset.liftTarget));
 });
+
+async function saveBig3Target(scope, raw){
+  const user = auth.currentUser;
+  if (!user) return;
+  if (scope === 'total'){
+    if (raw === ''){
+      await deleteDoc(doc(db, 'users', user.uid, 'settings', 'big3Target'));
+      return;
+    }
+    const value = parseFloat(raw);
+    if (isNaN(value)){ showToast('目標を正しく入力してください'); return false; }
+    await setDoc(doc(db, 'users', user.uid, 'settings', 'big3Target'), { value, updatedAt: serverTimestamp() }, { merge: true });
+  } else {
+    const value = raw === '' ? null : parseFloat(raw);
+    if (raw !== '' && isNaN(value)){ showToast('目標を正しく入力してください'); return false; }
+    await setDoc(doc(db, 'users', user.uid, 'settings', 'big3LiftTargets'), { [scope]: value, updatedAt: serverTimestamp() }, { merge: true });
+  }
+  return true;
+}
 
 document.getElementById('big3TargetForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
+  const scope = document.getElementById('big3TargetScope').value;
   const raw = document.getElementById('big3TargetValue').value;
-  if (raw === ''){
-    try{
-      await deleteDoc(doc(db, 'users', user.uid, 'settings', 'big3Target'));
-      closeModal('big3TargetModal');
-    }catch(err){
-      console.error(err);
-      showToast('目標合計の保存に失敗しました: ' + err.message);
-    }
-    return;
-  }
-  const value = parseFloat(raw);
-  if (isNaN(value)){
-    showToast('目標合計を正しく入力してください');
-    return;
-  }
   try{
-    await setDoc(doc(db, 'users', user.uid, 'settings', 'big3Target'), { value, updatedAt: serverTimestamp() }, { merge: true });
-    closeModal('big3TargetModal');
+    const ok = await saveBig3Target(scope, raw);
+    if (ok !== false) closeModal('big3TargetModal');
   }catch(err){
     console.error(err);
-    showToast('目標合計の保存に失敗しました: ' + err.message);
+    showToast('目標の保存に失敗しました: ' + err.message);
   }
 });
 
 document.getElementById('big3TargetClearBtn').addEventListener('click', async ()=>{
-  const user = auth.currentUser;
-  if (!user) return;
+  const scope = document.getElementById('big3TargetScope').value;
   try{
-    await deleteDoc(doc(db, 'users', user.uid, 'settings', 'big3Target'));
+    await saveBig3Target(scope, '');
     document.getElementById('big3TargetValue').value = '';
     closeModal('big3TargetModal');
   }catch(err){
@@ -2647,6 +2795,30 @@ document.querySelectorAll('.subtab-btn').forEach(btn=>{
     document.getElementById('stopwatchPanel').style.display = mode === 'stopwatch' ? 'block' : 'none';
     document.getElementById('timerPanel').style.display = mode === 'timer' ? 'block' : 'none';
   });
+});
+
+/* 画面スリープ防止（ストップウォッチ・タイマー動作中） */
+let wakeLock = null;
+async function requestWakeLock(){
+  try{
+    if ('wakeLock' in navigator){
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+    }
+  }catch(e){ /* 非対応環境や省電力設定などでは失敗するため無視 */ }
+}
+async function releaseWakeLock(){
+  try{
+    if (wakeLock){ await wakeLock.release(); wakeLock = null; }
+  }catch(e){ /* ignore */ }
+}
+function maybeReleaseWakeLock(){
+  if (!swRunning && !timerRunning) releaseWakeLock();
+}
+document.addEventListener('visibilitychange', ()=>{
+  if (document.visibilityState === 'visible' && (swRunning || timerRunning) && !wakeLock){
+    requestWakeLock();
+  }
 });
 
 /* ストップウォッチ（ラップ付き） */
@@ -2670,16 +2842,19 @@ document.getElementById('swStartBtn').addEventListener('click', (e)=>{
     swRunning = true;
     swStartTs = Date.now() - swElapsed;
     swTick();
+    requestWakeLock();
     e.target.textContent = '停止';
   } else {
     swRunning = false;
     cancelAnimationFrame(swRAF);
+    maybeReleaseWakeLock();
     e.target.textContent = '開始';
   }
 });
 document.getElementById('swResetBtn').addEventListener('click', ()=>{
   swRunning = false;
   cancelAnimationFrame(swRAF);
+  maybeReleaseWakeLock();
   swElapsed = 0;
   laps = [];
   renderLaps();
@@ -2746,6 +2921,7 @@ function timerTick(){
     timerSet = false;
     document.getElementById('timerDisplay').textContent = '00:00';
     document.getElementById('timerStartBtn').textContent = '開始';
+    maybeReleaseWakeLock();
     beep();
     return;
   }
@@ -2768,17 +2944,20 @@ document.getElementById('timerStartBtn').addEventListener('click', (e)=>{
     timerSet = true;
     timerEndTs = Date.now() + remaining;
     timerTick();
+    requestWakeLock();
     e.target.textContent = '一時停止';
   } else {
     timerRunning = false;
     cancelAnimationFrame(timerRAF);
     timerRemainingPaused = timerEndTs - Date.now();
+    maybeReleaseWakeLock();
     e.target.textContent = '再開';
   }
 });
 document.getElementById('timerResetBtn').addEventListener('click', ()=>{
   timerRunning = false;
   cancelAnimationFrame(timerRAF);
+  maybeReleaseWakeLock();
   stopBeep();
   timerSet = false;
   timerRemainingPaused = 0;
@@ -2792,9 +2971,31 @@ function updateTimerPreview(){
   const min = parseInt(document.getElementById('timerMinInput').value) || 0;
   const sec = parseInt(document.getElementById('timerSecInput').value) || 0;
   document.getElementById('timerDisplay').textContent = formatTimer((min*60 + sec) * 1000);
+  updatePresetActiveState();
 }
 document.getElementById('timerMinInput').addEventListener('input', updateTimerPreview);
 document.getElementById('timerSecInput').addEventListener('input', updateTimerPreview);
+
+/* インターバルのプリセットボタン */
+function updatePresetActiveState(){
+  const min = parseInt(document.getElementById('timerMinInput').value) || 0;
+  const sec = parseInt(document.getElementById('timerSecInput').value) || 0;
+  const total = min*60 + sec;
+  document.querySelectorAll('.preset-btn').forEach(btn=>{
+    btn.classList.toggle('active', Number(btn.dataset.sec) === total);
+  });
+}
+document.querySelectorAll('.preset-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if (timerSet) return;
+    const totalSec = Number(btn.dataset.sec);
+    document.getElementById('timerMinInput').value = Math.floor(totalSec / 60);
+    document.getElementById('timerSecInput').value = totalSec % 60;
+    document.getElementById('timerResetBtn').click();
+    updatePresetActiveState();
+  });
+});
+updatePresetActiveState();
 </script>
 </body>
 </html>
