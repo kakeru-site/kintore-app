@@ -398,6 +398,20 @@
     font-family:'Oswald',sans-serif; font-size:15px; font-weight:600; margin-bottom:12px;
   }
   .big3-chart{ height:180px; }
+  .big3-title-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .big3-title-row .big3-title{ margin-bottom:0; }
+  .big3-add-btn{
+    font-size:11px; font-weight:700; color:var(--red); background:var(--surface-2);
+    border:1px solid var(--red-dim); border-radius:20px; padding:5px 10px; cursor:pointer; white-space:nowrap; flex-shrink:0;
+  }
+  .big3-total-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .big3-total-head .section-title{ margin-bottom:0; }
+  .progress-bar{
+    width:100%; height:8px; background:var(--surface-2); border-radius:20px; overflow:hidden; margin-top:12px;
+  }
+  .progress-fill{
+    height:100%; background:linear-gradient(90deg, var(--red), var(--orange)); border-radius:20px; transition:width 0.3s ease;
+  }
 
   /* ---------- Timer ---------- */
   .timer-display{
@@ -575,26 +589,65 @@
 
     <!-- ② BIG3 -->
     <section class="section" id="section-big3">
+      <div class="card" id="big3TotalCard">
+        <div class="big3-total-head">
+          <div class="section-title" style="margin-bottom:0;"><span>BIG3合計</span></div>
+          <button type="button" class="edit-target-btn" id="editBig3TargetBtn">目標を編集</button>
+        </div>
+        <div class="summary-row">
+          <div class="summary-box">
+            <div class="label">自己ベスト合計</div>
+            <div class="value num" id="big3TotalVal">--</div>
+            <div class="unit">kg</div>
+          </div>
+          <div class="summary-box">
+            <div class="label">目標合計</div>
+            <div class="value num" id="big3TotalTargetVal">--</div>
+            <div class="unit">kg</div>
+          </div>
+          <div class="summary-box">
+            <div class="label">体重比</div>
+            <div class="value num" style="color:var(--green)" id="big3TotalRatioVal">--</div>
+            <div class="unit">倍</div>
+          </div>
+        </div>
+        <div id="big3TargetProgressWrap" style="display:none;">
+          <div class="progress-bar"><div class="progress-fill" id="big3TargetProgressFill"></div></div>
+          <p style="font-size:11px; color:var(--text-faint); text-align:right; margin:6px 0 0;" id="big3TargetProgressText"></p>
+        </div>
+        <p style="font-size:11px; color:var(--text-faint); margin:10px 0 0; line-height:1.6;">
+          スクワット・ベンチプレス・デッドリフトそれぞれの自己ベスト重量の合計と、直近の体重から自動計算しています。
+        </p>
+      </div>
       <div class="card">
-        <div class="big3-title">🏋️ スクワット</div>
+        <div class="big3-title-row">
+          <div class="big3-title">🏋️ スクワット</div>
+          <button type="button" class="big3-add-btn" data-lift="squat">＋記録を追加</button>
+        </div>
         <div class="summary-row" id="big3StatsSquat"></div>
         <div class="chart-wrap big3-chart"><canvas id="big3ChartSquat"></canvas></div>
         <div id="big3ListSquat"></div>
       </div>
       <div class="card">
-        <div class="big3-title">🏋️ ベンチプレス</div>
+        <div class="big3-title-row">
+          <div class="big3-title">🏋️ ベンチプレス</div>
+          <button type="button" class="big3-add-btn" data-lift="bench">＋記録を追加</button>
+        </div>
         <div class="summary-row" id="big3StatsBench"></div>
         <div class="chart-wrap big3-chart"><canvas id="big3ChartBench"></canvas></div>
         <div id="big3ListBench"></div>
       </div>
       <div class="card">
-        <div class="big3-title">🏋️ デッドリフト</div>
+        <div class="big3-title-row">
+          <div class="big3-title">🏋️ デッドリフト</div>
+          <button type="button" class="big3-add-btn" data-lift="deadlift">＋記録を追加</button>
+        </div>
         <div class="summary-row" id="big3StatsDeadlift"></div>
         <div class="chart-wrap big3-chart"><canvas id="big3ChartDeadlift"></canvas></div>
         <div id="big3ListDeadlift"></div>
       </div>
       <p style="font-size:11px; color:var(--text-faint); text-align:center; margin-top:4px;">
-        ※ 種目名に「スクワット/squat」「ベンチプレス・ベンチ/bench」「デッドリフト・デッド/deadlift」を含む記録を自動集計しています。
+        ※ 種目名に「スクワット/squat」「ベンチプレス・ベンチ/bench」「デッドリフト・デッド/deadlift」を含むトレ記録を自動集計するほか、各カードの「＋記録を追加」からも直接追加できます。
       </p>
     </section>
 
@@ -766,6 +819,56 @@
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger" id="workoutDeleteBtn" style="display:none;">削除</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- BIG3 個別記録 追加/編集モーダル -->
+<div class="modal-overlay" id="big3QuickModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="big3QuickModalTitle">記録を追加</h2>
+      <button class="modal-close" data-close="big3QuickModal">×</button>
+    </div>
+    <form id="big3QuickForm">
+      <input type="hidden" id="big3QuickDocId">
+      <input type="hidden" id="big3QuickLift">
+      <div class="field">
+        <label for="big3QuickDate">日付</label>
+        <input type="date" id="big3QuickDate" required>
+      </div>
+      <div class="field">
+        <label for="big3QuickWeight">重量 (kg)</label>
+        <input type="number" id="big3QuickWeight" step="0.5" inputmode="decimal" required>
+      </div>
+      <div class="field">
+        <label for="big3QuickBodyweight">体重 (kg・任意)</label>
+        <input type="number" id="big3QuickBodyweight" step="0.1" inputmode="decimal" placeholder="未入力なら体重記録から自動取得">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="big3QuickDeleteBtn" style="display:none;">削除</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- BIG3 目標合計 モーダル -->
+<div class="modal-overlay" id="big3TargetModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>BIG3 目標合計</h2>
+      <button class="modal-close" data-close="big3TargetModal">×</button>
+    </div>
+    <form id="big3TargetForm">
+      <div class="field">
+        <label for="big3TargetValue">目標合計 (kg・任意)</label>
+        <input type="number" id="big3TargetValue" step="1" inputmode="decimal" placeholder="例: 300">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="big3TargetClearBtn">目標をクリア</button>
         <button type="submit" class="btn btn-primary">保存</button>
       </div>
     </form>
@@ -1115,7 +1218,7 @@ document.getElementById('lockPasswordFallbackBtn').addEventListener('click', asy
   catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
 });
 
-let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null;
+let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null;
 
 onAuthStateChanged(auth, (user)=>{
   if (user){
@@ -1138,6 +1241,8 @@ onAuthStateChanged(auth, (user)=>{
     if (unsubTarget) unsubTarget();
     if (unsubExercises) unsubExercises();
     if (unsubWorkoutLogs) unsubWorkoutLogs();
+    if (unsubBig3Manual) unsubBig3Manual();
+    if (unsubBig3Target) unsubBig3Target();
   }
 });
 
@@ -1187,6 +1292,24 @@ function startListeners(uid){
   }, (err)=>{
     console.error(err);
     showToast('トレーニング記録の読み込みに失敗しました: ' + err.message);
+  });
+
+  const big3Col = collection(db, 'users', uid, 'big3Manual');
+  unsubBig3Manual = onSnapshot(big3Col, (snap)=>{
+    big3ManualEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderBig3();
+  }, (err)=>{
+    console.error(err);
+    showToast('BIG3手動記録の読み込みに失敗しました: ' + err.message);
+  });
+
+  const big3TargetRef = doc(db, 'users', uid, 'settings', 'big3Target');
+  unsubBig3Target = onSnapshot(big3TargetRef, (snap)=>{
+    big3TargetTotal = snap.exists() ? snap.data().value : null;
+    renderBig3();
+  }, (err)=>{
+    console.error(err);
+    showToast('BIG3目標の読み込みに失敗しました: ' + err.message);
   });
 }
 
@@ -2019,6 +2142,8 @@ const BIG3_CONFIG = [
   { key: 'deadlift', label: 'デッドリフト', keywords: ['デッドリフト','デッド','deadlift'], color: '#39ff88' }
 ];
 const big3Charts = {};
+let big3ManualEntries = [];
+let big3TargetTotal = null;
 
 function matchBig3(name){
   const lower = (name || '').toLowerCase();
@@ -2036,19 +2161,29 @@ function bodyweightAtDate(dateStr){
 function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
 
 function renderBig3(){
-  BIG3_CONFIG.forEach(cfg=>{
-    const logs = workoutLogs
-      .filter(l => matchBig3(l.exerciseName) === cfg.key)
-      .slice()
-      .sort((a,b)=> a.date.localeCompare(b.date));
+  const bestByLift = {};
 
-    const sessions = logs.map(l=>{
+  BIG3_CONFIG.forEach(cfg=>{
+    const autoLogs = workoutLogs.filter(l => matchBig3(l.exerciseName) === cfg.key);
+    const autoSessions = autoLogs.map(l=>{
       const weights = (l.sets || []).map(s => Number(s.weight) || 0);
       const maxWeight = weights.length ? Math.max(...weights) : 0;
       const bw = bodyweightAtDate(l.date);
-      const ratio = bw ? maxWeight / bw : null;
-      return { date: l.date, maxWeight, bw, ratio };
+      return { date: l.date, maxWeight, bw, source: 'auto', id: l.id };
     });
+
+    const manualLogs = big3ManualEntries.filter(e => e.liftKey === cfg.key);
+    const manualSessions = manualLogs.map(e=>{
+      const maxWeight = Number(e.weight) || 0;
+      const hasOwnBw = e.bodyweight !== null && e.bodyweight !== undefined && e.bodyweight !== '';
+      const bw = hasOwnBw ? Number(e.bodyweight) : bodyweightAtDate(e.date);
+      return { date: e.date, maxWeight, bw, source: 'manual', id: e.id };
+    });
+
+    const sessions = autoSessions.concat(manualSessions)
+      .sort((a,b)=> a.date.localeCompare(b.date) || (a.source === 'manual' ? 1 : -1));
+
+    sessions.forEach(s=>{ s.ratio = s.bw ? s.maxWeight / s.bw : null; });
 
     let runningMax = 0;
     sessions.forEach(s=>{
@@ -2059,7 +2194,33 @@ function renderBig3(){
     renderBig3Stats(cfg.key, sessions);
     renderBig3Chart(cfg, sessions);
     renderBig3List(cfg.key, sessions);
+
+    bestByLift[cfg.key] = sessions.length ? Math.max(...sessions.map(s=>s.maxWeight)) : 0;
   });
+
+  renderBig3Total(bestByLift);
+}
+
+function renderBig3Total(bestByLift){
+  const total = BIG3_CONFIG.reduce((sum, cfg)=> sum + (bestByLift[cfg.key] || 0), 0);
+  const hasAny = BIG3_CONFIG.some(cfg => (bestByLift[cfg.key] || 0) > 0);
+  const currentBw = weightEntries.length ? Number(weightEntries[0].weight) : null;
+  const ratio = (hasAny && currentBw) ? total / currentBw : null;
+
+  document.getElementById('big3TotalVal').textContent = hasAny ? total.toFixed(1) : '--';
+  document.getElementById('big3TotalTargetVal').textContent = big3TargetTotal !== null ? Number(big3TargetTotal).toFixed(1) : '--';
+  document.getElementById('big3TotalRatioVal').textContent = ratio !== null ? ratio.toFixed(2) : '--';
+
+  const progressWrap = document.getElementById('big3TargetProgressWrap');
+  if (big3TargetTotal !== null && big3TargetTotal > 0 && hasAny){
+    progressWrap.style.display = 'block';
+    const pct = Math.min(100, Math.max(0, (total / big3TargetTotal) * 100));
+    document.getElementById('big3TargetProgressFill').style.width = pct + '%';
+    document.getElementById('big3TargetProgressText').textContent =
+      `目標まで ${Math.max(0, (big3TargetTotal - total)).toFixed(1)}kg（${pct.toFixed(0)}%）`;
+  } else {
+    progressWrap.style.display = 'none';
+  }
 }
 
 function renderBig3Stats(key, sessions){
@@ -2115,19 +2276,138 @@ function renderBig3List(key, sessions){
     wrap.innerHTML = '<div class="empty-msg">記録がありません</div>';
     return;
   }
-  wrap.innerHTML = sessions.slice().reverse().map(s => `
-    <div class="list-item" style="cursor:default;">
+  wrap.innerHTML = '';
+  sessions.slice().reverse().forEach(s=>{
+    const row = document.createElement('div');
+    row.className = 'list-item';
+    row.style.cursor = s.source === 'manual' ? 'pointer' : 'default';
+    row.innerHTML = `
       <div>
-        <div class="date">${s.date}</div>
+        <div class="date">${s.date} <span class="tag">${s.source === 'manual' ? '手動' : '自動集計'}</span></div>
         ${s.isPR ? '<div class="pr-badge">🏆 体重比PR更新</div>' : ''}
       </div>
       <div style="text-align:right;">
         <div class="main-val">${s.maxWeight.toFixed(1)} kg</div>
         <div class="note">${s.ratio !== null ? '体重比 ' + s.ratio.toFixed(2) : '体重データなし'}</div>
       </div>
-    </div>
-  `).join('');
+    `;
+    if (s.source === 'manual'){
+      row.addEventListener('click', ()=>{
+        const entry = big3ManualEntries.find(e => e.id === s.id);
+        if (entry) openBig3QuickModal(key, entry);
+      });
+    }
+    wrap.appendChild(row);
+  });
 }
+
+const BIG3_LABELS = { squat: 'スクワット', bench: 'ベンチプレス', deadlift: 'デッドリフト' };
+
+function openBig3QuickModal(liftKey, entry){
+  document.getElementById('big3QuickModalTitle').textContent =
+    (entry ? BIG3_LABELS[liftKey] + 'の記録を編集' : BIG3_LABELS[liftKey] + 'を記録');
+  document.getElementById('big3QuickDocId').value = entry ? entry.id : '';
+  document.getElementById('big3QuickLift').value = liftKey;
+  document.getElementById('big3QuickDate').value = entry ? entry.date : todayStr();
+  document.getElementById('big3QuickWeight').value = entry ? entry.weight : '';
+  document.getElementById('big3QuickBodyweight').value = (entry && entry.bodyweight !== null && entry.bodyweight !== undefined) ? entry.bodyweight : '';
+  document.getElementById('big3QuickDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
+  openModal('big3QuickModal');
+}
+
+document.querySelectorAll('.big3-add-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> openBig3QuickModal(btn.dataset.lift, null));
+});
+
+document.getElementById('big3QuickForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const liftKey = document.getElementById('big3QuickLift').value;
+  const docId = document.getElementById('big3QuickDocId').value;
+  const date = document.getElementById('big3QuickDate').value;
+  const weight = parseFloat(document.getElementById('big3QuickWeight').value);
+  const bwRaw = document.getElementById('big3QuickBodyweight').value;
+  const bodyweight = bwRaw === '' ? null : parseFloat(bwRaw);
+  if (!date || isNaN(weight)){
+    showToast('日付と重量を正しく入力してください');
+    return;
+  }
+  try{
+    const data = { liftKey, date, weight, bodyweight, updatedAt: serverTimestamp() };
+    if (docId){
+      await setDoc(doc(db, 'users', user.uid, 'big3Manual', docId), data, { merge: true });
+    } else {
+      await addDoc(collection(db, 'users', user.uid, 'big3Manual'), data);
+    }
+    closeModal('big3QuickModal');
+  }catch(err){
+    console.error(err);
+    showToast('BIG3記録の保存に失敗しました: ' + err.message);
+  }
+});
+
+document.getElementById('big3QuickDeleteBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('big3QuickDocId').value;
+  if (!id) return;
+  askConfirm('この記録を削除しますか？', async ()=>{
+    const user = auth.currentUser;
+    try{
+      await deleteDoc(doc(db, 'users', user.uid, 'big3Manual', id));
+      closeModal('big3QuickModal');
+    }catch(err){
+      console.error(err);
+      showToast('削除に失敗しました: ' + err.message);
+    }
+  });
+});
+
+document.getElementById('editBig3TargetBtn').addEventListener('click', ()=>{
+  document.getElementById('big3TargetValue').value = big3TargetTotal !== null ? big3TargetTotal : '';
+  openModal('big3TargetModal');
+});
+
+document.getElementById('big3TargetForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const raw = document.getElementById('big3TargetValue').value;
+  if (raw === ''){
+    try{
+      await deleteDoc(doc(db, 'users', user.uid, 'settings', 'big3Target'));
+      closeModal('big3TargetModal');
+    }catch(err){
+      console.error(err);
+      showToast('目標合計の保存に失敗しました: ' + err.message);
+    }
+    return;
+  }
+  const value = parseFloat(raw);
+  if (isNaN(value)){
+    showToast('目標合計を正しく入力してください');
+    return;
+  }
+  try{
+    await setDoc(doc(db, 'users', user.uid, 'settings', 'big3Target'), { value, updatedAt: serverTimestamp() }, { merge: true });
+    closeModal('big3TargetModal');
+  }catch(err){
+    console.error(err);
+    showToast('目標合計の保存に失敗しました: ' + err.message);
+  }
+});
+
+document.getElementById('big3TargetClearBtn').addEventListener('click', async ()=>{
+  const user = auth.currentUser;
+  if (!user) return;
+  try{
+    await deleteDoc(doc(db, 'users', user.uid, 'settings', 'big3Target'));
+    document.getElementById('big3TargetValue').value = '';
+    closeModal('big3TargetModal');
+  }catch(err){
+    console.error(err);
+    showToast('目標のクリアに失敗しました: ' + err.message);
+  }
+});
 
 /* =========================================================
    ⑤ ストップウォッチ・タイマー（Firestoreには保存しない）
