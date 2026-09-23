@@ -296,13 +296,19 @@
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    gap:3px;
+    gap:4px;
     font-size:10px;
+    font-weight:500;
     cursor:pointer;
     padding:6px 2px;
+    transition:color 0.15s ease;
   }
-  .tab-btn .ic{font-size:19px; line-height:1;}
-  .tab-btn.active{color:var(--red);}
+  .tab-btn .ic{
+    width:22px; height:22px; line-height:1;
+    transition:transform 0.15s ease;
+  }
+  .tab-btn.active{color:var(--red); font-weight:700;}
+  .tab-btn.active .ic{transform:translateY(-1px) scale(1.08);}
 
   .fab{
     position:fixed;
@@ -766,12 +772,30 @@
   <button class="fab" id="fabBtn">＋</button>
 
   <nav class="tabbar">
-    <button class="tab-btn active" data-section="weight" data-title="体重記録"><span class="ic">⚖️</span>体重</button>
-    <button class="tab-btn" data-section="exercises" data-title="種目登録"><span class="ic">📋</span>種目</button>
-    <button class="tab-btn" data-section="workout" data-title="トレ記録"><span class="ic">🏋️</span>記録</button>
-    <button class="tab-btn" data-section="calendar" data-title="ジムカレンダー"><span class="ic">💪</span>カレンダー</button>
-    <button class="tab-btn" data-section="big3" data-title="BIG3"><span class="ic">📈</span>BIG3</button>
-    <button class="tab-btn" data-section="timer" data-title="タイマー"><span class="ic">⏱️</span>タイマー</button>
+    <button class="tab-btn active" data-section="weight" data-title="体重記録">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="12" cy="13" r="4.2"/><path d="M12 13l2.4-2.4"/><path d="M9.5 3.5V6"/><path d="M14.5 3.5V6"/></svg>
+      体重
+    </button>
+    <button class="tab-btn" data-section="exercises" data-title="種目登録">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16.5" rx="2.2"/><path d="M9 4.5a1.3 1.3 0 0 1 1.3-1.5h3.4A1.3 1.3 0 0 1 15 4.5"/><line x1="8.2" y1="11" x2="15.8" y2="11"/><line x1="8.2" y1="14.7" x2="15.8" y2="14.7"/></svg>
+      種目
+    </button>
+    <button class="tab-btn" data-section="workout" data-title="トレ記録">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="6.5" y1="12" x2="17.5" y2="12"/><rect x="3" y="9" width="3" height="6" rx="1"/><rect x="18" y="9" width="3" height="6" rx="1"/><rect x="1" y="10.5" width="2" height="3" rx="0.6"/><rect x="21" y="10.5" width="2" height="3" rx="0.6"/></svg>
+      記録
+    </button>
+    <button class="tab-btn" data-section="calendar" data-title="ジムカレンダー">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/><circle cx="8.2" cy="13.3" r="0.95"/><circle cx="12" cy="13.3" r="0.95"/><circle cx="15.8" cy="13.3" r="0.95"/><circle cx="8.2" cy="17" r="0.95"/><circle cx="12" cy="17" r="0.95"/></svg>
+      カレンダー
+    </button>
+    <button class="tab-btn" data-section="big3" data-title="BIG3">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3.5,16.5 9,11 12.5,14.5 20.5,6.5"/><polyline points="14.5,6.5 20.5,6.5 20.5,12.5"/></svg>
+      BIG3
+    </button>
+    <button class="tab-btn" data-section="timer" data-title="タイマー">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><line x1="12" y1="13.5" x2="12" y2="9.3"/><line x1="12" y1="13.5" x2="14.8" y2="14.9"/><line x1="9.8" y1="3" x2="14.2" y2="3"/></svg>
+      タイマー
+    </button>
   </nav>
 </div>
 
