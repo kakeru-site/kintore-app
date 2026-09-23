@@ -798,6 +798,25 @@
       <button type="button" class="btn btn-primary" id="settingsEnableFaceIdBtn">この端末でFace ID / Touch IDを設定</button>
       <button type="button" class="btn btn-ghost" id="settingsDisableFaceIdBtn" style="margin-top:10px;">ロックを解除する</button>
     </div>
+    <div class="field" style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+      <label>パスワード変更</label>
+      <form id="passwordChangeForm">
+        <div class="field">
+          <label for="currentPasswordInput">現在のパスワード</label>
+          <input type="password" id="currentPasswordInput" autocomplete="current-password" required>
+        </div>
+        <div class="field">
+          <label for="newPasswordInput">新しいパスワード（6文字以上）</label>
+          <input type="password" id="newPasswordInput" autocomplete="new-password" required minlength="6">
+        </div>
+        <div class="field">
+          <label for="newPasswordConfirmInput">新しいパスワード（確認）</label>
+          <input type="password" id="newPasswordConfirmInput" autocomplete="new-password" required minlength="6">
+        </div>
+        <div id="passwordChangeError" style="color:var(--red); font-size:12px; margin-bottom:10px; min-height:14px;"></div>
+        <button type="submit" class="btn btn-primary">パスワードを変更</button>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -853,7 +872,8 @@ if (firebaseConfig.apiKey === "YOUR_API_KEY") {
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
-  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
+  updatePassword, reauthenticateWithCredential, EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot,
@@ -972,6 +992,44 @@ document.getElementById('settingsDisableFaceIdBtn').addEventListener('click', ()
 document.getElementById('faceIdOfferYesBtn').addEventListener('click', async ()=>{
   await registerDeviceLock();
   closeModal('faceIdOfferModal');
+});
+
+document.getElementById('passwordChangeForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const errEl = document.getElementById('passwordChangeError');
+  errEl.textContent = '';
+  const current = document.getElementById('currentPasswordInput').value;
+  const next = document.getElementById('newPasswordInput').value;
+  const confirmVal = document.getElementById('newPasswordConfirmInput').value;
+  if (next.length < 6){
+    errEl.textContent = '新しいパスワードは6文字以上にしてください';
+    return;
+  }
+  if (next !== confirmVal){
+    errEl.textContent = '新しいパスワード（確認）が一致しません';
+    return;
+  }
+  try{
+    const credential = EmailAuthProvider.credential(user.email, current);
+    await reauthenticateWithCredential(user, credential);
+    await updatePassword(user, next);
+    showToast('パスワードを変更しました');
+    document.getElementById('passwordChangeForm').reset();
+    closeModal('settingsModal');
+  }catch(err){
+    console.error(err);
+    if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
+      errEl.textContent = '現在のパスワードが正しくありません';
+    } else if (err.code === 'auth/weak-password'){
+      errEl.textContent = 'パスワードが簡単すぎます。別のパスワードを入力してください';
+    } else if (err.code === 'auth/too-many-requests'){
+      errEl.textContent = '試行回数が多すぎます。しばらくしてから再度お試しください';
+    } else {
+      errEl.textContent = 'パスワードの変更に失敗しました: ' + err.message;
+    }
+  }
 });
 
 async function registerDeviceLock(){
