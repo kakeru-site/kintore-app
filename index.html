@@ -413,6 +413,40 @@
     height:100%; background:linear-gradient(90deg, var(--red), var(--orange)); border-radius:20px; transition:width 0.3s ease;
   }
 
+  /* ---------- ホイールピッカー（日付・体重） ---------- */
+  .wheel-group{
+    position:relative; display:flex; align-items:center;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+    height:180px; overflow:hidden; margin-bottom:4px;
+  }
+  .wheel-col{
+    flex:1; height:180px; overflow-y:scroll; scroll-snap-type:y mandatory;
+    -webkit-overflow-scrolling:touch; scrollbar-width:none; -ms-overflow-style:none;
+  }
+  .wheel-col::-webkit-scrollbar{ display:none; }
+  .wheel-pad{ height:72px; }
+  .wheel-item{
+    height:36px; display:flex; align-items:center; justify-content:center;
+    font-family:'Oswald',sans-serif; font-size:17px; color:var(--text-dim);
+    scroll-snap-align:center; user-select:none;
+  }
+  .wheel-highlight{
+    position:absolute; left:0; right:0; top:72px; height:36px;
+    border-top:1px solid var(--red-dim); border-bottom:1px solid var(--red-dim);
+    background:rgba(255,59,59,0.08); pointer-events:none;
+  }
+  .wheel-group::before, .wheel-group::after{
+    content:''; position:absolute; left:0; right:0; height:72px; pointer-events:none; z-index:2;
+  }
+  .wheel-group::before{ top:0; background:linear-gradient(to bottom, var(--surface-2), transparent); }
+  .wheel-group::after{ bottom:0; background:linear-gradient(to top, var(--surface-2), transparent); }
+  .wheel-unit{ padding:0 4px; font-size:15px; color:var(--text-faint); flex-shrink:0; }
+  .bw-wheel-group{ margin-top:10px; }
+  .switch-row{
+    display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dim); margin:8px 0 4px; cursor:pointer;
+  }
+  .switch-row input{ width:16px; height:16px; accent-color:var(--red); }
+
   /* ---------- Timer ---------- */
   .timer-display{
     font-family:'Oswald',sans-serif; font-size:48px; font-weight:600; text-align:center;
@@ -836,16 +870,33 @@
       <input type="hidden" id="big3QuickDocId">
       <input type="hidden" id="big3QuickLift">
       <div class="field">
-        <label for="big3QuickDate">日付</label>
-        <input type="date" id="big3QuickDate" required>
+        <label>日付</label>
+        <div class="wheel-group date-wheel-group">
+          <div class="wheel-col" id="big3WheelYear"></div>
+          <div class="wheel-col" id="big3WheelMonth"></div>
+          <div class="wheel-col" id="big3WheelDay"></div>
+          <div class="wheel-highlight"></div>
+        </div>
+        <input type="hidden" id="big3QuickDate">
       </div>
       <div class="field">
         <label for="big3QuickWeight">重量 (kg)</label>
         <input type="number" id="big3QuickWeight" step="0.5" inputmode="decimal" required>
       </div>
       <div class="field">
-        <label for="big3QuickBodyweight">体重 (kg・任意)</label>
-        <input type="number" id="big3QuickBodyweight" step="0.1" inputmode="decimal" placeholder="未入力なら体重記録から自動取得">
+        <label>体重 (kg・任意)</label>
+        <label class="switch-row">
+          <input type="checkbox" id="big3BwAutoToggle" checked>
+          <span>体重記録から自動取得する</span>
+        </label>
+        <div class="wheel-group bw-wheel-group" id="big3BwWheelWrap" style="display:none;">
+          <div class="wheel-col" id="big3WheelBwInt"></div>
+          <span class="wheel-unit">.</span>
+          <div class="wheel-col" id="big3WheelBwDec"></div>
+          <span class="wheel-unit">kg</span>
+          <div class="wheel-highlight"></div>
+        </div>
+        <input type="hidden" id="big3QuickBodyweight">
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger" id="big3QuickDeleteBtn" style="display:none;">削除</button>
@@ -2303,16 +2354,175 @@ function renderBig3List(key, sessions){
 
 const BIG3_LABELS = { squat: 'スクワット', bench: 'ベンチプレス', deadlift: 'デッドリフト' };
 
+/* ---------- 汎用ホイールピッカー ---------- */
+const WHEEL_ROW_H = 36;
+
+function buildWheelColumn(el, values, formatFn){
+  el.innerHTML = '';
+  const padTop = document.createElement('div');
+  padTop.className = 'wheel-pad';
+  el.appendChild(padTop);
+  values.forEach(v=>{
+    const item = document.createElement('div');
+    item.className = 'wheel-item';
+    item.textContent = formatFn ? formatFn(v) : String(v);
+    el.appendChild(item);
+  });
+  const padBottom = document.createElement('div');
+  padBottom.className = 'wheel-pad';
+  el.appendChild(padBottom);
+}
+
+function wheelScrollToIndex(el, index, smooth){
+  el.scrollTo({ top: index * WHEEL_ROW_H, behavior: smooth ? 'smooth' : 'auto' });
+}
+
+function wheelIndexFromScroll(el){
+  return Math.max(0, Math.round(el.scrollTop / WHEEL_ROW_H));
+}
+
+function attachWheelListener(el, onSettle){
+  let timer = null;
+  el.addEventListener('scroll', ()=>{
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(()=>{
+      const idx = wheelIndexFromScroll(el);
+      wheelScrollToIndex(el, idx, false);
+      onSettle(idx);
+    }, 130);
+  });
+}
+
+/* ---------- BIG3 日付・体重ホイール ---------- */
+const big3WheelYears = (()=>{
+  const cy = new Date().getFullYear();
+  const arr = [];
+  for (let y = cy - 10; y <= cy; y++) arr.push(y);
+  return arr;
+})();
+const big3WheelMonths = Array.from({length:12}, (_,i)=> i+1);
+const big3WheelBwInts = Array.from({length:151}, (_,i)=> i+30);
+const big3WheelBwDecs = Array.from({length:10}, (_,i)=> i);
+let big3WheelDayValues = [];
+let big3WheelInitialized = false;
+
+function daysInMonthOf(year, month){ return new Date(year, month, 0).getDate(); }
+
+function initBig3Wheels(){
+  if (big3WheelInitialized) return;
+  big3WheelInitialized = true;
+
+  buildWheelColumn(document.getElementById('big3WheelYear'), big3WheelYears, y => y + '年');
+  buildWheelColumn(document.getElementById('big3WheelMonth'), big3WheelMonths, m => m + '月');
+  buildWheelColumn(document.getElementById('big3WheelBwInt'), big3WheelBwInts, v => String(v));
+  buildWheelColumn(document.getElementById('big3WheelBwDec'), big3WheelBwDecs, v => '.' + v);
+
+  attachWheelListener(document.getElementById('big3WheelYear'), ()=>{
+    rebuildBig3DayWheel(true);
+    syncBig3DateFromWheels();
+  });
+  attachWheelListener(document.getElementById('big3WheelMonth'), ()=>{
+    rebuildBig3DayWheel(true);
+    syncBig3DateFromWheels();
+  });
+  attachWheelListener(document.getElementById('big3WheelDay'), ()=> syncBig3DateFromWheels());
+  attachWheelListener(document.getElementById('big3WheelBwInt'), ()=> syncBig3BwFromWheels());
+  attachWheelListener(document.getElementById('big3WheelBwDec'), ()=> syncBig3BwFromWheels());
+}
+
+function rebuildBig3DayWheel(smooth){
+  const yearIdx = wheelIndexFromScroll(document.getElementById('big3WheelYear'));
+  const monthIdx = wheelIndexFromScroll(document.getElementById('big3WheelMonth'));
+  const year = big3WheelYears[Math.min(yearIdx, big3WheelYears.length - 1)];
+  const month = big3WheelMonths[Math.min(monthIdx, big3WheelMonths.length - 1)];
+  const maxDay = daysInMonthOf(year, month);
+  const prevDayIdx = wheelIndexFromScroll(document.getElementById('big3WheelDay'));
+  const prevDay = big3WheelDayValues.length ? big3WheelDayValues[Math.min(prevDayIdx, big3WheelDayValues.length - 1)] : 1;
+
+  big3WheelDayValues = Array.from({length:maxDay}, (_,i)=> i+1);
+  buildWheelColumn(document.getElementById('big3WheelDay'), big3WheelDayValues, d => d + '日');
+  const idx = big3WheelDayValues.indexOf(Math.min(prevDay, maxDay));
+  wheelScrollToIndex(document.getElementById('big3WheelDay'), idx, smooth);
+}
+
+function setBig3DateWheels(dateStr, smooth){
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const yearIdx = big3WheelYears.indexOf(y);
+  const monthIdx = big3WheelMonths.indexOf(m);
+  wheelScrollToIndex(document.getElementById('big3WheelYear'), yearIdx >= 0 ? yearIdx : big3WheelYears.length - 1, smooth);
+  wheelScrollToIndex(document.getElementById('big3WheelMonth'), monthIdx >= 0 ? monthIdx : 0, smooth);
+  const maxDay = daysInMonthOf(y, m);
+  big3WheelDayValues = Array.from({length:maxDay}, (_,i)=> i+1);
+  buildWheelColumn(document.getElementById('big3WheelDay'), big3WheelDayValues, dd => dd + '日');
+  const dayIdx = big3WheelDayValues.indexOf(Math.min(d || 1, maxDay));
+  wheelScrollToIndex(document.getElementById('big3WheelDay'), dayIdx, smooth);
+  document.getElementById('big3QuickDate').value = dateStr;
+}
+
+function syncBig3DateFromWheels(){
+  const yearIdx = wheelIndexFromScroll(document.getElementById('big3WheelYear'));
+  const monthIdx = wheelIndexFromScroll(document.getElementById('big3WheelMonth'));
+  const dayIdx = wheelIndexFromScroll(document.getElementById('big3WheelDay'));
+  const year = big3WheelYears[Math.min(yearIdx, big3WheelYears.length - 1)];
+  const month = big3WheelMonths[Math.min(monthIdx, big3WheelMonths.length - 1)];
+  const day = big3WheelDayValues[Math.min(dayIdx, big3WheelDayValues.length - 1)] || 1;
+  const mm = String(month).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  document.getElementById('big3QuickDate').value = `${year}-${mm}-${dd}`;
+}
+
+function setBig3BwWheels(value, smooth){
+  const clamped = Math.min(180, Math.max(30, value));
+  const intPart = Math.floor(clamped);
+  const decPart = Math.round((clamped - intPart) * 10) % 10;
+  const intIdx = big3WheelBwInts.indexOf(intPart);
+  wheelScrollToIndex(document.getElementById('big3WheelBwInt'), intIdx >= 0 ? intIdx : 30, smooth);
+  wheelScrollToIndex(document.getElementById('big3WheelBwDec'), decPart, smooth);
+  document.getElementById('big3QuickBodyweight').value = clamped.toFixed(1);
+}
+
+function syncBig3BwFromWheels(){
+  const intIdx = wheelIndexFromScroll(document.getElementById('big3WheelBwInt'));
+  const decIdx = wheelIndexFromScroll(document.getElementById('big3WheelBwDec'));
+  const intPart = big3WheelBwInts[Math.min(intIdx, big3WheelBwInts.length - 1)];
+  const decPart = big3WheelBwDecs[Math.min(decIdx, big3WheelBwDecs.length - 1)];
+  document.getElementById('big3QuickBodyweight').value = (intPart + decPart / 10).toFixed(1);
+}
+
+document.getElementById('big3BwAutoToggle').addEventListener('change', (e)=>{
+  const wrap = document.getElementById('big3BwWheelWrap');
+  if (e.target.checked){
+    wrap.style.display = 'none';
+    document.getElementById('big3QuickBodyweight').value = '';
+  } else {
+    wrap.style.display = 'flex';
+    const current = weightEntries.length ? Number(weightEntries[0].weight) : 60;
+    setBig3BwWheels(current, false);
+  }
+});
+
 function openBig3QuickModal(liftKey, entry){
   document.getElementById('big3QuickModalTitle').textContent =
     (entry ? BIG3_LABELS[liftKey] + 'の記録を編集' : BIG3_LABELS[liftKey] + 'を記録');
   document.getElementById('big3QuickDocId').value = entry ? entry.id : '';
   document.getElementById('big3QuickLift').value = liftKey;
-  document.getElementById('big3QuickDate').value = entry ? entry.date : todayStr();
   document.getElementById('big3QuickWeight').value = entry ? entry.weight : '';
-  document.getElementById('big3QuickBodyweight').value = (entry && entry.bodyweight !== null && entry.bodyweight !== undefined) ? entry.bodyweight : '';
   document.getElementById('big3QuickDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
+
   openModal('big3QuickModal');
+  initBig3Wheels();
+
+  const hasBw = !!(entry && entry.bodyweight !== null && entry.bodyweight !== undefined && entry.bodyweight !== '');
+  document.getElementById('big3BwAutoToggle').checked = !hasBw;
+  document.getElementById('big3BwWheelWrap').style.display = hasBw ? 'flex' : 'none';
+  document.getElementById('big3QuickBodyweight').value = hasBw ? entry.bodyweight : '';
+
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      setBig3DateWheels(entry ? entry.date : todayStr(), false);
+      if (hasBw) setBig3BwWheels(Number(entry.bodyweight), false);
+    });
+  });
 }
 
 document.querySelectorAll('.big3-add-btn').forEach(btn=>{
