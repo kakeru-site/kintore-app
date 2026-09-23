@@ -33,7 +33,7 @@
     --radius:14px;
     --radius-sm:9px;
     --tabbar-h:64px;
-    --header-h:60px;
+    --header-h:88px;
     font-variant-numeric: tabular-nums;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
@@ -144,10 +144,11 @@
   header.appbar{
     min-height:var(--header-h);
     display:flex;
-    align-items:center;
+    align-items:flex-end;
     justify-content:space-between;
     padding:0 16px;
-    padding-top:calc(env(safe-area-inset-top) + 10px);
+    padding-top:calc(env(safe-area-inset-top) + 22px);
+    padding-bottom:14px;
     border-bottom:1px solid var(--border);
     position:sticky; top:0; z-index:10;
     background:rgba(12,12,14,0.92);
@@ -155,12 +156,12 @@
   }
   header.appbar .title{
     font-family:'Oswald',sans-serif;
-    font-size:16px;
+    font-size:22px;
     font-weight:600;
     letter-spacing:0.5px;
-    color:var(--text-dim);
+    color:var(--text);
   }
-  header.appbar .header-actions{ display:flex; gap:14px; align-items:center; }
+  header.appbar .header-actions{ display:flex; gap:14px; align-items:center; padding-bottom:2px; }
   header.appbar .logout{
     background:none;border:none;color:var(--text-faint);font-size:12px;cursor:pointer;
     text-decoration:underline;
