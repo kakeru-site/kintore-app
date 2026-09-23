@@ -30,7 +30,7 @@
     font-variant-numeric: tabular-nums;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
+  html,body{height:100%; overflow-x:hidden; max-width:100%;}
   body{
     margin:0;
     background:var(--bg);
@@ -86,12 +86,15 @@
   }
   .field input, .field textarea, .field select{
     width:100%;
+    min-width:0;
+    max-width:100%;
     background:var(--surface);
     border:1px solid var(--border);
     color:var(--text);
     border-radius:var(--radius-sm);
     padding:12px 14px;
     font-size:16px;
+    box-sizing:border-box;
   }
   .field input:focus, .field textarea:focus, .field select:focus{
     outline:none;
@@ -123,7 +126,7 @@
   }
 
   /* ---------- App shell ---------- */
-  #appScreen{display:none; min-height:100%; flex-direction:column;}
+  #appScreen{display:none; min-height:100%; flex-direction:column; max-width:100%; overflow-x:hidden;}
   #appScreen.active{display:flex;}
   header.appbar{
     height:var(--header-h);
@@ -151,6 +154,8 @@
   main{
     flex:1;
     overflow-y:auto;
+    overflow-x:hidden;
+    max-width:100%;
     padding:16px 16px calc(var(--tabbar-h) + 90px) 16px;
   }
   .section{display:none;}
@@ -314,8 +319,11 @@
   .modal-overlay.active{display:flex;}
   .modal-box{
     width:100%;
+    max-width:100%;
     max-height:88vh;
     overflow-y:auto;
+    overflow-x:hidden;
+    box-sizing:border-box;
     background:var(--bg-elevated);
     border-radius:20px 20px 0 0;
     padding:20px 20px calc(20px + env(safe-area-inset-bottom));
@@ -347,6 +355,14 @@
     width:100%; padding:10px; border:1px dashed var(--border); background:none;
     color:var(--text-dim); border-radius:var(--radius-sm); cursor:pointer; font-size:13px; margin-top:2px;
   }
+
+  /* ---------- 有酸素運動の区間入力 ---------- */
+  .cardio-row{ margin-bottom:14px; }
+  .cardio-range{ font-size:12px; color:var(--text-dim); margin-bottom:6px; }
+  .cardio-inputs{ display:flex; gap:8px; align-items:center; }
+  .cardio-inputs input{ flex:1; min-width:0; }
+  .cardio-pace{ font-size:11px; color:var(--orange); white-space:nowrap; min-width:60px; text-align:right; }
+  .cardio-inputs button{ background:none; border:none; color:var(--text-faint); font-size:20px; cursor:pointer; width:26px; flex-shrink:0; }
 
   /* ---------- Sub tabs (timer) ---------- */
   .subtabs{ display:flex; gap:8px; margin-bottom:20px; }
@@ -738,10 +754,15 @@
         </select>
       </div>
       <div id="workoutExerciseInfo"></div>
-      <div class="field">
+      <div class="field" id="setsFieldWrap">
         <label>セット</label>
         <div id="setsContainer"></div>
         <button type="button" class="add-set-btn" id="addSetBtn">＋ セットを追加</button>
+      </div>
+      <div class="field" id="cardioFieldWrap" style="display:none;">
+        <label>区間（距離と時速）</label>
+        <div id="cardioSegments"></div>
+        <button type="button" class="add-set-btn" id="addCardioSegmentBtn">＋ 区間を追加</button>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger" id="workoutDeleteBtn" style="display:none;">削除</button>
@@ -1385,7 +1406,34 @@ document.getElementById('exerciseDeleteBtn').addEventListener('click', ()=>{
    ========================================================= */
 let workoutLogs = [];
 let currentSets = [];
+let currentCardio = [];
 let editingWorkoutId = null;
+const CARDIO_BODY_PART = '有酸素';
+
+function isCardioLog(l){
+  return l.bodyPart === CARDIO_BODY_PART && Array.isArray(l.cardioSegments) && l.cardioSegments.length > 0;
+}
+
+function formatPace(speedKmh){
+  if (!speedKmh || speedKmh <= 0) return '--:--';
+  const minPerKm = 60 / speedKmh;
+  const m = Math.floor(minPerKm);
+  const s = Math.round((minPerKm - m) * 60);
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function formatLogSummary(l){
+  if (isCardioLog(l)){
+    let cum = 0;
+    return l.cardioSegments.map(c=>{
+      const dist = Number(c.distanceM) || 0;
+      const from = cum; const to = cum + dist; cum = to;
+      const spd = Number(c.speedKmh) || 0;
+      return `${from}〜${to}m 時速${spd}km(${formatPace(spd)}/km)`;
+    }).join(' / ');
+  }
+  return (l.sets || []).map(s => `${s.weight}kg×${s.reps}`).join(', ');
+}
 
 function renderWorkoutList(){
   const wrap = document.getElementById('workoutList');
@@ -1401,7 +1449,7 @@ function renderWorkoutList(){
         <div>
           <div class="date">${l.date}</div>
           <div class="main-val" style="margin-top:4px;">${escapeHtml(l.exerciseName)}</div>
-          <div class="note">${(l.sets||[]).map(s=>`${s.weight}kg×${s.reps}`).join(', ')}</div>
+          <div class="note">${escapeHtml(formatLogSummary(l))}</div>
           ${rec ? badgeHtml(rec) : ''}
         </div>
       </div>
@@ -1420,6 +1468,8 @@ function badgeHtml(rec){
   if (rec.isWeightPR) items.push('<span class="mini-badge">🏋️重量更新</span>');
   if (rec.isRepsPR) items.push('<span class="mini-badge">🔁回数更新</span>');
   if (rec.isVolumePR) items.push('<span class="mini-badge">📊ボリューム更新</span>');
+  if (rec.isDistancePR) items.push('<span class="mini-badge">🏃最長距離更新</span>');
+  if (rec.isPacePR) items.push('<span class="mini-badge">⚡最速ペース更新</span>');
   return items.length ? `<div class="badge-row">${items.join('')}</div>` : '';
 }
 
@@ -1457,6 +1507,100 @@ document.getElementById('addSetBtn').addEventListener('click', ()=>{
   renderSetsUI();
 });
 
+/* 有酸素運動：距離(m)＋時速(km/h)の区間入力 */
+function renderCardioUI(){
+  const wrap = document.getElementById('cardioSegments');
+  wrap.innerHTML = currentCardio.map((c,i)=>`
+    <div class="cardio-row">
+      <div class="cardio-range" id="cardioRange${i}"></div>
+      <div class="cardio-inputs">
+        <input type="number" step="1" min="0" placeholder="距離(m)" value="${c.distanceM}" data-i="${i}" data-f="distanceM">
+        <input type="number" step="0.1" min="0" placeholder="時速(km/h)" value="${c.speedKmh}" data-i="${i}" data-f="speedKmh">
+        <span class="cardio-pace" id="cardioPace${i}"></span>
+        <button type="button" data-remove="${i}">×</button>
+      </div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      currentCardio[+inp.dataset.i][inp.dataset.f] = inp.value;
+      updateCardioLabels();
+    });
+  });
+  wrap.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      currentCardio.splice(+btn.dataset.remove, 1);
+      renderCardioUI();
+    });
+  });
+  updateCardioLabels();
+}
+
+function updateCardioLabels(){
+  let cum = 0;
+  currentCardio.forEach((c,i)=>{
+    const dist = Number(c.distanceM) || 0;
+    const from = cum;
+    const to = cum + dist;
+    cum = to;
+    const rangeEl = document.getElementById('cardioRange' + i);
+    if (rangeEl) rangeEl.textContent = `区間${i+1}（${from}〜${dist ? to : '?'}m）`;
+    const paceEl = document.getElementById('cardioPace' + i);
+    if (paceEl){
+      const spd = Number(c.speedKmh);
+      paceEl.textContent = spd > 0 ? formatPace(spd) + '/km' : '--:--/km';
+    }
+  });
+  checkLiveCardioPR();
+}
+
+document.getElementById('addCardioSegmentBtn').addEventListener('click', ()=>{
+  currentCardio.push({ distanceM: '', speedKmh: '' });
+  renderCardioUI();
+});
+
+function toggleWorkoutInputMode(){
+  const isCardio = document.getElementById('workoutBodyPartSelect').value === CARDIO_BODY_PART;
+  document.getElementById('setsFieldWrap').style.display = isCardio ? 'none' : 'block';
+  document.getElementById('cardioFieldWrap').style.display = isCardio ? 'block' : 'none';
+}
+
+function getBestCardioRecords(exerciseName, excludeId){
+  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && isCardioLog(l));
+  let bestDistance = null, bestSpeed = null;
+  logs.forEach(l=>{
+    const totalDistance = l.cardioSegments.reduce((sum,c)=> sum + (Number(c.distanceM) || 0), 0);
+    const maxSpeed = l.cardioSegments.reduce((mx,c)=> Math.max(mx, Number(c.speedKmh) || 0), 0);
+    if (bestDistance === null || totalDistance > bestDistance) bestDistance = totalDistance;
+    if (bestSpeed === null || maxSpeed > bestSpeed) bestSpeed = maxSpeed;
+  });
+  return { bestDistance, bestSpeed };
+}
+
+function checkLiveCardioPR(){
+  const name = document.getElementById('workoutExerciseSelect').value;
+  const info = document.getElementById('workoutExerciseInfo');
+  if (!name || !info.innerHTML) return;
+  const existingBadge = info.querySelector('.pr-live-badge');
+  if (existingBadge) existingBadge.remove();
+  const rec = getBestCardioRecords(name, editingWorkoutId);
+  const validSegs = currentCardio
+    .filter(c => c.distanceM !== '' && c.speedKmh !== '')
+    .map(c => ({ distanceM: Number(c.distanceM), speedKmh: Number(c.speedKmh) }));
+  if (!validSegs.length) return;
+  const totalDistance = validSegs.reduce((sum,c)=> sum + c.distanceM, 0);
+  const maxSpeed = Math.max(...validSegs.map(c=>c.speedKmh));
+  const badges = [];
+  if (rec.bestDistance === null || totalDistance > rec.bestDistance) badges.push('🏃最長距離更新');
+  if (rec.bestSpeed === null || maxSpeed > rec.bestSpeed) badges.push('⚡最速ペース更新');
+  if (badges.length){
+    const badgeEl = document.createElement('div');
+    badgeEl.className = 'pr-live-badge';
+    badgeEl.textContent = '🔥 ' + badges.join(' ');
+    info.appendChild(badgeEl);
+  }
+}
+
 function getBestRecords(exerciseName, excludeId){
   const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId);
   let bestWeight = null, bestReps = null, bestVolume = null;
@@ -1475,22 +1619,33 @@ function getBestRecords(exerciseName, excludeId){
 
 function updateWorkoutExerciseInfo(){
   const name = document.getElementById('workoutExerciseSelect').value;
+  const bodyPart = document.getElementById('workoutBodyPartSelect').value;
   const info = document.getElementById('workoutExerciseInfo');
   if (!name){ info.innerHTML = ''; return; }
   const match = exercises.find(e => e.name === name);
-  const rec = getBestRecords(name, editingWorkoutId);
   let html = '';
   if (match && match.cue){
     html += `<div class="pr-info">💡 ${escapeHtml(match.cue)}</div>`;
   }
-  html += `<div class="pr-info">
-    自己ベスト<br>
-    <b>重量</b> ${rec.bestWeight !== null ? rec.bestWeight.toFixed(1) + ' kg' : '記録なし'} ・
-    <b>回数</b> ${rec.bestReps !== null ? rec.bestReps + ' 回' : '記録なし'} ・
-    <b>ボリューム</b> ${rec.bestVolume !== null ? rec.bestVolume.toFixed(0) : '記録なし'}
-  </div>`;
+  if (bodyPart !== CARDIO_BODY_PART){
+    const rec = getBestRecords(name, editingWorkoutId);
+    html += `<div class="pr-info">
+      自己ベスト<br>
+      <b>重量</b> ${rec.bestWeight !== null ? rec.bestWeight.toFixed(1) + ' kg' : '記録なし'} ・
+      <b>回数</b> ${rec.bestReps !== null ? rec.bestReps + ' 回' : '記録なし'} ・
+      <b>ボリューム</b> ${rec.bestVolume !== null ? rec.bestVolume.toFixed(0) : '記録なし'}
+    </div>`;
+  } else {
+    const rec = getBestCardioRecords(name, editingWorkoutId);
+    html += `<div class="pr-info">
+      自己ベスト<br>
+      <b>最長距離</b> ${rec.bestDistance !== null ? rec.bestDistance + ' m' : '記録なし'} ・
+      <b>最速ペース</b> ${rec.bestSpeed !== null ? formatPace(rec.bestSpeed) + '/km（時速' + rec.bestSpeed.toFixed(1) + 'km）' : '記録なし'}
+    </div>`;
+  }
   info.innerHTML = html;
-  checkLivePR();
+  if (bodyPart !== CARDIO_BODY_PART) checkLivePR();
+  else checkLiveCardioPR();
 }
 document.getElementById('workoutExerciseSelect').addEventListener('change', updateWorkoutExerciseInfo);
 
@@ -1550,6 +1705,7 @@ function updateWorkoutExerciseOptions(bodyPart, selectedName){
 document.getElementById('workoutBodyPartSelect').addEventListener('change', (e)=>{
   updateWorkoutExerciseOptions(e.target.value, '');
   updateWorkoutExerciseInfo();
+  toggleWorkoutInputMode();
 });
 
 function openWorkoutModal(entry){
@@ -1561,8 +1717,12 @@ function openWorkoutModal(entry){
   const bp = entry ? entry.bodyPart : '';
   document.getElementById('workoutBodyPartSelect').value = bp;
   updateWorkoutExerciseOptions(bp, entry ? entry.exerciseName : '');
-  currentSets = entry ? entry.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps) })) : [{ weight: '', reps: '' }];
+  const entryIsCardio = entry ? isCardioLog(entry) : false;
+  currentSets = (entry && !entryIsCardio) ? entry.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps) })) : [{ weight: '', reps: '' }];
+  currentCardio = entryIsCardio ? entry.cardioSegments.map(c => ({ distanceM: String(c.distanceM), speedKmh: String(c.speedKmh) })) : [{ distanceM: '', speedKmh: '' }];
   renderSetsUI();
+  renderCardioUI();
+  toggleWorkoutInputMode();
   updateWorkoutExerciseInfo();
   document.getElementById('workoutDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
   openModal('workoutModal');
@@ -1580,12 +1740,25 @@ document.getElementById('workoutForm').addEventListener('submit', async (e)=>{
     showToast('日付・部位・種目を入力してください');
     return;
   }
-  const sets = currentSets
-    .filter(s => s.weight !== '' && s.reps !== '')
-    .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }));
-  if (!sets.length){
-    showToast('セットを1つ以上入力してください');
-    return;
+  const isCardio = bodyPart === CARDIO_BODY_PART;
+  let sets = [];
+  let cardioSegments = [];
+  if (isCardio){
+    cardioSegments = currentCardio
+      .filter(c => c.distanceM !== '' && c.speedKmh !== '')
+      .map(c => ({ distanceM: Number(c.distanceM), speedKmh: Number(c.speedKmh) }));
+    if (!cardioSegments.length){
+      showToast('区間（距離・時速）を1つ以上入力してください');
+      return;
+    }
+  } else {
+    sets = currentSets
+      .filter(s => s.weight !== '' && s.reps !== '')
+      .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }));
+    if (!sets.length){
+      showToast('セットを1つ以上入力してください');
+      return;
+    }
   }
   const match = exercises.find(ex => ex.name === exerciseName);
   try{
@@ -1594,6 +1767,7 @@ document.getElementById('workoutForm').addEventListener('submit', async (e)=>{
       bodyPart: match ? match.bodyPart : bodyPart,
       cue: match ? (match.cue || '') : '',
       sets,
+      cardioSegments,
       updatedAt: serverTimestamp()
     };
     if (id){
@@ -1626,7 +1800,7 @@ document.getElementById('workoutDeleteBtn').addEventListener('click', ()=>{
 /* ---- 過去の自己ベスト（重量・回数・ボリューム）の集計 ---- */
 function computeSessionRecords(){
   const byName = {};
-  workoutLogs.forEach(l=>{
+  workoutLogs.filter(l => !isCardioLog(l)).forEach(l=>{
     (byName[l.exerciseName] = byName[l.exerciseName] || []).push(l);
   });
   const map = {};
@@ -1653,14 +1827,43 @@ function computeSessionRecords(){
   return map;
 }
 
+function computeCardioSessionRecords(){
+  const byName = {};
+  workoutLogs.filter(l => isCardioLog(l)).forEach(l=>{
+    (byName[l.exerciseName] = byName[l.exerciseName] || []).push(l);
+  });
+  const map = {};
+  Object.keys(byName).forEach(name=>{
+    const logs = byName[name].slice().sort((a,b)=> a.date.localeCompare(b.date));
+    let bd = null, bs = null;
+    map[name] = logs.map(l=>{
+      const totalDistance = l.cardioSegments.reduce((sum,c)=> sum + (Number(c.distanceM) || 0), 0);
+      const maxSpeed = l.cardioSegments.reduce((mx,c)=> Math.max(mx, Number(c.speedKmh) || 0), 0);
+      const isDistancePR = bd === null || totalDistance > bd;
+      const isPacePR = bs === null || maxSpeed > bs;
+      if (bd === null || totalDistance > bd) bd = totalDistance;
+      if (bs === null || maxSpeed > bs) bs = maxSpeed;
+      return { id: l.id, date: l.date, totalDistance, maxSpeed, isDistancePR, isPacePR };
+    });
+  });
+  return map;
+}
+
 function buildRecordIndex(){
-  const map = computeSessionRecords();
+  const strengthMap = computeSessionRecords();
+  const cardioMap = computeCardioSessionRecords();
   const idx = {};
   const prDates = new Set();
-  Object.values(map).forEach(sessions=>{
+  Object.values(strengthMap).forEach(sessions=>{
     sessions.forEach(s=>{
       idx[s.id] = s;
       if (s.isWeightPR || s.isRepsPR || s.isVolumePR) prDates.add(s.date);
+    });
+  });
+  Object.values(cardioMap).forEach(sessions=>{
+    sessions.forEach(s=>{
+      idx[s.id] = s;
+      if (s.isDistancePR || s.isPacePR) prDates.add(s.date);
     });
   });
   return { idx, prDates };
@@ -1733,7 +1936,7 @@ function openDayDetail(dateStr){
       <div class="list-item" data-id="${l.id}">
         <div>
           <div class="main-val">${escapeHtml(l.exerciseName)}</div>
-          <div class="note">${(l.sets||[]).map(s=>`${s.weight}kg×${s.reps}`).join(', ')}</div>
+          <div class="note">${escapeHtml(formatLogSummary(l))}</div>
           ${rec ? badgeHtml(rec) : ''}
         </div>
       </div>
