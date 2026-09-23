@@ -412,6 +412,7 @@
   .progress-fill{
     height:100%; background:linear-gradient(90deg, var(--red), var(--orange)); border-radius:20px; transition:width 0.3s ease;
   }
+  .mini-note{ font-size:9px; color:var(--text-faint); margin-top:3px; }
 
   /* ---------- ホイールピッカー（日付・体重） ---------- */
   .wheel-group{
@@ -643,6 +644,7 @@
             <div class="label">体重比</div>
             <div class="value num" style="color:var(--green)" id="big3TotalRatioVal">--</div>
             <div class="unit">倍</div>
+            <div class="mini-note" id="big3TotalRatioNote"></div>
           </div>
         </div>
         <div id="big3TargetProgressWrap" style="display:none;">
@@ -2213,6 +2215,7 @@ function capitalize(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
 
 function renderBig3(){
   const bestByLift = {};
+  const bestBwByLift = {};
 
   BIG3_CONFIG.forEach(cfg=>{
     const autoLogs = workoutLogs.filter(l => matchBig3(l.exerciseName) === cfg.key);
@@ -2246,21 +2249,35 @@ function renderBig3(){
     renderBig3Chart(cfg, sessions);
     renderBig3List(cfg.key, sessions);
 
-    bestByLift[cfg.key] = sessions.length ? Math.max(...sessions.map(s=>s.maxWeight)) : 0;
+    const maxWeight = sessions.length ? Math.max(...sessions.map(s=>s.maxWeight)) : 0;
+    bestByLift[cfg.key] = maxWeight;
+
+    let bestBw = null;
+    if (sessions.length && maxWeight > 0){
+      const candidates = sessions.filter(s => s.maxWeight === maxWeight);
+      const latest = candidates.reduce((a,b)=> a.date >= b.date ? a : b);
+      bestBw = (latest.bw !== null && latest.bw !== undefined) ? Number(latest.bw) : null;
+    }
+    bestBwByLift[cfg.key] = bestBw;
   });
 
-  renderBig3Total(bestByLift);
+  renderBig3Total(bestByLift, bestBwByLift);
 }
 
-function renderBig3Total(bestByLift){
+function renderBig3Total(bestByLift, bestBwByLift){
   const total = BIG3_CONFIG.reduce((sum, cfg)=> sum + (bestByLift[cfg.key] || 0), 0);
   const hasAny = BIG3_CONFIG.some(cfg => (bestByLift[cfg.key] || 0) > 0);
-  const currentBw = weightEntries.length ? Number(weightEntries[0].weight) : null;
-  const ratio = (hasAny && currentBw) ? total / currentBw : null;
+
+  const bwValues = BIG3_CONFIG
+    .map(cfg => bestBwByLift[cfg.key])
+    .filter(v => v !== null && v !== undefined && !isNaN(v));
+  const avgBw = bwValues.length ? (bwValues.reduce((a,b)=> a+b, 0) / bwValues.length) : null;
+  const ratio = (hasAny && avgBw) ? total / avgBw : null;
 
   document.getElementById('big3TotalVal').textContent = hasAny ? total.toFixed(1) : '--';
   document.getElementById('big3TotalTargetVal').textContent = big3TargetTotal !== null ? Number(big3TargetTotal).toFixed(1) : '--';
   document.getElementById('big3TotalRatioVal').textContent = ratio !== null ? ratio.toFixed(2) : '--';
+  document.getElementById('big3TotalRatioNote').textContent = avgBw !== null ? `MAX時平均体重 ${avgBw.toFixed(1)}kg` : '';
 
   const progressWrap = document.getElementById('big3TargetProgressWrap');
   if (big3TargetTotal !== null && big3TargetTotal > 0 && hasAny){
@@ -2339,7 +2356,7 @@ function renderBig3List(key, sessions){
       </div>
       <div style="text-align:right;">
         <div class="main-val">${s.maxWeight.toFixed(1)} kg</div>
-        <div class="note">${s.ratio !== null ? '体重比 ' + s.ratio.toFixed(2) : '体重データなし'}</div>
+        <div class="note">${(s.bw !== null && s.bw !== undefined) ? '体重 ' + Number(s.bw).toFixed(1) + 'kg' : '体重データなし'}${s.ratio !== null ? '　体重比 ' + s.ratio.toFixed(2) : ''}</div>
       </div>
     `;
     if (s.source === 'manual'){
