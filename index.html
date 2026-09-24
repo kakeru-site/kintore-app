@@ -600,6 +600,39 @@
   .cal-legend-dots{ display:flex; flex-wrap:wrap; gap:8px 12px; margin-top:10px; }
   .cal-legend-item{ display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--text-faint); }
   .cal-legend-item .cal-dot{ width:7px; height:7px; }
+  .cal-day .phase-strip{ position:absolute; bottom:2px; left:4px; right:4px; height:3px; border-radius:2px; }
+
+  /* ---------- 増量期・減量期・維持期（トレーニング期） ---------- */
+  .phase-banner{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:12px 14px; margin-bottom:12px; cursor:pointer;
+  }
+  .phase-banner-main{ display:flex; flex-direction:column; gap:2px; }
+  .phase-banner-label{ font-size:10.5px; color:var(--text-faint); }
+  .phase-banner-current{ display:flex; align-items:center; gap:6px; font-size:14.5px; font-weight:700; }
+  .phase-banner-range{ font-size:11px; color:var(--text-faint); margin-top:1px; }
+  .phase-banner-arrow{ color:var(--text-faint); font-size:14px; }
+  .phase-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .phase-badge{
+    display:inline-flex; align-items:center; gap:3px; font-size:10.5px; font-weight:600;
+    padding:2px 7px; border-radius:20px; border:1px solid var(--border); white-space:nowrap;
+  }
+  .phase-badge[data-phase="bulk"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .phase-badge[data-phase="cut"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
+  .phase-badge[data-phase="maintain"]{ background:#0f2b1a; border-color:var(--green); color:var(--green); }
+  .phase-type-row{ display:flex; gap:8px; }
+  .phase-type-chip{
+    flex:1; padding:10px 6px; border-radius:var(--radius-sm); border:1px solid var(--border);
+    background:var(--surface-2); color:var(--text-dim); font-size:12.5px; font-weight:600; cursor:pointer; text-align:center;
+  }
+  .phase-type-chip.active[data-phase="bulk"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .phase-type-chip.active[data-phase="cut"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
+  .phase-type-chip.active[data-phase="maintain"]{ background:#0f2b1a; border-color:var(--green); color:var(--green); }
+  .phase-period-list-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .phase-period-info{ display:flex; align-items:center; gap:8px; }
+  .phase-period-range{ font-size:12px; color:var(--text-dim); }
+  .phase-scope-note{ font-size:11px; color:var(--text-faint); margin:2px 0 6px; }
 
   /* ---------- BIG3 ---------- */
   .big3-title{
@@ -854,6 +887,7 @@
 
     <!-- ⑥ ジムカレンダー -->
     <section class="section" id="section-calendar">
+      <div class="phase-banner" id="phaseBanner"></div>
       <div class="card">
         <div class="section-title" style="margin-bottom:10px;"><span>部位バランス（直近60日）</span></div>
         <div class="chart-wrap" id="bodyPartBalanceWrap">
@@ -868,7 +902,7 @@
       </div>
       <div class="cal-grid" id="calGrid"></div>
       <p style="font-size:11px; color:var(--text-faint); text-align:center; margin-top:14px;">
-        点の色＝その日に行った部位（複数可）／🔥＝自己ベスト更新。タップするとその日のメニューが見られます
+        点の色＝その日に行った部位（複数可）／🔥＝自己ベスト更新／下線の色＝その日のトレーニング期。タップするとその日のメニューが見られます
       </p>
       <div class="cal-legend-dots" id="calLegendDots"></div>
     </section>
@@ -1179,6 +1213,48 @@
         <input type="number" id="weeklyGoalValue" step="1" min="1" max="14" inputmode="numeric" required>
       </div>
       <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 増量期・減量期・維持期 一覧モーダル -->
+<div class="modal-overlay" id="phaseListModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>増量期・減量期・維持期</h2>
+      <button class="modal-close" data-close="phaseListModal">×</button>
+    </div>
+    <p class="phase-scope-note">自己ベストや「次回の目標」は、同じ期間（増量期 or 減量期・維持期）の記録どうしだけで比較されます。維持期と減量期はトレーニング量が同じなので、同じグループとして扱われます。</p>
+    <div id="phasePeriodListWrap"></div>
+    <button type="button" class="btn btn-ghost" id="phaseAddNewBtn" style="width:100%; margin-top:10px;">＋ 新しい期間を追加</button>
+  </div>
+</div>
+
+<!-- 増量期・減量期・維持期 追加/編集モーダル -->
+<div class="modal-overlay" id="phaseEditModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="phaseEditModalTitle">期間を追加</h2>
+      <button class="modal-close" data-close="phaseEditModal">×</button>
+    </div>
+    <form id="phaseEditForm">
+      <input type="hidden" id="phasePeriodDocId">
+      <div class="field">
+        <label>期間の種類</label>
+        <div class="phase-type-row" id="phaseTypeRow"></div>
+      </div>
+      <div class="field">
+        <label for="phaseStartDate">開始日</label>
+        <input type="date" id="phaseStartDate" required>
+      </div>
+      <div class="field">
+        <label for="phaseEndDate">終了日 <span class="field-hint">（空欄＝継続中）</span></label>
+        <input type="date" id="phaseEndDate">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="phaseDeleteBtn" style="display:none;">削除</button>
         <button type="submit" class="btn btn-primary">保存</button>
       </div>
     </form>
@@ -1702,7 +1778,7 @@ document.getElementById('lockPasswordFallbackBtn').addEventListener('click', asy
   catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
 });
 
-let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null, unsubTrainingDuration = null, unsubRoutines = null, unsubWeeklyGoal = null;
+let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null, unsubTrainingDuration = null, unsubRoutines = null, unsubWeeklyGoal = null, unsubPhasePeriods = null;
 
 onAuthStateChanged(auth, (user)=>{
   if (user){
@@ -1731,6 +1807,7 @@ onAuthStateChanged(auth, (user)=>{
     if (unsubTrainingDuration) unsubTrainingDuration();
     if (unsubRoutines) unsubRoutines();
     if (unsubWeeklyGoal) unsubWeeklyGoal();
+    if (unsubPhasePeriods) unsubPhasePeriods();
   }
 });
 
@@ -1849,6 +1926,19 @@ function startListeners(uid){
     renderStreakCard();
   }, (err)=>{
     console.error(err);
+  });
+
+  const phasePeriodsCol = collection(db, 'users', uid, 'phasePeriods');
+  unsubPhasePeriods = onSnapshot(phasePeriodsCol, (snap)=>{
+    phasePeriods = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a,b)=> (a.startDate || '').localeCompare(b.startDate || ''));
+    renderPhaseBanner();
+    renderPhaseList();
+    renderCalendar();
+    renderWorkoutList();
+  }, (err)=>{
+    console.error(err);
+    showToast('期間データの読み込みに失敗しました: ' + err.message);
   });
 }
 
@@ -2135,6 +2225,7 @@ let workoutLogs = [];
 let trainingDurations = {}; // { 'YYYY-MM-DD': 秒数 } ストップウォッチから記録したその日のトレーニング時間
 let routines = [];
 let weeklyGoalSessions = null;
+let phasePeriods = [];
 let exerciseStatsChartInstance = null;
 let activeRoutine = null;
 let activeRoutineIndex = 0;
@@ -2370,6 +2461,7 @@ function workoutItemHtml(l, idx){
         <div class="main-val-row" style="margin-top:4px;">
           <span class="main-val">${escapeHtml(l.exerciseName)}</span>
           ${categoryBadgeHtml(l)}
+          ${phaseBadgeHtml(l.date)}
         </div>
         <div class="note">${escapeHtml(formatLogSummary(l))}</div>
         ${l.memo ? `<div class="note">📝 ${escapeHtml(l.memo)}</div>` : ''}
@@ -2529,7 +2621,7 @@ function applySetPlaceholderHints(){
     if (hintEl) hintEl.textContent = '';
     return;
   }
-  const recByCat = getBestRecordsByCategory(name, editingWorkoutId);
+  const recByCat = getBestRecordsByCategory(name, editingWorkoutId, currentWorkoutRefDate());
   const rec = recByCat[currentEntryCategory] || recByCat.medium;
   wrap.querySelectorAll('input[data-f="weight"]').forEach(inp=>{
     inp.placeholder = rec.bestWeight !== null ? `最高${+rec.bestWeight.toFixed(1)}kg` : '過去記録なし';
@@ -2629,8 +2721,8 @@ function toggleWorkoutInputMode(){
   if (catWrap) catWrap.style.display = isCardio ? 'none' : 'block';
 }
 
-function getBestCardioRecords(exerciseName, excludeId){
-  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && isCardioLog(l));
+function getBestCardioRecords(exerciseName, excludeId, refDate){
+  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && isCardioLog(l) && inSamePhaseGroup(l.date, refDate || todayStr()));
   let bestDistance = null, bestSpeed = null, bestSegmentCount = null;
   logs.forEach(l=>{
     const totalDistance = l.cardioSegments.reduce((sum,c)=> sum + (Number(c.distanceM) || 0), 0);
@@ -2649,7 +2741,7 @@ function checkLiveCardioPR(){
   if (!name || !info.innerHTML) return;
   const existingBadge = info.querySelector('.pr-live-badge');
   if (existingBadge) existingBadge.remove();
-  const rec = getBestCardioRecords(name, editingWorkoutId);
+  const rec = getBestCardioRecords(name, editingWorkoutId, currentWorkoutRefDate());
   const validSegs = currentCardio
     .filter(c => c.distanceM !== '' && c.speedKmh !== '')
     .map(c => ({ distanceM: Number(c.distanceM), speedKmh: Number(c.speedKmh) }));
@@ -2695,10 +2787,10 @@ function setCategoryLabel(cat){
   const found = SET_CATEGORIES.find(c => c.key === cat);
   return found ? found.label : '中重量';
 }
-function getBestRecordsByCategory(exerciseName, excludeId){
+function getBestRecordsByCategory(exerciseName, excludeId, refDate){
   const result = {};
   SET_CATEGORIES.forEach(({key})=>{ result[key] = { bestWeight: null, bestReps: null, bestVolume: null, bestSetCount: null }; });
-  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l));
+  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l) && inSamePhaseGroup(l.date, refDate || todayStr()));
   logs.forEach(l=>{
     const cat = logCategory(l);
     const rec = result[cat];
@@ -2726,10 +2818,11 @@ function estimate1RM(weight, reps){
 function logBest1RM(l){
   return (l.sets || []).reduce((mx, s) => Math.max(mx, estimate1RM(s.weight, s.reps)), 0);
 }
-function getBest1RMByCategory(exerciseName, excludeId){
+function getBest1RMByCategory(exerciseName, excludeId, refDate){
   const result = { max: 0, heavy: 0, medium: 0 };
+  const ref = refDate || todayStr();
   workoutLogs.forEach(l=>{
-    if (l.exerciseName !== exerciseName || l.id === excludeId || isCardioLog(l)) return;
+    if (l.exerciseName !== exerciseName || l.id === excludeId || isCardioLog(l) || !inSamePhaseGroup(l.date, ref)) return;
     const cat = logCategory(l);
     (l.sets || []).forEach(s=>{
       const rm = estimate1RM(s.weight, s.reps);
@@ -2748,8 +2841,9 @@ const CATEGORY_REP_TARGET = {
   medium: { min: 8, max: 12 }
 };
 const PROGRESSION_WEIGHT_STEP = 2.5;
-function suggestNextTarget(exerciseName, cat){
-  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && !isCardioLog(l) && logCategory(l) === cat);
+function suggestNextTarget(exerciseName, cat, refDate){
+  const ref = refDate || todayStr();
+  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && !isCardioLog(l) && logCategory(l) === cat && inSamePhaseGroup(l.date, ref));
   if (!logs.length) return null;
   logs.sort((a,b)=>{
     if (a.date !== b.date) return a.date < b.date ? 1 : -1;
@@ -2772,11 +2866,13 @@ function suggestNextTarget(exerciseName, cat){
   return `次は ${topWeight}kg のまま +1回 → ${minRepsAtTopWeight + 1}回 を目指しましょう`;
 }
 
-/* 種目別の推移（強度ごとの推定1RM）をグラフで振り返る */
-function openExerciseStatsModal(exerciseName){
+/* 種目別の推移（強度ごとの推定1RM）をグラフで振り返る。
+   refDateが属する期間グループ（増量期 or 減量期・維持期）の記録だけに絞って表示する */
+function openExerciseStatsModal(exerciseName, refDate){
+  const ref = refDate || todayStr();
   document.getElementById('exerciseStatsTitle').textContent = exerciseName + ' の推移';
   const logs = workoutLogs
-    .filter(l => l.exerciseName === exerciseName && !isCardioLog(l))
+    .filter(l => l.exerciseName === exerciseName && !isCardioLog(l) && inSamePhaseGroup(l.date, ref))
     .slice()
     .sort((a,b)=> a.date.localeCompare(b.date) || (recordedAtMs(a) - recordedAtMs(b)));
 
@@ -2801,8 +2897,10 @@ function openExerciseStatsModal(exerciseName){
 
   if (exerciseStatsChartInstance){ exerciseStatsChartInstance.destroy(); exerciseStatsChartInstance = null; }
   const summaryEl = document.getElementById('exerciseStatsSummary');
+  const scopeGroup = getPhaseGroupForDate(ref);
+  const scopeNoteHtml = `<p class="phase-scope-note">${scopeGroup ? `${escapeHtml(phaseGroupLabel(scopeGroup))}の記録のみ表示中` : '期間未設定のため、全期間の記録を表示中'}</p>`;
   if (!datasets.length){
-    summaryEl.innerHTML = '<div class="empty-msg">まだ記録がありません</div>';
+    summaryEl.innerHTML = scopeNoteHtml + '<div class="empty-msg">まだ記録がありません</div>';
   } else {
     // Chart.jsはCDN読み込みのため、オフライン等で読み込めていない場合でもモーダル自体は開けるようにする
     try{
@@ -2823,8 +2921,8 @@ function openExerciseStatsModal(exerciseName){
     }catch(err){
       console.warn('グラフの描画に失敗しました:', err);
     }
-    const recByCat = getBestRecordsByCategory(exerciseName, null);
-    summaryEl.innerHTML = `<div class="pr-info">
+    const recByCat = getBestRecordsByCategory(exerciseName, null, ref);
+    summaryEl.innerHTML = scopeNoteHtml + `<div class="pr-info">
       自己ベスト
       ${SET_CATEGORIES.map(({key, label})=>{
         const rec = recByCat[key];
@@ -2841,11 +2939,13 @@ function openExerciseStatsModal(exerciseName){
 
 /* 種目＋強度（カテゴリ）を指定して、その中で最もボリューム（重量×回数の合計）が高い記録＝自己ベストの記録そのものを返す。
    セット数入力欄への自動入力（訂正案 2・3）で「その強度の自己ベストの各セット」を再現するために使う */
-function findBestLogByCategory(exerciseName, cat, excludeId){
+function findBestLogByCategory(exerciseName, cat, excludeId, refDate){
   let best = null, bestVol = -1;
+  const ref = refDate || todayStr();
   workoutLogs.forEach(l=>{
     if (l.exerciseName !== exerciseName || l.id === excludeId || isCardioLog(l)) return;
     if (logCategory(l) !== cat) return;
+    if (!inSamePhaseGroup(l.date, ref)) return;
     const vol = (l.sets || []).reduce((sum,s)=> sum + (Number(s.weight)||0) * (Number(s.reps)||0), 0);
     if (vol > bestVol){ bestVol = vol; best = l; }
   });
@@ -2856,7 +2956,7 @@ function findBestLogByCategory(exerciseName, cat, excludeId){
 function autofillSetsFromCategory(cat){
   const name = document.getElementById('workoutExerciseSelect').value;
   if (!name) return;
-  const ref = findBestLogByCategory(name, cat, editingWorkoutId);
+  const ref = findBestLogByCategory(name, cat, editingWorkoutId, currentWorkoutRefDate());
   currentSets = (ref && ref.sets && ref.sets.length)
     ? ref.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps) }))
     : [{ weight: '', reps: '' }];
@@ -2926,11 +3026,16 @@ function updateWorkoutExerciseInfo(){
   if (match && match.cue){
     html += `<div class="pr-info">💡 ${escapeHtml(match.cue)}</div>`;
   }
+  const refDate = currentWorkoutRefDate();
+  const phaseGroupNote = (()=>{
+    const g = getPhaseGroupForDate(refDate);
+    return g ? `（${escapeHtml(phaseGroupLabel(g))}の記録のみ）` : '（期間未設定：全期間）';
+  })();
   if (bodyPart !== CARDIO_BODY_PART){
-    const recByCat = getBestRecordsByCategory(name, editingWorkoutId);
-    const rmByCat = getBest1RMByCategory(name, editingWorkoutId);
+    const recByCat = getBestRecordsByCategory(name, editingWorkoutId, refDate);
+    const rmByCat = getBest1RMByCategory(name, editingWorkoutId, refDate);
     html += `<div class="pr-info">
-      自己ベスト
+      自己ベスト<span class="phase-scope-note" style="display:inline; margin:0 0 0 4px;">${phaseGroupNote}</span>
       ${SET_CATEGORIES.map(({key, label})=>{
         const rec = recByCat[key];
         const rm = rmByCat[key];
@@ -2941,13 +3046,13 @@ function updateWorkoutExerciseInfo(){
       }).join('')}
     </div>`;
     if (!editingWorkoutId){
-      const suggestion = suggestNextTarget(name, currentEntryCategory);
+      const suggestion = suggestNextTarget(name, currentEntryCategory, refDate);
       if (suggestion){
         html += `<div class="pr-suggest">🎯 <b>次回の目標</b>（${escapeHtml(setCategoryLabel(currentEntryCategory))}）<br>${escapeHtml(suggestion)}</div>`;
       }
     }
   } else {
-    const rec = getBestCardioRecords(name, editingWorkoutId);
+    const rec = getBestCardioRecords(name, editingWorkoutId, refDate);
     html += `<div class="pr-info">
       自己ベスト<br>
       <b>最長距離</b> ${rec.bestDistance !== null ? rec.bestDistance + ' m' : '記録なし'} ・
@@ -2959,7 +3064,7 @@ function updateWorkoutExerciseInfo(){
   }
   info.innerHTML = html;
   const statsLinkBtn = document.getElementById('workoutStatsLinkBtn');
-  if (statsLinkBtn) statsLinkBtn.addEventListener('click', ()=> openExerciseStatsModal(name));
+  if (statsLinkBtn) statsLinkBtn.addEventListener('click', ()=> openExerciseStatsModal(name, currentWorkoutRefDate()));
   if (bodyPart !== CARDIO_BODY_PART) checkLivePR();
   else checkLiveCardioPR();
 }
@@ -2980,7 +3085,7 @@ function checkLivePR(){
   if (!name || !info.innerHTML) return;
   const existingBadgeRow = info.querySelector('.pr-live-badge-row');
   if (existingBadgeRow) existingBadgeRow.remove();
-  const recByCat = getBestRecordsByCategory(name, editingWorkoutId);
+  const recByCat = getBestRecordsByCategory(name, editingWorkoutId, currentWorkoutRefDate());
   const rec = recByCat[currentEntryCategory] || recByCat.medium;
   const validSets = currentSets
     .filter(s => s.weight !== '' && s.reps !== '')
@@ -3474,6 +3579,212 @@ function advanceRoutine(){
   }
 }
 
+/* ---- 増量期・減量期・維持期（トレーニング期） ----
+   自己ベスト・推移グラフ・次回の目標の提案は、同じ「グループ」（増量期 / 減量期・維持期）の記録どうしだけで
+   比較する。維持期と減量期はトレーニング量を変えない前提のため、同じグループとして扱う。
+   期間が1つも設定されていない日付は、絞り込まず全期間を対象にする（後方互換・未設定ユーザー向け）。 */
+const PHASE_TYPES = [
+  { key: 'bulk', label: '増量期', group: 'bulk' },
+  { key: 'cut', label: '減量期', group: 'cutmaintain' },
+  { key: 'maintain', label: '維持期', group: 'cutmaintain' }
+];
+function phaseLabel(key){
+  const f = PHASE_TYPES.find(p => p.key === key);
+  return f ? f.label : '';
+}
+function phaseGroupOf(key){
+  const f = PHASE_TYPES.find(p => p.key === key);
+  return f ? f.group : null;
+}
+function phaseGroupLabel(group){
+  if (group === 'bulk') return '増量期';
+  if (group === 'cutmaintain') return '減量期・維持期';
+  return '';
+}
+function phaseDotColor(key){
+  if (key === 'bulk') return 'var(--orange)';
+  if (key === 'cut') return 'var(--red)';
+  if (key === 'maintain') return 'var(--green)';
+  return 'var(--text-faint)';
+}
+function addDaysStr(dateStr, n){
+  const dt = parseYmd(dateStr);
+  dt.setDate(dt.getDate() + n);
+  return toYmd(dt);
+}
+function getPhasePeriodForDate(dateStr){
+  if (!dateStr) return null;
+  return phasePeriods.find(p => p.startDate <= dateStr && (!p.endDate || p.endDate >= dateStr)) || null;
+}
+function getPhaseGroupForDate(dateStr){
+  const p = getPhasePeriodForDate(dateStr);
+  return p ? phaseGroupOf(p.phase) : null;
+}
+/* refDateの属する期間グループと同じグループの記録だけに絞り込む判定。
+   refDateに期間が設定されていない場合は絞り込まない（全期間を対象にする） */
+function inSamePhaseGroup(dateStr, refDate){
+  const refGroup = getPhaseGroupForDate(refDate);
+  if (!refGroup) return true;
+  return getPhaseGroupForDate(dateStr) === refGroup;
+}
+/* 記録モーダルが開いている間の「基準日」（自己ベスト等をどの期間で絞り込むかの基準）。
+   その記録自体の日付（過去日にさかのぼって入力する場合も、その日付が属する期間で判定する） */
+function currentWorkoutRefDate(){
+  const v = document.getElementById('workoutDate').value;
+  return v || todayStr();
+}
+function phaseBadgeHtml(dateStr){
+  const p = getPhasePeriodForDate(dateStr);
+  if (!p) return '';
+  return `<span class="phase-badge" data-phase="${p.phase}">${escapeHtml(phaseLabel(p.phase))}</span>`;
+}
+
+function renderPhaseBanner(){
+  const el = document.getElementById('phaseBanner');
+  if (!el) return;
+  const current = getPhasePeriodForDate(todayStr());
+  if (!current){
+    el.innerHTML = `
+      <div class="phase-banner-main">
+        <span class="phase-banner-label">トレーニング期</span>
+        <span class="phase-banner-current" style="color:var(--text-faint);">未設定</span>
+        <span class="phase-banner-range">増量期・減量期・維持期を設定すると、自己ベストや次回の目標がその期間内で比較されます</span>
+      </div>
+      <span class="phase-banner-arrow">›</span>
+    `;
+  } else {
+    const rangeText = current.startDate + (current.endDate ? ` 〜 ${current.endDate}` : ' 〜 継続中');
+    el.innerHTML = `
+      <div class="phase-banner-main">
+        <span class="phase-banner-label">現在のトレーニング期</span>
+        <span class="phase-banner-current"><span class="phase-dot" style="background:${phaseDotColor(current.phase)};"></span>${escapeHtml(phaseLabel(current.phase))}</span>
+        <span class="phase-banner-range">${escapeHtml(rangeText)}</span>
+      </div>
+      <span class="phase-banner-arrow">›</span>
+    `;
+  }
+  el.onclick = ()=> openModal('phaseListModal');
+}
+
+function renderPhaseList(){
+  const wrap = document.getElementById('phasePeriodListWrap');
+  if (!wrap) return;
+  if (!phasePeriods.length){
+    wrap.innerHTML = '<div class="empty-msg">まだ期間が登録されていません</div>';
+    return;
+  }
+  // 新しい期間が上に来るように、開始日の新しい順で表示する
+  const sorted = phasePeriods.slice().sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
+  wrap.innerHTML = sorted.map(p => `
+    <div class="list-item phase-period-list-item" data-id="${p.id}">
+      <div class="phase-period-info">
+        <span class="phase-dot" style="background:${phaseDotColor(p.phase)};"></span>
+        <div>
+          <div class="main-val">${escapeHtml(phaseLabel(p.phase))}</div>
+          <div class="phase-period-range">${escapeHtml(p.startDate)} 〜 ${p.endDate ? escapeHtml(p.endDate) : '継続中'}</div>
+        </div>
+      </div>
+      <button type="button" class="btn-icon-sm" data-edit-phase="${p.id}" aria-label="編集">✎</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-edit-phase]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p = phasePeriods.find(x => x.id === btn.dataset.editPhase);
+      if (p) openPhaseEditModal(p);
+    });
+  });
+}
+
+document.getElementById('phaseAddNewBtn').addEventListener('click', ()=>{
+  closeModal('phaseListModal');
+  openPhaseEditModal(null);
+});
+
+let currentPhaseEditType = null;
+function renderPhaseTypeRow(){
+  const row = document.getElementById('phaseTypeRow');
+  row.innerHTML = PHASE_TYPES.map(p =>
+    `<button type="button" class="phase-type-chip${currentPhaseEditType === p.key ? ' active' : ''}" data-phase="${p.key}">${escapeHtml(p.label)}</button>`
+  ).join('');
+  row.querySelectorAll('.phase-type-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      currentPhaseEditType = chip.dataset.phase;
+      renderPhaseTypeRow();
+    });
+  });
+}
+
+function openPhaseEditModal(period){
+  document.getElementById('phaseEditModalTitle').textContent = period ? '期間を編集' : '期間を追加';
+  document.getElementById('phasePeriodDocId').value = period ? period.id : '';
+  currentPhaseEditType = period ? period.phase : 'bulk';
+  renderPhaseTypeRow();
+  document.getElementById('phaseStartDate').value = period ? period.startDate : todayStr();
+  document.getElementById('phaseEndDate').value = period && period.endDate ? period.endDate : '';
+  document.getElementById('phaseDeleteBtn').style.display = period ? 'inline-flex' : 'none';
+  openModal('phaseEditModal');
+}
+
+document.getElementById('phaseEditForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  if (!currentPhaseEditType){ showToast('期間の種類を選択してください'); return; }
+  const id = document.getElementById('phasePeriodDocId').value;
+  const startDate = document.getElementById('phaseStartDate').value;
+  const endDate = document.getElementById('phaseEndDate').value || null;
+  if (!startDate){ showToast('開始日を入力してください'); return; }
+  if (endDate && endDate < startDate){ showToast('終了日は開始日以降にしてください'); return; }
+  try{
+    if (id){
+      // 既存の期間を編集する場合：他の期間（自分以外）と重なっていないか確認する
+      const newEnd = endDate || '9999-12-31';
+      const overlap = phasePeriods.some(p => p.id !== id && startDate <= (p.endDate || '9999-12-31') && p.startDate <= newEnd);
+      if (overlap){ showToast('他の期間と重なっています。先にその期間の日付を調整してください'); return; }
+      await setDoc(doc(db, 'users', user.uid, 'phasePeriods', id), { phase: currentPhaseEditType, startDate, endDate, updatedAt: serverTimestamp() }, { merge: true });
+    } else {
+      // 「継続中」の新しい期間を追加する場合、既存の継続中の期間があれば前日で自動的に終了させる（切り替えボタンのような使い勝手にするため）
+      const autoAdjustments = [];
+      const effective = phasePeriods.map(p => ({ ...p }));
+      if (!endDate){
+        effective.forEach(p=>{
+          if (!p.endDate && p.startDate < startDate){
+            const dayBefore = addDaysStr(startDate, -1);
+            p.endDate = dayBefore;
+            autoAdjustments.push({ id: p.id, endDate: dayBefore });
+          }
+        });
+      }
+      const newEnd = endDate || '9999-12-31';
+      const overlap = effective.some(p => startDate <= (p.endDate || '9999-12-31') && p.startDate <= newEnd);
+      if (overlap){ showToast('他の期間と重なっています。日付を調整してください'); return; }
+      for (const adj of autoAdjustments){
+        await setDoc(doc(db, 'users', user.uid, 'phasePeriods', adj.id), { endDate: adj.endDate, updatedAt: serverTimestamp() }, { merge: true });
+      }
+      await addDoc(collection(db, 'users', user.uid, 'phasePeriods'), { phase: currentPhaseEditType, startDate, endDate, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    }
+    closeModal('phaseEditModal');
+  }catch(err){
+    console.error(err);
+    showToast('期間の保存に失敗しました: ' + err.message);
+  }
+});
+
+document.getElementById('phaseDeleteBtn').addEventListener('click', ()=>{
+  const id = document.getElementById('phasePeriodDocId').value;
+  if (!id) return;
+  askConfirm('この期間を削除しますか？', async ()=>{
+    const user = auth.currentUser;
+    try{
+      await deleteDoc(doc(db, 'users', user.uid, 'phasePeriods', id));
+      closeModal('phaseEditModal');
+    }catch(err){
+      console.error(err);
+      showToast('削除に失敗しました: ' + err.message);
+    }
+  });
+});
+
 /* ---- 過去の自己ベスト（重量・回数・ボリューム）の集計 ---- */
 function computeSessionRecords(){
   const byName = {};
@@ -3668,7 +3979,9 @@ function renderCalendar(){
     const dotsHtml = hasLog
       ? `<span class="cal-dots">${parts.slice(0, 6).map(bp => `<span class="cal-dot" style="background:${colorForBodyPart(bp)};"></span>`).join('')}</span>`
       : '';
-    el.innerHTML = `${dotsHtml}<span class="daynum">${d}</span>${hasPR ? '<span class="cal-pr">🔥</span>' : ''}`;
+    const phasePeriod = getPhasePeriodForDate(dateStr);
+    const phaseStripHtml = phasePeriod ? `<span class="phase-strip" style="background:${phaseDotColor(phasePeriod.phase)};"></span>` : '';
+    el.innerHTML = `${dotsHtml}<span class="daynum">${d}</span>${hasPR ? '<span class="cal-pr">🔥</span>' : ''}${phaseStripHtml}`;
     if (hasLog){
       el.addEventListener('click', ()=> openDayDetail(dateStr));
     }
@@ -3689,6 +4002,7 @@ function openDayDetail(dateStr){
           <div class="main-val-row">
             <span class="main-val">${escapeHtml(l.exerciseName)}</span>
             ${categoryBadgeHtml(l)}
+            ${phaseBadgeHtml(l.date)}
           </div>
           <div class="note">${escapeHtml(formatLogSummary(l))}</div>
           ${l.memo ? `<div class="note">📝 ${escapeHtml(l.memo)}</div>` : ''}
