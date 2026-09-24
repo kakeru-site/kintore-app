@@ -114,6 +114,14 @@
     opacity:1;
   }
   .field-hint{ font-size:11px; font-weight:400; color:var(--text-faint); margin-left:2px; }
+  .fatigue-picker{ display:flex; gap:6px; }
+  .fatigue-btn{
+    flex:1; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:10px 2px 8px; font-size:19px; text-align:center; cursor:pointer; color:var(--text-dim); line-height:1.3;
+  }
+  .fatigue-btn .fatigue-label{ display:block; font-size:9px; margin-top:3px; color:var(--text-faint); }
+  .fatigue-btn.active{ border-color:var(--orange); background:#4a2f0f; }
+  .fatigue-btn.active .fatigue-label{ color:var(--orange); }
   /* iOS Safariのinput[type=date]は指定したwidthを無視して枠からはみ出すことがあるため、
      width:1px + min-width:100% のテクニックで強制的にコンテナ幅に収める */
   .field input[type="date"]{
@@ -228,6 +236,7 @@
     margin-bottom:16px;
     height:220px;
   }
+  .chart-wrap-sm{ height:170px; }
 
   .list-item{
     display:flex;
@@ -238,6 +247,11 @@
     cursor:pointer;
   }
   .list-item:last-child{border-bottom:none;}
+  .day-duration-info{
+    padding:10px 4px; border-bottom:1px solid var(--border); margin-bottom:2px;
+    font-size:12.5px; color:var(--text-dim);
+  }
+  .day-duration-info b{ color:var(--cyan); font-family:'Oswald',sans-serif; font-weight:600; }
   .list-item .date{font-size:12px; color:var(--text-dim);}
   .list-item .main-val{font-family:'Oswald',sans-serif; font-size:18px; font-weight:600;}
   .list-item .main-val-row{display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
@@ -264,6 +278,10 @@
     font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px;
     background:var(--green-dim); color:var(--green); border:1px solid var(--green);
   }
+  .mini-badge.plateau{
+    background:#4a2f0f; color:var(--orange); border:1px solid var(--orange);
+  }
+  .diary-mark{ background:var(--red-dim); color:var(--red); padding:0 2px; border-radius:3px; }
 
   /* ---------- Body part tiles (種目登録) ---------- */
   .bp-tiles{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
@@ -346,6 +364,17 @@
     padding:10px 12px; margin-bottom:10px; font-size:12.5px; color:var(--text); line-height:1.7;
   }
   .pr-suggest b{ color:var(--cyan); }
+  /* 入力中のセットから計算する「現時点でのボリューム」。自己ベストとの差が一目で分かるようにする */
+  .live-volume-row{
+    display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:9px 12px; margin:-4px 0 10px; font-size:12px; color:var(--text-dim);
+  }
+  .live-volume-row .live-volume-val{ color:var(--text); font-weight:700; font-family:'Oswald',sans-serif; font-size:14px; }
+  .live-volume-row .live-volume-diff{ font-weight:700; }
+  .live-volume-row .live-volume-diff.up{ color:var(--green); }
+  .live-volume-row .live-volume-diff.down{ color:var(--text-faint); }
+  .live-volume-row .live-volume-diff.even{ color:var(--text-dim); }
   .stats-link-btn{
     display:block; width:100%; background:none; border:1px dashed var(--border); color:var(--text-dim);
     border-radius:var(--radius-sm); padding:8px; font-size:12px; font-weight:600; cursor:pointer; margin-bottom:10px;
@@ -601,6 +630,17 @@
   .cal-legend-item{ display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--text-faint); }
   .cal-legend-item .cal-dot{ width:7px; height:7px; }
   .cal-day .phase-strip{ position:absolute; bottom:2px; left:4px; right:4px; height:3px; border-radius:2px; }
+  .cal-diary-dot{ position:absolute; top:1px; left:3px; width:4px; height:4px; border-radius:50%; background:var(--cyan); }
+  .cal-duration-mark{ position:absolute; bottom:6px; right:2px; font-size:8px; line-height:1; opacity:0.85; }
+
+  /* ---------- 週間・月間サマリー ---------- */
+  .freq-row{ display:flex; align-items:center; gap:8px; margin-bottom:9px; font-size:12.5px; }
+  .freq-row:last-child{ margin-bottom:0; }
+  .freq-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .freq-label{ width:38px; flex-shrink:0; color:var(--text-dim); }
+  .freq-bar-wrap{ flex:1; height:8px; background:var(--surface-2); border-radius:20px; overflow:hidden; }
+  .freq-bar-fill{ height:100%; border-radius:20px; }
+  .freq-count{ width:32px; text-align:right; flex-shrink:0; color:var(--text-faint); font-size:11px; }
 
   /* ---------- 増量期・減量期・維持期（トレーニング期） ---------- */
   .phase-banner{
@@ -714,6 +754,24 @@
     width:64px; text-align:center; background:var(--surface); border:1px solid var(--border);
     color:var(--text); border-radius:var(--radius-sm); padding:10px; font-size:16px;
   }
+  /* ---------- 記録モーダル内の簡易タイマー（セット入力中にタイマー画面へ行き来しなくて済むように） ---------- */
+  .mini-timer-box{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:14px 12px 12px;
+  }
+  .mini-timer-presets{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-bottom:10px; }
+  .mini-timer-presets .preset-btn{ padding:6px 11px; }
+  .mini-timer-display{
+    font-family:'Oswald',sans-serif; font-size:34px; font-weight:600; text-align:center;
+    margin:0 0 12px; letter-spacing:1px;
+  }
+  .mini-timer-controls{ display:flex; gap:8px; justify-content:center; }
+  .mini-timer-btn{
+    flex:1; max-width:150px; padding:11px 14px; border-radius:var(--radius-sm);
+    font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .mini-timer-btn.start{ background:var(--green-dim); color:var(--green); border:2px solid var(--green); }
+  .mini-timer-btn.reset{ background:var(--surface); color:var(--text-dim); border:1px solid var(--border); }
   .sw-record-banner{
     display:none; align-items:center; justify-content:center; gap:8px;
     width:100%; margin-top:18px; padding:13px 16px;
@@ -840,7 +898,16 @@
 
       <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
 
-      <div class="section-title">記録一覧</div>
+      <div class="section-title">疲労度の推移</div>
+      <div class="chart-wrap chart-wrap-sm" id="fatigueChartWrap"><canvas id="fatigueChart"></canvas></div>
+      <div class="empty-msg" id="fatigueChartEmpty" style="display:none;">まだ疲労度の記録がありません</div>
+
+      <div class="section-title">記録一覧・日記</div>
+      <div class="search-wrap">
+        <input type="text" id="diarySearchInput" class="search-input" placeholder="日記を単語で検索（例: 筋肉痛）" autocomplete="off">
+        <button type="button" id="diarySearchClearBtn" class="search-clear-btn" aria-label="検索をクリア">✕</button>
+      </div>
+      <div class="wo-search-summary" id="diarySearchSummary" style="display:none;"></div>
       <div class="card" id="weightListWrap">
         <div id="weightList"></div>
       </div>
@@ -890,6 +957,31 @@
     <section class="section" id="section-calendar">
       <div class="phase-banner" id="phaseBanner"></div>
       <div class="card">
+        <div class="section-title" style="margin-bottom:10px;"><span>サマリー</span></div>
+        <div class="filter-row" id="summaryPeriodRow" style="margin-bottom:12px;">
+          <button type="button" class="preset-btn active" data-period="week">今週</button>
+          <button type="button" class="preset-btn" data-period="month">今月</button>
+        </div>
+        <div class="summary-row">
+          <div class="summary-box">
+            <div class="label">総ボリューム</div>
+            <div class="value num" id="summaryVolumeVal">--</div>
+            <div class="unit">kg</div>
+          </div>
+          <div class="summary-box">
+            <div class="label">トレ日数</div>
+            <div class="value num" id="summaryDaysVal">--</div>
+            <div class="unit">日</div>
+          </div>
+          <div class="summary-box">
+            <div class="label">トレ時間</div>
+            <div class="value num" id="summaryDurationVal">--</div>
+          </div>
+        </div>
+        <div id="summaryBpFreqList"></div>
+        <div class="empty-msg" id="summaryEmptyMsg" style="display:none;">この期間の記録がありません</div>
+      </div>
+      <div class="card">
         <div class="section-title" style="margin-bottom:10px;"><span>部位バランス（直近60日）</span></div>
         <div class="chart-wrap" id="bodyPartBalanceWrap">
           <canvas id="bodyPartBalanceChart"></canvas>
@@ -903,7 +995,7 @@
       </div>
       <div class="cal-grid" id="calGrid"></div>
       <p style="font-size:11px; color:var(--text-faint); text-align:center; margin-top:14px;">
-        点の色＝その日に行った部位（複数可）／🔥＝自己ベスト更新／下線の色＝その日のトレーニング期。タップするとその日のメニューが見られます
+        点の色＝その日に行った部位（複数可）／🔥＝自己ベスト更新／左上のシアンの点＝日記あり／右下の⏱＝トレーニング時間の記録あり／下線の色＝その日のトレーニング期。タップするとその日のメニューや日記が見られます
       </p>
       <div class="cal-legend-dots" id="calLegendDots"></div>
     </section>
@@ -1004,20 +1096,20 @@
 
       <div id="timerPanel" style="display:none;">
         <div class="timer-presets">
-          <button type="button" class="preset-btn" data-sec="30">30秒</button>
-          <button type="button" class="preset-btn" data-sec="60">60秒</button>
-          <button type="button" class="preset-btn" data-sec="90">90秒</button>
-          <button type="button" class="preset-btn" data-sec="120">120秒</button>
-          <button type="button" class="preset-btn" data-sec="180">180秒</button>
+          <button type="button" class="preset-btn timer-preset-btn" data-sec="30">30秒</button>
+          <button type="button" class="preset-btn timer-preset-btn" data-sec="60">60秒</button>
+          <button type="button" class="preset-btn timer-preset-btn" data-sec="90">90秒</button>
+          <button type="button" class="preset-btn timer-preset-btn" data-sec="120">120秒</button>
+          <button type="button" class="preset-btn timer-preset-btn" data-sec="180">180秒</button>
         </div>
         <div class="timer-set">
           <input type="number" id="timerMinInput" min="0" max="99" value="1"> 分
           <input type="number" id="timerSecInput" min="0" max="59" value="0"> 秒
         </div>
-        <div class="timer-display num" id="timerDisplay">01:00</div>
+        <div class="timer-display num timer-display-sync" id="timerDisplay">01:00</div>
         <div class="timer-controls">
-          <button class="timer-btn reset" id="timerResetBtn">リセット</button>
-          <button class="timer-btn start" id="timerStartBtn">開始</button>
+          <button class="timer-btn reset timer-reset-btn-sync" id="timerResetBtn">リセット</button>
+          <button class="timer-btn start timer-start-btn-sync" id="timerStartBtn">開始</button>
         </div>
       </div>
     </section>
@@ -1079,8 +1171,19 @@
         <input type="number" id="weightValue" step="0.1" inputmode="decimal" required>
       </div>
       <div class="field">
-        <label for="weightNote">メモ（任意）</label>
-        <textarea id="weightNote" rows="2"></textarea>
+        <label>今朝の疲労感（任意）</label>
+        <div class="fatigue-picker" id="fatiguePicker">
+          <button type="button" class="fatigue-btn" data-val="1">😃<span class="fatigue-label">元気</span></button>
+          <button type="button" class="fatigue-btn" data-val="2">🙂<span class="fatigue-label">良好</span></button>
+          <button type="button" class="fatigue-btn" data-val="3">😐<span class="fatigue-label">普通</span></button>
+          <button type="button" class="fatigue-btn" data-val="4">😪<span class="fatigue-label">疲れ気味</span></button>
+          <button type="button" class="fatigue-btn" data-val="5">🥵<span class="fatigue-label">かなり疲れ</span></button>
+        </div>
+        <input type="hidden" id="weightFatigue">
+      </div>
+      <div class="field">
+        <label for="weightNote">日記（任意）</label>
+        <textarea id="weightNote" rows="4" placeholder="今日の調子や、感じたことを自由にメモ…"></textarea>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-danger" id="weightDeleteBtn" style="display:none;">削除</button>
@@ -1295,6 +1398,7 @@
       </div>
       <div class="field" id="setsFieldWrap">
         <label>セット <span class="field-hint" id="setsBestHint"></span></label>
+        <div class="live-volume-row" id="liveVolumeRow" style="display:none;"></div>
         <div id="setsContainer"></div>
         <button type="button" class="add-set-btn" id="addSetBtn">＋ セットを追加</button>
       </div>
@@ -1302,6 +1406,23 @@
         <label>区間（距離と時速） <span class="field-hint" id="cardioBestHint"></span></label>
         <div id="cardioSegments"></div>
         <button type="button" class="add-set-btn" id="addCardioSegmentBtn">＋ 区間を追加</button>
+      </div>
+      <div class="field" id="modalTimerFieldWrap">
+        <label>💤 休憩タイマー</label>
+        <div class="mini-timer-box">
+          <div class="mini-timer-presets">
+            <button type="button" class="preset-btn timer-preset-btn" data-sec="30">30秒</button>
+            <button type="button" class="preset-btn timer-preset-btn" data-sec="60">60秒</button>
+            <button type="button" class="preset-btn timer-preset-btn" data-sec="90">90秒</button>
+            <button type="button" class="preset-btn timer-preset-btn" data-sec="120">120秒</button>
+            <button type="button" class="preset-btn timer-preset-btn" data-sec="180">180秒</button>
+          </div>
+          <div class="mini-timer-display timer-display-sync" id="modalTimerDisplay">01:00</div>
+          <div class="mini-timer-controls">
+            <button type="button" class="mini-timer-btn reset timer-reset-btn-sync" id="modalTimerResetBtn">リセット</button>
+            <button type="button" class="mini-timer-btn start timer-start-btn-sync" id="modalTimerStartBtn">開始</button>
+          </div>
+        </div>
       </div>
       <div class="field" id="workoutMemoFieldWrap">
         <label for="workoutMemo">メモ（任意）</label>
@@ -1467,6 +1588,7 @@
   <button class="btn btn-ghost" id="lockPasswordFallbackBtn">パスワードでログインし直す</button>
 </div>
 
+<audio id="timerBeepAudio" preload="auto" src="data:audio/wav;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="></audio>
 <div id="toast"></div>
 
 <script type="module">
@@ -1819,8 +1941,10 @@ function startListeners(uid){
     weightEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderWeightSummary();
     renderWeightChart();
+    renderFatigueChart();
     renderWeightList();
     renderBig3();
+    renderCalendar();
   }, (err)=>{
     console.error(err);
     showToast('体重データの読み込みに失敗しました: ' + err.message);
@@ -1861,7 +1985,9 @@ function startListeners(uid){
     renderCalendar();
     renderBig3();
     renderBodyPartBalance();
+    renderPeriodSummary();
     renderStreakCard();
+    if (currentBPFilter) renderExerciseList();
   }, (err)=>{
     console.error(err);
     showToast('トレーニング記録の読み込みに失敗しました: ' + err.message);
@@ -1875,6 +2001,8 @@ function startListeners(uid){
       trainingDurations[d.id] = Number(data.seconds) || 0;
     });
     renderWorkoutList();
+    renderPeriodSummary();
+    renderCalendar();
   }, (err)=>{
     console.error(err);
   });
@@ -1948,6 +2076,10 @@ function startListeners(uid){
    ========================================================= */
 let weightEntries = [];
 let targetWeight = null;
+let weightSearchQuery = '';
+const FATIGUE_EMOJI = {1:'😃', 2:'🙂', 3:'😐', 4:'😪', 5:'🥵'};
+const FATIGUE_LABELS = {1:'元気', 2:'良好', 3:'普通', 4:'疲れ気味', 5:'かなり疲れ'};
+const FATIGUE_COLORS = {1:'#39ff88', 2:'#8fe36b', 3:'#ffe14d', 4:'#ff8c1a', 5:'#ff3b3b'};
 
 function renderWeightSummary(){
   const cur = weightEntries.length ? weightEntries[0].weight : null;
@@ -2000,20 +2132,85 @@ function renderWeightChart(){
   });
 }
 
+let fatigueChartInstance = null;
+function renderFatigueChart(){
+  const withFatigue = weightEntries
+    .filter(e => e.fatigue !== undefined && e.fatigue !== null && e.fatigue !== '')
+    .slice()
+    .sort((a,b)=> a.date.localeCompare(b.date));
+  const wrap = document.getElementById('fatigueChartWrap');
+  const emptyMsg = document.getElementById('fatigueChartEmpty');
+  if (!withFatigue.length){
+    wrap.style.display = 'none';
+    emptyMsg.style.display = 'block';
+    if (fatigueChartInstance){ fatigueChartInstance.destroy(); fatigueChartInstance = null; }
+    return;
+  }
+  wrap.style.display = 'block';
+  emptyMsg.style.display = 'none';
+  const labels = withFatigue.map(e => e.date.slice(5));
+  const data = withFatigue.map(e => Number(e.fatigue));
+  const colors = data.map(v => FATIGUE_COLORS[v] || '#6b6b70');
+  const ctx = document.getElementById('fatigueChart');
+  if (fatigueChartInstance) fatigueChartInstance.destroy();
+  fatigueChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: '疲労度', data, backgroundColor: colors, borderRadius: 4, maxBarThickness: 22 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c)=> `${FATIGUE_EMOJI[c.parsed.y]||''} ${FATIGUE_LABELS[c.parsed.y]||''}` } }
+      },
+      scales: {
+        x: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { display:false } },
+        y: {
+          min: 0, max: 5,
+          ticks: { stepSize: 1, color: '#6b6b70', font:{size:10}, callback: (v)=> FATIGUE_EMOJI[v] || '' },
+          grid: { color: '#2d2e33' }
+        }
+      }
+    }
+  });
+}
+
+function highlightMatch(text, q){
+  const escaped = escapeHtml(text);
+  if (!q) return escaped;
+  const escQ = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return escaped.replace(new RegExp(`(${escQ})`, 'ig'), '<mark class="diary-mark">$1</mark>');
+}
+
 function renderWeightList(){
   const wrap = document.getElementById('weightList');
-  if (!weightEntries.length){
-    wrap.innerHTML = '<div class="empty-msg">まだ記録がありません</div>';
+  const summaryEl = document.getElementById('diarySearchSummary');
+  const q = weightSearchQuery.trim();
+
+  let list = weightEntries;
+  if (q){
+    const qLower = q.toLowerCase();
+    list = weightEntries.filter(e => (e.note || '').toLowerCase().includes(qLower));
+    if (summaryEl){
+      summaryEl.style.display = 'block';
+      summaryEl.textContent = list.length ? `「${q}」を含む日記: ${list.length}件` : `「${q}」に一致する日記が見つかりません`;
+    }
+  } else if (summaryEl){
+    summaryEl.style.display = 'none';
+  }
+
+  if (!list.length){
+    wrap.innerHTML = `<div class="empty-msg">${q ? '一致する記録がありません' : 'まだ記録がありません'}</div>`;
     return;
   }
   wrap.innerHTML = '';
-  weightEntries.forEach(e=>{
+  list.forEach(e=>{
     const row = document.createElement('div');
     row.className = 'list-item';
     row.innerHTML = `
       <div>
-        <div class="date">${e.date}</div>
-        ${e.note ? `<div class="note">${escapeHtml(e.note)}</div>` : ''}
+        <div class="date">${e.date}${e.fatigue ? ` <span title="${escapeHtml(FATIGUE_LABELS[e.fatigue]||'')}">${FATIGUE_EMOJI[e.fatigue]||''}</span>` : ''}</div>
+        ${e.note ? `<div class="note">${highlightMatch(e.note, q)}</div>` : ''}
       </div>
       <div class="main-val">${Number(e.weight).toFixed(1)} kg</div>
     `;
@@ -2022,12 +2219,47 @@ function renderWeightList(){
   });
 }
 
+document.getElementById('diarySearchInput').addEventListener('input', (e)=>{
+  weightSearchQuery = e.target.value;
+  document.getElementById('diarySearchClearBtn').style.display = weightSearchQuery ? 'flex' : 'none';
+  renderWeightList();
+});
+document.getElementById('diarySearchClearBtn').addEventListener('click', ()=>{
+  weightSearchQuery = '';
+  const input = document.getElementById('diarySearchInput');
+  input.value = '';
+  document.getElementById('diarySearchClearBtn').style.display = 'none';
+  renderWeightList();
+  input.focus();
+});
+
+let selectedFatigue = null;
+document.querySelectorAll('#fatiguePicker .fatigue-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const val = btn.dataset.val;
+    if (selectedFatigue === val){
+      selectedFatigue = null;
+    } else {
+      selectedFatigue = val;
+    }
+    document.querySelectorAll('#fatiguePicker .fatigue-btn').forEach(b=>{
+      b.classList.toggle('active', b.dataset.val === selectedFatigue);
+    });
+    document.getElementById('weightFatigue').value = selectedFatigue || '';
+  });
+});
+
 function openWeightModal(entry){
   document.getElementById('weightModalTitle').textContent = entry ? '体重を編集' : '体重を記録';
   document.getElementById('weightDocId').value = entry ? entry.id : '';
   document.getElementById('weightDate').value = entry ? entry.date : todayStr();
   document.getElementById('weightValue').value = entry ? entry.weight : '';
   document.getElementById('weightNote').value = entry ? (entry.note || '') : '';
+  selectedFatigue = (entry && entry.fatigue) ? String(entry.fatigue) : null;
+  document.getElementById('weightFatigue').value = selectedFatigue || '';
+  document.querySelectorAll('#fatiguePicker .fatigue-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.val === selectedFatigue);
+  });
   document.getElementById('weightDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
   openModal('weightModal');
 }
@@ -2039,13 +2271,15 @@ document.getElementById('weightForm').addEventListener('submit', async (e)=>{
   const date = document.getElementById('weightDate').value;
   const weight = parseFloat(document.getElementById('weightValue').value);
   const note = document.getElementById('weightNote').value.trim();
+  const fatigueRaw = document.getElementById('weightFatigue').value;
+  const fatigue = fatigueRaw ? Number(fatigueRaw) : null;
   if (!date || isNaN(weight)){
     showToast('日付と体重を正しく入力してください');
     return;
   }
   try{
     const ref = doc(db, 'users', user.uid, 'bodyWeight', date);
-    await setDoc(ref, { date, weight, note, updatedAt: serverTimestamp() }, { merge: true });
+    await setDoc(ref, { date, weight, note, fatigue, updatedAt: serverTimestamp() }, { merge: true });
     closeModal('weightModal');
   }catch(err){
     console.error(err);
@@ -2144,12 +2378,14 @@ function renderExerciseList(){
     wrap.innerHTML = '<div class="empty-msg">まだ種目が登録されていません</div>';
     return;
   }
+  const { plateauExerciseNames } = buildRecordIndex();
   wrap.innerHTML = list.map(e => `
     <div class="list-item" data-id="${e.id}">
       <div>
         ${currentBPFilter === 'その他' ? `<span class="tag">${escapeHtml(e.bodyPart || '未設定')}</span>` : ''}
         <div class="main-val" style="margin-top:4px;">${escapeHtml(e.name)}</div>
         ${e.cue ? `<div class="note">${escapeHtml(e.cue)}</div>` : ''}
+        ${plateauExerciseNames.has(e.name) ? '<div class="badge-row"><span class="mini-badge plateau">⏸️ 直近3回、重量が変わっていません</span></div>' : ''}
       </div>
       <button type="button" class="stats-icon-btn" data-stats-name="${escapeHtml(e.name)}" aria-label="推移を見る">📈</button>
     </div>
@@ -2577,6 +2813,7 @@ function badgeHtml(rec){
   if (rec.isVolumePR) items.push('<span class="mini-badge">📊ボリューム更新</span>');
   if (rec.isDistancePR) items.push('<span class="mini-badge">🏃最長距離更新</span>');
   if (rec.isPacePR) items.push('<span class="mini-badge">⚡最速ペース更新</span>');
+  if (rec.isPlateau) items.push('<span class="mini-badge plateau">⏸️同じ重量が3回連続</span>');
   return items.length ? `<div class="badge-row">${items.join('')}</div>` : '';
 }
 
@@ -3021,7 +3258,7 @@ function updateWorkoutExerciseInfo(){
   const name = document.getElementById('workoutExerciseSelect').value;
   const bodyPart = document.getElementById('workoutBodyPartSelect').value;
   const info = document.getElementById('workoutExerciseInfo');
-  if (!name){ info.innerHTML = ''; return; }
+  if (!name){ info.innerHTML = ''; updateLiveVolumeRow(null, null); return; }
   const match = exercises.find(e => e.name === name);
   let html = '';
   if (match && match.cue){
@@ -3067,7 +3304,7 @@ function updateWorkoutExerciseInfo(){
   const statsLinkBtn = document.getElementById('workoutStatsLinkBtn');
   if (statsLinkBtn) statsLinkBtn.addEventListener('click', ()=> openExerciseStatsModal(name, currentWorkoutRefDate()));
   if (bodyPart !== CARDIO_BODY_PART) checkLivePR();
-  else checkLiveCardioPR();
+  else { updateLiveVolumeRow(null, null); checkLiveCardioPR(); }
 }
 document.getElementById('workoutExerciseSelect').addEventListener('change', ()=>{
   updateWorkoutExerciseInfo();
@@ -3080,10 +3317,39 @@ document.getElementById('workoutExerciseSelect').addEventListener('change', ()=>
   }
 });
 
+/* 入力中のセットから「現時点でのボリューム」を計算し、自己ベストとの差を表示する。
+   過去MAXとどれくらい違うのかをセット入力中にその場で把握できるようにするため。 */
+function updateLiveVolumeRow(curVolume, bestVolume){
+  const rowEl = document.getElementById('liveVolumeRow');
+  if (!rowEl) return;
+  if (curVolume === null){
+    rowEl.style.display = 'none';
+    rowEl.innerHTML = '';
+    return;
+  }
+  const curText = curVolume % 1 === 0 ? String(curVolume) : curVolume.toFixed(1);
+  let diffHtml;
+  if (bestVolume === null){
+    diffHtml = '<span class="live-volume-diff even">自己ベスト記録なし</span>';
+  } else {
+    const diff = curVolume - bestVolume;
+    const diffText = (Math.abs(diff) % 1 === 0 ? String(Math.abs(diff)) : Math.abs(diff).toFixed(1));
+    if (diff > 0){
+      diffHtml = `<span class="live-volume-diff up">自己ベスト比 +${diffText}</span>`;
+    } else if (diff < 0){
+      diffHtml = `<span class="live-volume-diff down">自己ベストまで あと${diffText}</span>`;
+    } else {
+      diffHtml = '<span class="live-volume-diff even">自己ベストと同じ</span>';
+    }
+  }
+  rowEl.style.display = 'flex';
+  rowEl.innerHTML = `<span>現時点でのボリューム <span class="live-volume-val">${curText}</span></span>${diffHtml}`;
+}
+
 function checkLivePR(){
   const name = document.getElementById('workoutExerciseSelect').value;
   const info = document.getElementById('workoutExerciseInfo');
-  if (!name || !info.innerHTML) return;
+  if (!name || !info.innerHTML){ updateLiveVolumeRow(null, null); return; }
   const existingBadgeRow = info.querySelector('.pr-live-badge-row');
   if (existingBadgeRow) existingBadgeRow.remove();
   const recByCat = getBestRecordsByCategory(name, editingWorkoutId, currentWorkoutRefDate());
@@ -3091,10 +3357,11 @@ function checkLivePR(){
   const validSets = currentSets
     .filter(s => s.weight !== '' && s.reps !== '')
     .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }));
-  if (!validSets.length) return;
+  if (!validSets.length){ updateLiveVolumeRow(null, null); return; }
   const curMaxWeight = Math.max(...validSets.map(s=>s.weight));
   const curMaxReps = Math.max(...validSets.map(s=>s.reps));
   const curVolume = validSets.reduce((sum,s)=> sum + s.weight*s.reps, 0);
+  updateLiveVolumeRow(curVolume, rec.bestVolume);
   const badges = [];
   if (rec.bestWeight === null || curMaxWeight > rec.bestWeight) badges.push('🏋️重量更新');
   if (rec.bestReps === null || curMaxReps > rec.bestReps) badges.push('🔁回数更新');
@@ -3622,11 +3889,15 @@ function getPhaseGroupForDate(dateStr){
   return p ? phaseGroupOf(p.phase) : null;
 }
 /* refDateの属する期間グループと同じグループの記録だけに絞り込む判定。
-   refDateに期間が設定されていない場合は絞り込まない（全期間を対象にする） */
+   refDateに期間が設定されていない場合は絞り込まない（全期間を対象にする）。
+   また、比較対象の記録自体の日付にトレーニング期が設定されていない場合（＝トレーニング期を使い始める前の過去記録など）も、
+   絞り込まず含める（自己ベストや過去記録が急に「記録なし」になって消えたように見えないようにするため） */
 function inSamePhaseGroup(dateStr, refDate){
   const refGroup = getPhaseGroupForDate(refDate);
   if (!refGroup) return true;
-  return getPhaseGroupForDate(dateStr) === refGroup;
+  const dateGroup = getPhaseGroupForDate(dateStr);
+  if (!dateGroup) return true;
+  return dateGroup === refGroup;
 }
 /* 記録モーダルが開いている間の「基準日」（自己ベスト等をどの期間で絞り込むかの基準）。
    その記録自体の日付（過去日にさかのぼって入力する場合も、その日付が属する期間で判定する） */
@@ -3796,6 +4067,7 @@ function computeSessionRecords(){
   Object.keys(byName).forEach(name=>{
     const logs = byName[name].slice().sort((a,b)=> a.date.localeCompare(b.date));
     let bw = null, br = null, bv = null;
+    let prevW = null, prevPrevW = null; // 停滞検知用：直近2回分の最大重量を保持
     map[name] = logs.map(l=>{
       let sw = null, sr = null, vol = 0;
       (l.sets || []).forEach(s=>{
@@ -3807,10 +4079,14 @@ function computeSessionRecords(){
       const isWeightPR = bw === null || sw > bw;
       const isRepsPR = br === null || sr > br;
       const isVolumePR = bv === null || vol > bv;
+      // 前回・前々回と使用重量が変わっていなければ「停滞中」とみなす
+      const isPlateau = sw > 0 && prevW !== null && prevPrevW !== null && sw === prevW && prevW === prevPrevW;
       if (bw === null || sw > bw) bw = sw;
       if (br === null || sr > br) br = sr;
       if (bv === null || vol > bv) bv = vol;
-      return { id: l.id, date: l.date, maxWeight: sw, maxReps: sr, volume: vol, isWeightPR, isRepsPR, isVolumePR };
+      prevPrevW = prevW;
+      prevW = sw;
+      return { id: l.id, date: l.date, maxWeight: sw, maxReps: sr, volume: vol, isWeightPR, isRepsPR, isVolumePR, isPlateau };
     });
   });
   return map;
@@ -3843,11 +4119,14 @@ function buildRecordIndex(){
   const cardioMap = computeCardioSessionRecords();
   const idx = {};
   const prDates = new Set();
-  Object.values(strengthMap).forEach(sessions=>{
+  const plateauExerciseNames = new Set();
+  Object.entries(strengthMap).forEach(([name, sessions])=>{
     sessions.forEach(s=>{
       idx[s.id] = s;
       if (s.isWeightPR || s.isRepsPR || s.isVolumePR) prDates.add(s.date);
     });
+    // その種目の最新セッションが停滞中なら「今まさに停滞している種目」として記録
+    if (sessions.length && sessions[sessions.length - 1].isPlateau) plateauExerciseNames.add(name);
   });
   Object.values(cardioMap).forEach(sessions=>{
     sessions.forEach(s=>{
@@ -3855,7 +4134,7 @@ function buildRecordIndex(){
       if (s.isDistancePR || s.isPacePR) prDates.add(s.date);
     });
   });
-  return { idx, prDates };
+  return { idx, prDates, plateauExerciseNames };
 }
 
 /* =========================================================
@@ -3934,6 +4213,85 @@ function bodyPartLegendHtml(){
   ).join('');
 }
 
+/* ---------- 週間・月間サマリー ---------- */
+let summaryPeriod = 'week'; // 'week' | 'month'
+
+function renderPeriodSummary(){
+  const todayS = todayStr();
+  let startStr, endStr;
+  if (summaryPeriod === 'week'){
+    const mon = mondayOfWeek(todayS);
+    const sun = new Date(mon);
+    sun.setDate(sun.getDate() + 6);
+    startStr = toYmd(mon);
+    endStr = toYmd(sun);
+  } else {
+    const ym = todayS.slice(0, 7);
+    const [y, m] = ym.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    startStr = `${ym}-01`;
+    endStr = `${ym}-${String(lastDay).padStart(2,'0')}`;
+  }
+  const logs = workoutLogs.filter(l => l.date >= startStr && l.date <= endStr);
+
+  let totalVolume = 0;
+  const daysSet = new Set();
+  const bpCounts = {};
+  logs.forEach(l=>{
+    daysSet.add(l.date);
+    const bp = l.bodyPart || 'その他';
+    bpCounts[bp] = (bpCounts[bp] || 0) + 1;
+    if (!isCardioLog(l)){
+      (l.sets || []).forEach(s=>{
+        totalVolume += (Number(s.weight) || 0) * (Number(s.reps) || 0);
+      });
+    }
+  });
+
+  // ストップウォッチから記録した「その日のトレーニング時間」を期間内で合計する
+  let totalDurationSec = 0;
+  Object.keys(trainingDurations).forEach(dateStr=>{
+    if (dateStr >= startStr && dateStr <= endStr) totalDurationSec += trainingDurations[dateStr] || 0;
+  });
+
+  document.getElementById('summaryVolumeVal').textContent = totalVolume > 0 ? Math.round(totalVolume).toLocaleString('ja-JP') : '0';
+  document.getElementById('summaryDaysVal').textContent = daysSet.size;
+  document.getElementById('summaryDurationVal').textContent = totalDurationSec > 0 ? formatDurationShort(totalDurationSec) : '0分';
+
+  const wrap = document.getElementById('summaryBpFreqList');
+  const emptyMsg = document.getElementById('summaryEmptyMsg');
+  const bpNames = Object.keys(bpCounts).sort((a,b)=> workoutBodyPartSortIndex(a) - workoutBodyPartSortIndex(b));
+  if (!bpNames.length){
+    wrap.innerHTML = '';
+    emptyMsg.style.display = 'block';
+    return;
+  }
+  emptyMsg.style.display = 'none';
+  const maxCount = Math.max(...bpNames.map(bp => bpCounts[bp]));
+  wrap.innerHTML = bpNames.map(bp=>{
+    const count = bpCounts[bp];
+    const pct = Math.max(6, Math.round((count / maxCount) * 100));
+    const color = colorForBodyPart(bp);
+    return `
+      <div class="freq-row">
+        <span class="freq-dot" style="background:${color};"></span>
+        <span class="freq-label">${escapeHtml(bp)}</span>
+        <span class="freq-bar-wrap"><span class="freq-bar-fill" style="width:${pct}%; background:${color};"></span></span>
+        <span class="freq-count">${count}回</span>
+      </div>
+    `;
+  }).join('');
+}
+
+document.querySelectorAll('#summaryPeriodRow .preset-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#summaryPeriodRow .preset-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    summaryPeriod = btn.dataset.period;
+    renderPeriodSummary();
+  });
+});
+
 function renderCalendar(){
   document.getElementById('calLabel').textContent = `${calYear}年${calMonth+1}月`;
   const grid = document.getElementById('calGrid');
@@ -3961,6 +4319,7 @@ function renderCalendar(){
     if (!arr.includes(bp)) arr.push(bp);
   });
   const { prDates } = buildRecordIndex();
+  const diaryDates = new Set(weightEntries.filter(e => e.note && e.note.trim()).map(e => e.date));
   const todayS = todayStr();
 
   for (let i=0; i<firstDay; i++){
@@ -3973,17 +4332,22 @@ function renderCalendar(){
     const parts = (bodyPartsByDate.get(dateStr) || [])
       .slice()
       .sort((a, b) => workoutBodyPartSortIndex(a) - workoutBodyPartSortIndex(b));
-    const hasLog = parts.length > 0;
+    const hasWorkout = parts.length > 0;
+    const hasDiary = diaryDates.has(dateStr);
+    const hasDuration = (trainingDurations[dateStr] || 0) > 0;
+    const isClickable = hasWorkout || hasDiary || hasDuration;
     const hasPR = prDates.has(dateStr);
     const el = document.createElement('div');
-    el.className = 'cal-day' + (hasLog ? ' has-log' : '') + (dateStr === todayS ? ' today' : '');
-    const dotsHtml = hasLog
+    el.className = 'cal-day' + (isClickable ? ' has-log' : '') + (dateStr === todayS ? ' today' : '');
+    const dotsHtml = hasWorkout
       ? `<span class="cal-dots">${parts.slice(0, 6).map(bp => `<span class="cal-dot" style="background:${colorForBodyPart(bp)};"></span>`).join('')}</span>`
       : '';
+    const diaryDotHtml = hasDiary ? '<span class="cal-diary-dot"></span>' : '';
+    const durationMarkHtml = hasDuration ? '<span class="cal-duration-mark">⏱</span>' : '';
     const phasePeriod = getPhasePeriodForDate(dateStr);
     const phaseStripHtml = phasePeriod ? `<span class="phase-strip" style="background:${phaseDotColor(phasePeriod.phase)};"></span>` : '';
-    el.innerHTML = `${dotsHtml}<span class="daynum">${d}</span>${hasPR ? '<span class="cal-pr">🔥</span>' : ''}${phaseStripHtml}`;
-    if (hasLog){
+    el.innerHTML = `${diaryDotHtml}${dotsHtml}<span class="daynum">${d}</span>${hasPR ? '<span class="cal-pr">🔥</span>' : ''}${durationMarkHtml}${phaseStripHtml}`;
+    if (isClickable){
       el.addEventListener('click', ()=> openDayDetail(dateStr));
     }
     grid.appendChild(el);
@@ -3995,7 +4359,31 @@ function openDayDetail(dateStr){
   const logs = workoutLogs.filter(l => l.date === dateStr);
   const { idx } = buildRecordIndex();
   const wrap = document.getElementById('dayDetailList');
-  wrap.innerHTML = logs.map(l => {
+  const wEntry = weightEntries.find(e => e.date === dateStr);
+
+  let durationHtml = '';
+  const durSec = trainingDurations[dateStr];
+  if (durSec){
+    durationHtml = `<div class="day-duration-info">⏱ トレーニング時間 <b>${formatDurationShort(durSec)}</b></div>`;
+  }
+
+  let diaryHtml = '';
+  if (wEntry && (wEntry.note || wEntry.fatigue)){
+    const metaParts = [];
+    if (wEntry.weight) metaParts.push(`<span>${Number(wEntry.weight).toFixed(1)}kg</span>`);
+    if (wEntry.fatigue) metaParts.push(`<span>${FATIGUE_EMOJI[wEntry.fatigue]||''} ${escapeHtml(FATIGUE_LABELS[wEntry.fatigue]||'')}</span>`);
+    diaryHtml = `
+      <div class="list-item" id="dayDetailDiary">
+        <div style="width:100%;">
+          <div class="main-val-row">📔 <span class="main-val" style="font-size:13px;">日記</span></div>
+          ${metaParts.length ? `<div class="note" style="margin-top:4px;">${metaParts.join(' ・ ')}</div>` : ''}
+          ${wEntry.note ? `<div class="note" style="margin-top:6px; white-space:pre-wrap; color:var(--text);">${escapeHtml(wEntry.note)}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }
+
+  wrap.innerHTML = durationHtml + diaryHtml + logs.map(l => {
     const rec = idx[l.id];
     return `
       <div class="list-item" data-id="${l.id}">
@@ -4012,13 +4400,20 @@ function openDayDetail(dateStr){
       </div>
     `;
   }).join('');
-  wrap.querySelectorAll('.list-item').forEach(row=>{
+  wrap.querySelectorAll('.list-item[data-id]').forEach(row=>{
     row.addEventListener('click', ()=>{
       const entry = workoutLogs.find(l=>l.id===row.dataset.id);
       closeModal('dayDetailModal');
       openWorkoutModal(entry);
     });
   });
+  const diaryEl = document.getElementById('dayDetailDiary');
+  if (diaryEl){
+    diaryEl.addEventListener('click', ()=>{
+      closeModal('dayDetailModal');
+      openWeightModal(wEntry);
+    });
+  }
   openModal('dayDetailModal');
 }
 
@@ -4640,61 +5035,58 @@ function renderLaps(){
   `).join('');
 }
 
-/* タイマー（5秒間鳴動） */
-let beepTimeoutId = null;
-let sharedAudioCtx = null;
-function getSharedAudioCtx(){
-  // AudioContextは毎回new すると（特にiOS Safariで）上限に達して音が鳴らなくなるため、
-  // ページ内で1つだけ作って使い回す。
-  if (!sharedAudioCtx){
-    try{
-      sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }catch(e){ return null; }
-  }
-  return sharedAudioCtx;
+/* タイマー終了時の通知音・振動（5秒間） */
+// Web Audio (AudioContext) は画面ロックやバックグラウンド遷移のたびにsuspendされて
+// 鳴らなくなることがあったため、<audio>要素での再生に変更。<audio>は一度ユーザー操作で
+// 再生を許可されると、その後はプログラムからの再生でも鳴りやすい（iOS Safariでも同様）。
+let beepStopTimeoutId = null;
+// 5秒間、強めに（ほぼ切れ目なく）振動させるパターン。[鳴動,休止] を繰り返す。
+const TIMER_VIBRATE_PATTERN = [550,130,550,130,550,130,550,130,550,130,550,130,550,130,550];
+function getBeepAudioEl(){
+  return document.getElementById('timerBeepAudio');
 }
 function unlockAudioForTimer(){
-  // 「開始」ボタンのタップ（ユーザー操作）のタイミングでcontextを生成・再開しておくことで、
-  // 画面ロックやバックグラウンド遷移後にsuspendされた場合にも鳴りやすくする。
-  const ctx = getSharedAudioCtx();
-  if (ctx && ctx.state === 'suspended'){
-    ctx.resume().catch(()=>{});
-  }
+  // 「開始」ボタンのタップ（ユーザー操作）のタイミングで一度ミュート再生しておくことで、
+  // タイマー終了時（ユーザー操作を伴わないタイミング）でも音が鳴りやすくする（iOS Safari対策）。
+  const el = getBeepAudioEl();
+  if (!el || el.dataset.primed) return;
+  try{
+    const prevMuted = el.muted;
+    el.muted = true;
+    const p = el.play();
+    if (p && p.catch) p.catch(()=>{});
+    el.pause();
+    el.currentTime = 0;
+    el.muted = prevMuted;
+    el.dataset.primed = '1';
+  }catch(e){ /* 音が鳴らせない環境では無視 */ }
 }
 function beep(){
   stopBeep();
   try{
-    const ctx = getSharedAudioCtx();
-    if (!ctx) return;
-    const startBeeps = ()=>{
-      let count = 0;
-      const totalBeeps = 8; // 約5秒間鳴らし続ける
-      function playOne(){
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = 880;
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.35);
-        count++;
-        if (count < totalBeeps){
-          beepTimeoutId = setTimeout(playOne, 600);
-        }
-      }
-      playOne();
-    };
-    if (ctx.state === 'suspended'){
-      // 画面ロック等でsuspendされていた場合はresumeしてから鳴らす
-      ctx.resume().then(startBeeps).catch(()=>{});
-    } else {
-      startBeeps();
+    const el = getBeepAudioEl();
+    if (el){
+      el.loop = true;
+      el.currentTime = 0;
+      el.volume = 1;
+      const p = el.play();
+      if (p && p.catch) p.catch(()=>{ /* 再生がブロックされた環境では無視 */ });
+      beepStopTimeoutId = setTimeout(()=>{
+        el.pause();
+        el.loop = false;
+        el.currentTime = 0;
+      }, 5000);
     }
-    if (navigator.vibrate){ navigator.vibrate([300,150,300,150,300]); }
   }catch(e){ /* 音が鳴らせない環境では無視 */ }
+  try{
+    if (navigator.vibrate){ navigator.vibrate(TIMER_VIBRATE_PATTERN); }
+  }catch(e){ /* 振動できない環境では無視 */ }
 }
 function stopBeep(){
-  if (beepTimeoutId){ clearTimeout(beepTimeoutId); beepTimeoutId = null; }
+  if (beepStopTimeoutId){ clearTimeout(beepStopTimeoutId); beepStopTimeoutId = null; }
+  const el = getBeepAudioEl();
+  if (el){ el.pause(); el.loop = false; el.currentTime = 0; }
+  if (navigator.vibrate){ navigator.vibrate(0); }
 }
 
 let timerRunning = false, timerEndTs = 0, timerRAF = null, timerSet = false, timerRemainingPaused = 0;
@@ -4704,22 +5096,30 @@ function formatTimer(ms){
   const m = Math.floor(totalSec / 60);
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
+/* タイマー画面のパネルと、記録モーダル内の簡易タイマーは同じタイマー状態を共有している（別々のタイマーが
+   同時に動くと混乱するため）。表示・ボタンは複数箇所にあるので、下記のヘルパーで同期して更新する。 */
+function setTimerDisplayText(text){
+  document.querySelectorAll('.timer-display-sync').forEach(el=>{ el.textContent = text; });
+}
+function setTimerStartBtnText(text){
+  document.querySelectorAll('.timer-start-btn-sync').forEach(el=>{ el.textContent = text; });
+}
 function timerTick(){
   if (!timerRunning) return;
   const remaining = timerEndTs - Date.now();
   if (remaining <= 0){
     timerRunning = false;
     timerSet = false;
-    document.getElementById('timerDisplay').textContent = '00:00';
-    document.getElementById('timerStartBtn').textContent = '開始';
+    setTimerDisplayText('00:00');
+    setTimerStartBtnText('開始');
     maybeReleaseWakeLock();
     beep();
     return;
   }
-  document.getElementById('timerDisplay').textContent = formatTimer(remaining);
+  setTimerDisplayText(formatTimer(remaining));
   timerRAF = requestAnimationFrame(timerTick);
 }
-document.getElementById('timerStartBtn').addEventListener('click', (e)=>{
+function handleTimerStartClick(){
   unlockAudioForTimer();
   if (!timerRunning){
     stopBeep();
@@ -4737,16 +5137,19 @@ document.getElementById('timerStartBtn').addEventListener('click', (e)=>{
     timerEndTs = Date.now() + remaining;
     timerTick();
     requestWakeLock();
-    e.target.textContent = '一時停止';
+    setTimerStartBtnText('一時停止');
   } else {
     timerRunning = false;
     cancelAnimationFrame(timerRAF);
     timerRemainingPaused = timerEndTs - Date.now();
     maybeReleaseWakeLock();
-    e.target.textContent = '再開';
+    setTimerStartBtnText('再開');
   }
+}
+document.querySelectorAll('.timer-start-btn-sync').forEach(btn=>{
+  btn.addEventListener('click', handleTimerStartClick);
 });
-document.getElementById('timerResetBtn').addEventListener('click', ()=>{
+function handleTimerResetClick(){
   timerRunning = false;
   cancelAnimationFrame(timerRAF);
   maybeReleaseWakeLock();
@@ -4755,29 +5158,34 @@ document.getElementById('timerResetBtn').addEventListener('click', ()=>{
   timerRemainingPaused = 0;
   const min = parseInt(document.getElementById('timerMinInput').value) || 0;
   const sec = parseInt(document.getElementById('timerSecInput').value) || 0;
-  document.getElementById('timerDisplay').textContent = formatTimer((min*60 + sec) * 1000);
-  document.getElementById('timerStartBtn').textContent = '開始';
+  setTimerDisplayText(formatTimer((min*60 + sec) * 1000));
+  setTimerStartBtnText('開始');
+}
+document.querySelectorAll('.timer-reset-btn-sync').forEach(btn=>{
+  btn.addEventListener('click', handleTimerResetClick);
 });
 function updateTimerPreview(){
   if (timerSet) return;
   const min = parseInt(document.getElementById('timerMinInput').value) || 0;
   const sec = parseInt(document.getElementById('timerSecInput').value) || 0;
-  document.getElementById('timerDisplay').textContent = formatTimer((min*60 + sec) * 1000);
+  setTimerDisplayText(formatTimer((min*60 + sec) * 1000));
   updatePresetActiveState();
 }
 document.getElementById('timerMinInput').addEventListener('input', updateTimerPreview);
 document.getElementById('timerSecInput').addEventListener('input', updateTimerPreview);
 
-/* インターバルのプリセットボタン */
+/* インターバルのプリセットボタン（タイマー画面・記録モーダルの簡易タイマーで共有） */
+/* 注: .preset-btn はワークアウト絞り込み・サマリー期間切替などでも使い回しているクラスなので、
+   タイマー用の処理は専用の .timer-preset-btn クラスがついたボタンだけに限定してスコープする（他のプリセットボタンに誤爆しないように） */
 function updatePresetActiveState(){
   const min = parseInt(document.getElementById('timerMinInput').value) || 0;
   const sec = parseInt(document.getElementById('timerSecInput').value) || 0;
   const total = min*60 + sec;
-  document.querySelectorAll('.preset-btn').forEach(btn=>{
+  document.querySelectorAll('.timer-preset-btn').forEach(btn=>{
     btn.classList.toggle('active', Number(btn.dataset.sec) === total);
   });
 }
-document.querySelectorAll('.preset-btn').forEach(btn=>{
+document.querySelectorAll('.timer-preset-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     if (timerSet) return;
     const totalSec = Number(btn.dataset.sec);
