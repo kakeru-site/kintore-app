@@ -977,7 +977,7 @@
         <div id="big3ListDeadlift"></div>
       </div>
       <p style="font-size:11px; color:var(--text-faint); text-align:center; margin-top:4px;">
-        ※ 種目名に「スクワット/squat」「ベンチプレス・ベンチ/bench」「デッドリフト・デッド/deadlift」を含むトレ記録を自動集計するほか、各カードの「＋記録を追加」からも直接追加できます。
+        ※ 種目名に「スクワット/squat」「ベンチプレス・ベンチ/bench」「デッドリフト・デッド/deadlift」を含むトレ記録を自動集計するほか、各カードの「＋記録を追加」からも直接追加できます。各記録はタップすると編集・削除できます（自動集計の記録は、記録タブの元のトレ記録も一緒に更新・削除されます）。
       </p>
     </section>
 
@@ -4198,7 +4198,7 @@ function renderBig3List(key, sessions){
   sessions.slice().reverse().forEach(s=>{
     const row = document.createElement('div');
     row.className = 'list-item';
-    row.style.cursor = s.source === 'manual' ? 'pointer' : 'default';
+    row.style.cursor = 'pointer';
     row.innerHTML = `
       <div>
         <div class="date">${s.date} <span class="tag">${s.source === 'manual' ? '手動' : '自動集計'}</span></div>
@@ -4213,6 +4213,13 @@ function renderBig3List(key, sessions){
       row.addEventListener('click', ()=>{
         const entry = big3ManualEntries.find(e => e.id === s.id);
         if (entry) openBig3QuickModal(key, entry);
+      });
+    } else {
+      // 自動集計の記録は「トレ記録」タブの元データそのものなので、同じ編集/削除モーダルを開く
+      // （ここで編集・削除すると、記録タブ側の元の記録も一緒に更新／削除されます）
+      row.addEventListener('click', ()=>{
+        const entry = workoutLogs.find(l => l.id === s.id);
+        if (entry) openWorkoutModal(entry);
       });
     }
     wrap.appendChild(row);
