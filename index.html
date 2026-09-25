@@ -619,7 +619,8 @@
     font-size:11px; color:var(--text-dim);
   }
   .cal-day.empty{ background:transparent; border:none; }
-  .cal-day.has-log{ background:var(--surface-2); border-color:var(--border); color:var(--text); cursor:pointer; }
+  .cal-day.clickable{ cursor:pointer; }
+  .cal-day.has-log{ background:var(--surface-2); border-color:var(--border); color:var(--text); }
   .cal-day.today{ box-shadow:0 0 0 2px var(--orange) inset; }
   .cal-dots{ display:flex; gap:2px; align-items:center; justify-content:center; height:8px; max-width:90%; flex-wrap:wrap; }
   .cal-dot{ width:5px; height:5px; border-radius:50%; flex-shrink:0; }
@@ -995,7 +996,7 @@
       </div>
       <div class="cal-grid" id="calGrid"></div>
       <p style="font-size:11px; color:var(--text-faint); text-align:center; margin-top:14px;">
-        点の色＝その日に行った部位（複数可）／🔥＝自己ベスト更新／左上のシアンの点＝日記あり／右下の⏱＝トレーニング時間の記録あり／下線の色＝その日のトレーニング期。タップするとその日のメニューや日記が見られます
+        点の色＝その日に行った部位（複数可）／🔥＝自己ベスト更新／左上のシアンの点＝日記あり／右下の⏱＝トレーニング時間の記録あり／下線の色＝その日のトレーニング期。日付をタップするとその日のメニューや日記が見られ、記録の無い日からもトレーニング時間を追加できます
       </p>
       <div class="cal-legend-dots" id="calLegendDots"></div>
     </section>
@@ -1518,6 +1519,32 @@
       <button class="modal-close" data-close="dayDetailModal">×</button>
     </div>
     <div id="dayDetailList"></div>
+  </div>
+</div>
+
+<!-- トレーニング時間 追加/編集モーダル -->
+<div class="modal-overlay" id="durationEditModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="durationEditTitle">トレーニング時間を記録</h2>
+      <button class="modal-close" data-close="durationEditModal">×</button>
+    </div>
+    <form id="durationEditForm">
+      <input type="hidden" id="durationEditDate">
+      <div class="field">
+        <label>時間</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="number" id="durationEditHours" min="0" max="23" step="1" value="0" inputmode="numeric" style="text-align:center; flex:1; min-width:0;">
+          <span style="color:var(--text-dim); font-size:13px; flex-shrink:0; white-space:nowrap;">時間</span>
+          <input type="number" id="durationEditMinutes" min="0" max="59" step="1" value="0" inputmode="numeric" style="text-align:center; flex:1; min-width:0;">
+          <span style="color:var(--text-dim); font-size:13px; flex-shrink:0; white-space:nowrap;">分</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="durationEditDeleteBtn" style="display:none;">削除</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -4335,10 +4362,11 @@ function renderCalendar(){
     const hasWorkout = parts.length > 0;
     const hasDiary = diaryDates.has(dateStr);
     const hasDuration = (trainingDurations[dateStr] || 0) > 0;
-    const isClickable = hasWorkout || hasDiary || hasDuration;
+    const hasContent = hasWorkout || hasDiary || hasDuration;
     const hasPR = prDates.has(dateStr);
     const el = document.createElement('div');
-    el.className = 'cal-day' + (isClickable ? ' has-log' : '') + (dateStr === todayS ? ' today' : '');
+    // 記録が無い日も含めて全ての日をタップ可能にする（空の日からもトレーニング時間を追加できるように）
+    el.className = 'cal-day clickable' + (hasContent ? ' has-log' : '') + (dateStr === todayS ? ' today' : '');
     const dotsHtml = hasWorkout
       ? `<span class="cal-dots">${parts.slice(0, 6).map(bp => `<span class="cal-dot" style="background:${colorForBodyPart(bp)};"></span>`).join('')}</span>`
       : '';
@@ -4347,9 +4375,7 @@ function renderCalendar(){
     const phasePeriod = getPhasePeriodForDate(dateStr);
     const phaseStripHtml = phasePeriod ? `<span class="phase-strip" style="background:${phaseDotColor(phasePeriod.phase)};"></span>` : '';
     el.innerHTML = `${diaryDotHtml}${dotsHtml}<span class="daynum">${d}</span>${hasPR ? '<span class="cal-pr">🔥</span>' : ''}${durationMarkHtml}${phaseStripHtml}`;
-    if (isClickable){
-      el.addEventListener('click', ()=> openDayDetail(dateStr));
-    }
+    el.addEventListener('click', ()=> openDayDetail(dateStr));
     grid.appendChild(el);
   }
 }
@@ -4361,11 +4387,15 @@ function openDayDetail(dateStr){
   const wrap = document.getElementById('dayDetailList');
   const wEntry = weightEntries.find(e => e.date === dateStr);
 
-  let durationHtml = '';
   const durSec = trainingDurations[dateStr];
-  if (durSec){
-    durationHtml = `<div class="day-duration-info">⏱ トレーニング時間 <b>${formatDurationShort(durSec)}</b></div>`;
-  }
+  const durationHtml = durSec
+    ? `<div class="day-duration-info" id="dayDetailDuration" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+         <span>⏱ トレーニング時間 <b>${formatDurationShort(durSec)}</b></span>
+         <button type="button" class="btn-icon-sm" id="dayDetailDurationEditBtn" aria-label="編集">✎</button>
+       </div>`
+    : `<div class="day-duration-info" id="dayDetailDurationAdd" style="cursor:pointer; color:var(--cyan); display:flex; align-items:center; gap:6px;">
+         ＋ トレーニング時間を記録
+       </div>`;
 
   let diaryHtml = '';
   if (wEntry && (wEntry.note || wEntry.fatigue)){
@@ -4414,8 +4444,77 @@ function openDayDetail(dateStr){
       openWeightModal(wEntry);
     });
   }
+  const durEditBtn = document.getElementById('dayDetailDurationEditBtn');
+  if (durEditBtn){
+    durEditBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openDurationEditModal(dateStr, durSec);
+    });
+  }
+  const durAddEl = document.getElementById('dayDetailDurationAdd');
+  if (durAddEl){
+    durAddEl.addEventListener('click', ()=>{
+      openDurationEditModal(dateStr, 0);
+    });
+  }
   openModal('dayDetailModal');
 }
+
+/* トレーニング時間 追加/編集モーダル */
+function openDurationEditModal(dateStr, durSec){
+  document.getElementById('durationEditTitle').textContent = dateStr + ' のトレーニング時間';
+  document.getElementById('durationEditDate').value = dateStr;
+  const h = Math.floor((durSec || 0) / 3600);
+  const m = Math.round(((durSec || 0) % 3600) / 60);
+  document.getElementById('durationEditHours').value = h;
+  document.getElementById('durationEditMinutes').value = m;
+  document.getElementById('durationEditDeleteBtn').style.display = durSec > 0 ? 'block' : 'none';
+  openModal('durationEditModal');
+}
+
+document.getElementById('durationEditForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const dateStr = document.getElementById('durationEditDate').value;
+  const h = Number(document.getElementById('durationEditHours').value) || 0;
+  const m = Number(document.getElementById('durationEditMinutes').value) || 0;
+  const totalSec = Math.round(h * 3600 + m * 60);
+  if (totalSec <= 0){
+    showToast('1分以上の時間を入力してください');
+    return;
+  }
+  try{
+    await setDoc(doc(db, 'users', user.uid, 'trainingDuration', dateStr), {
+      date: dateStr,
+      seconds: totalSec,
+      updatedAt: serverTimestamp()
+    });
+    closeModal('durationEditModal');
+    closeModal('dayDetailModal');
+    showToast(`トレーニング時間を保存しました（${formatDurationShort(totalSec)}）`);
+  }catch(err){
+    console.error(err);
+    showToast('トレーニング時間の保存に失敗しました: ' + err.message);
+  }
+});
+
+document.getElementById('durationEditDeleteBtn').addEventListener('click', ()=>{
+  const dateStr = document.getElementById('durationEditDate').value;
+  askConfirm('この日のトレーニング時間の記録を削除しますか？', async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    try{
+      await deleteDoc(doc(db, 'users', user.uid, 'trainingDuration', dateStr));
+      closeModal('durationEditModal');
+      closeModal('dayDetailModal');
+      showToast('トレーニング時間の記録を削除しました');
+    }catch(err){
+      console.error(err);
+      showToast('削除に失敗しました: ' + err.message);
+    }
+  });
+});
 
 /* =========================================================
    ② BIG3・体重比の推移
