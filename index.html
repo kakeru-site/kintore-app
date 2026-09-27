@@ -264,6 +264,43 @@
   .cat-badge[data-cat="heavy"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
   .cat-badge[data-cat="medium"]{ background:var(--cyan-dim); border-color:var(--cyan); color:var(--cyan); }
   .empty-msg{color:var(--text-faint); font-size:13px; text-align:center; padding:30px 0;}
+
+  /* ---------- 意見箱 ---------- */
+  .fb-badge{
+    display:inline-flex; align-items:center; flex-shrink:0; font-size:10px; font-weight:700;
+    padding:2px 8px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    white-space:nowrap;
+  }
+  .fb-badge[data-type="feature"]{ background:var(--cyan-dim); border-color:var(--cyan); color:var(--cyan); }
+  .fb-badge[data-type="bug"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
+  .fb-badge[data-type="other"]{ background:var(--surface-2); border-color:var(--border); color:var(--text-dim); }
+  .fb-badge[data-status="open"]{ background:var(--surface-2); border-color:var(--border); color:var(--text-dim); }
+  .fb-badge[data-status="in_progress"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .fb-badge[data-status="done"]{ background:var(--green-dim); border-color:var(--green); color:var(--green); }
+  .fb-badge[data-status="rejected"]{ background:var(--surface-2); border-color:var(--border); color:var(--text-faint); }
+  .fb-item{
+    padding:14px 4px; border-bottom:1px solid var(--border);
+  }
+  .fb-item:last-child{ border-bottom:none; }
+  .fb-item-head{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:6px; }
+  .fb-item-date{ font-size:11px; color:var(--text-faint); margin-left:auto; }
+  .fb-item-content{ font-size:13.5px; color:var(--text); line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+  .fb-item-author{ font-size:11px; color:var(--text-faint); margin-top:6px; }
+  .fb-dev-reply{
+    margin-top:10px; padding:10px 12px; background:var(--surface-2); border-left:3px solid var(--red);
+    border-radius:6px; font-size:12.5px; color:var(--text-dim); line-height:1.6; white-space:pre-wrap; word-break:break-word;
+  }
+  .fb-dev-reply b{ color:var(--text); }
+  .fb-admin-box{ margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); }
+  .fb-admin-box select, .fb-admin-box textarea{
+    display:block; width:100%; min-width:0; max-width:100%; box-sizing:border-box;
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    border-radius:var(--radius-sm); padding:10px 12px; font-size:13px; margin-bottom:8px;
+    font-family:inherit;
+  }
+  .fb-admin-box select:focus, .fb-admin-box textarea:focus{ outline:none; border-color:var(--red); }
+  .fb-admin-box textarea::placeholder{ color:var(--text-faint); opacity:1; }
+  .fb-admin-save-btn{ padding:9px 14px; font-size:12.5px; }
   .tag{
     display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px;
     background:var(--surface-2); color:var(--text-dim);
@@ -897,6 +934,7 @@
     <span class="title" id="pageTitle">体重記録</span>
     <div class="header-actions">
       <a class="logout" href="manual.html" target="_blank" rel="noopener">使い方</a>
+      <button class="logout" id="feedbackBtn">意見箱</button>
       <button class="logout" id="settingsBtn">設定</button>
       <button class="logout" id="logoutBtn">ログアウト</button>
     </div>
@@ -1570,6 +1608,35 @@
   </div>
 </div>
 
+<!-- 意見箱モーダル -->
+<div class="modal-overlay" id="feedbackModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>意見箱</h2>
+      <button class="modal-close" data-close="feedbackModal">×</button>
+    </div>
+    <p style="font-size:12px; color:var(--text-dim); line-height:1.6; margin:0 0 16px;">
+      欲しい機能や気になる挙動、バグなどを自由に投稿できます。投稿は他の利用ユーザーにも表示され、開発者からのコメントが付くとここに表示されます。
+    </p>
+    <form id="feedbackForm" style="margin-bottom:22px; padding-bottom:20px; border-bottom:1px solid var(--border);">
+      <div class="field">
+        <label for="feedbackTypeSelect">種類</label>
+        <select id="feedbackTypeSelect">
+          <option value="feature">💡 機能・挙動の要望</option>
+          <option value="bug">🐛 不具合の報告</option>
+          <option value="other">💬 その他</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="feedbackContentInput">内容</label>
+        <textarea id="feedbackContentInput" rows="4" placeholder="できるだけ具体的に書いてください（例：どの画面で・何をしたら・どうなった 等）" required></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">送信する</button>
+    </form>
+    <div id="feedbackList"></div>
+  </div>
+</div>
+
 <!-- 設定モーダル -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal-box">
@@ -1671,6 +1738,14 @@ import {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// 意見箱の返信・ステータス変更ができる「開発者」のメールアドレス。
+// 増やしたい場合はこの配列にメールアドレスを追加してください（Firestoreのセキュリティルール側も合わせて更新が必要です）。
+const ADMIN_EMAILS = ["kakeru.4258@gmail.com"];
+function isAdminUser(){
+  const u = auth.currentUser;
+  return !!(u && u.email && ADMIN_EMAILS.includes(u.email));
+}
 
 // 電波が悪い場所でも直近のデータを見られるよう、Firestoreのオフラインキャッシュを有効化。
 // 複数タブを同時に開いている場合など一部環境では失敗することがあるが、その場合は通常通りオンライン専用で動作する。
@@ -1985,7 +2060,7 @@ document.getElementById('lockPasswordFallbackBtn').addEventListener('click', asy
   catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
 });
 
-let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null, unsubTrainingDuration = null, unsubRoutines = null, unsubWeeklyGoal = null, unsubPhasePeriods = null;
+let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null, unsubTrainingDuration = null, unsubRoutines = null, unsubWeeklyGoal = null, unsubPhasePeriods = null, unsubFeedback = null;
 
 onAuthStateChanged(auth, (user)=>{
   if (user){
@@ -2015,6 +2090,7 @@ onAuthStateChanged(auth, (user)=>{
     if (unsubRoutines) unsubRoutines();
     if (unsubWeeklyGoal) unsubWeeklyGoal();
     if (unsubPhasePeriods) unsubPhasePeriods();
+    if (unsubFeedback) unsubFeedback();
   }
 });
 
@@ -2153,7 +2229,123 @@ function startListeners(uid){
     console.error(err);
     showToast('期間データの読み込みに失敗しました: ' + err.message);
   });
+
+  // 意見箱：全利用ユーザー共通の top-level コレクション（users/{uid} の外）
+  const feedbackQ = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'));
+  unsubFeedback = onSnapshot(feedbackQ, (snap)=>{
+    feedbackItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderFeedbackList();
+  }, (err)=>{
+    console.error(err);
+  });
 }
+
+/* =========================================================
+   意見箱（全利用ユーザー共通）
+   ========================================================= */
+let feedbackItems = [];
+const FEEDBACK_TYPE_LABELS = { feature: '💡 要望', bug: '🐛 不具合', other: '💬 その他' };
+const FEEDBACK_STATUS_LABELS = { open: '未対応', in_progress: '対応中', done: '対応済み', rejected: '見送り' };
+
+function formatFeedbackDate(ts){
+  try{
+    const ms = ts && typeof ts.toMillis === 'function' ? ts.toMillis() : null;
+    if (!ms) return '';
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }catch(err){ return ''; }
+}
+
+function renderFeedbackList(){
+  const wrap = document.getElementById('feedbackList');
+  if (!wrap) return;
+  const admin = isAdminUser();
+  if (!feedbackItems.length){
+    wrap.innerHTML = '<p class="empty-msg">まだ投稿がありません</p>';
+    return;
+  }
+  wrap.innerHTML = feedbackItems.map(item=>{
+    const status = item.status || 'open';
+    const adminBoxHtml = admin ? `
+      <div class="fb-admin-box">
+        <select data-fb-status="${item.id}">
+          ${Object.entries(FEEDBACK_STATUS_LABELS).map(([val, label])=>
+            `<option value="${val}" ${val===status ? 'selected' : ''}>${label}</option>`
+          ).join('')}
+        </select>
+        <textarea data-fb-comment="${item.id}" rows="2" placeholder="コメントを返信（相手に表示されます）">${escapeHtml(item.devComment || '')}</textarea>
+        <button type="button" class="btn btn-primary fb-admin-save-btn" data-fb-save="${item.id}">保存</button>
+      </div>
+    ` : '';
+    const devReplyHtml = (!admin && item.devComment) ? `
+      <div class="fb-dev-reply"><b>開発者より：</b><br>${escapeHtml(item.devComment)}</div>
+    ` : '';
+    return `
+      <div class="fb-item">
+        <div class="fb-item-head">
+          <span class="fb-badge" data-type="${item.type || 'other'}">${FEEDBACK_TYPE_LABELS[item.type] || FEEDBACK_TYPE_LABELS.other}</span>
+          <span class="fb-badge" data-status="${status}">${FEEDBACK_STATUS_LABELS[status] || FEEDBACK_STATUS_LABELS.open}</span>
+          <span class="fb-item-date">${formatFeedbackDate(item.createdAt)}</span>
+        </div>
+        <div class="fb-item-content">${escapeHtml(item.content || '')}</div>
+        <div class="fb-item-author">投稿者：${escapeHtml(item.authorEmail || '不明')}</div>
+        ${devReplyHtml}
+        ${adminBoxHtml}
+      </div>
+    `;
+  }).join('');
+
+  if (admin){
+    wrap.querySelectorAll('[data-fb-save]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const id = btn.dataset.fbSave;
+        const statusEl = wrap.querySelector(`[data-fb-status="${id}"]`);
+        const commentEl = wrap.querySelector(`[data-fb-comment="${id}"]`);
+        try{
+          await setDoc(doc(db, 'feedback', id), {
+            status: statusEl.value,
+            devComment: commentEl.value,
+            devCommentUpdatedAt: serverTimestamp()
+          }, { merge: true });
+          showToast('保存しました');
+        }catch(err){
+          console.error(err);
+          showToast('保存に失敗しました: ' + err.message);
+        }
+      });
+    });
+  }
+}
+
+document.getElementById('feedbackBtn').addEventListener('click', ()=>{
+  renderFeedbackList();
+  openModal('feedbackModal');
+});
+
+document.getElementById('feedbackForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) return;
+  const type = document.getElementById('feedbackTypeSelect').value;
+  const content = document.getElementById('feedbackContentInput').value.trim();
+  if (!content) return;
+  try{
+    await addDoc(collection(db, 'feedback'), {
+      type,
+      content,
+      status: 'open',
+      devComment: '',
+      authorUid: user.uid,
+      authorEmail: user.email || '',
+      createdAt: serverTimestamp()
+    });
+    document.getElementById('feedbackContentInput').value = '';
+    showToast('投稿しました。ありがとうございます！');
+  }catch(err){
+    console.error(err);
+    showToast('投稿に失敗しました: ' + err.message);
+  }
+});
 
 /* =========================================================
    ① 体重記録
