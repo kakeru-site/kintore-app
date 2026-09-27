@@ -38,6 +38,7 @@
     --tabbar-h:64px;
     --header-h:88px;
     --font-display:'Oswald','Noto Sans JP',sans-serif;
+    --header-bg:rgba(12,12,14,0.92);
     font-variant-numeric: tabular-nums;
   }
   /* ---------- テーマ「CALM」(設定から切り替え可能) ----------
@@ -64,6 +65,10 @@
     --radius:20px;
     --radius-sm:14px;
     --font-display:'Fraunces','Shippori Mincho',serif;
+    /* ヘッダーは元テーマの半透明の黒(rgba(12,12,14,...))が固定値のままだったため、
+       文字色だけがvar(--text)でCALMの濃色に切り替わり、黒背景に濃色文字でほぼ見えなくなっていた。
+       CALMでは背景側もクリーム系の半透明にして文字とのコントラストを保つ。 */
+    --header-bg:rgba(250,247,242,0.92);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%; overflow-x:hidden; max-width:100%;}
@@ -194,7 +199,7 @@
     padding-bottom:14px;
     border-bottom:1px solid var(--border);
     position:sticky; top:0; z-index:10;
-    background:rgba(12,12,14,0.92);
+    background:var(--header-bg);
     backdrop-filter:blur(6px);
   }
   header.appbar .title{
@@ -2300,6 +2305,10 @@ function applyAppTheme(theme){
   } else {
     document.documentElement.removeAttribute('data-app-theme');
   }
+  // <meta name="theme-color">はブラウザ/PWAのステータスバー・アドレスバーの色を決める静的な値なので、
+  // テーマ切替時にもJSから書き換えて、アプリ内の見た目と食い違わないようにする
+  const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeColorMeta) themeColorMeta.setAttribute('content', currentAppTheme === 'calm' ? '#FAF7F2' : '#0c0c0e');
   document.querySelectorAll('.app-theme-card').forEach(card=>{
     card.classList.toggle('active', card.dataset.appThemeChoice === currentAppTheme);
   });
