@@ -1391,7 +1391,7 @@
       </div>
       <div class="field">
         <label for="weightValue">体重 (kg)</label>
-        <input type="number" id="weightValue" step="0.1" inputmode="decimal" required>
+        <input type="number" id="weightValue" step="0.1" min="0.1" max="500" inputmode="decimal" required>
       </div>
       <div class="field">
         <label>今朝の疲労感（任意）</label>
@@ -1426,7 +1426,7 @@
     <form id="targetForm">
       <div class="field">
         <label for="targetValue">目標体重 (kg)</label>
-        <input type="number" id="targetValue" step="0.1" inputmode="decimal" required>
+        <input type="number" id="targetValue" step="0.1" min="0.1" max="500" inputmode="decimal" required>
       </div>
       <div class="modal-actions">
         <button type="submit" class="btn btn-primary">保存</button>
@@ -1968,7 +1968,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot,
-  query, orderBy, serverTimestamp, enableIndexedDbPersistence, increment
+  query, orderBy, serverTimestamp, enableIndexedDbPersistence, increment, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
 const app = initializeApp(firebaseConfig);
@@ -2019,6 +2019,22 @@ function escapeHtml(str){
   const d = document.createElement('div');
   d.textContent = str == null ? '' : String(str);
   return d.innerHTML;
+}
+
+// フォームの二重送信防止：通信が遅い時に「保存」を連打すると同じ内容が
+// 複数件登録されてしまうバグ対策。送信中は送信ボタンを無効化し、
+// 処理が終わったら（成功・失敗どちらでも）必ず元に戻す。
+async function guardedSubmit(form, fn){
+  if (!form || form.dataset.submitting === '1') return;
+  form.dataset.submitting = '1';
+  const btns = form.querySelectorAll('button[type="submit"]');
+  btns.forEach(b=>{ b.disabled = true; });
+  try{
+    await fn();
+  } finally {
+    form.dataset.submitting = '';
+    btns.forEach(b=>{ b.disabled = false; });
+  }
 }
 
 function openModal(id){ document.getElementById(id).classList.add('active'); }
@@ -2099,21 +2115,23 @@ let sessionUnlocked = false;
 
 document.getElementById('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const email = document.getElementById('loginEmail').value;
-  const password = document.getElementById('loginPassword').value;
-  const errEl = document.getElementById('authError');
-  errEl.textContent = '';
-  try{
-    await signInWithEmailAndPassword(auth, email, password);
-    sessionUnlocked = true;
-    if (webAuthnSupported && localStorage.getItem('muscleLogFaceIdOffered') !== '1'){
-      localStorage.setItem('muscleLogFaceIdOffered', '1');
-      setTimeout(()=> openModal('faceIdOfferModal'), 500);
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('authError');
+    errEl.textContent = '';
+    try{
+      await signInWithEmailAndPassword(auth, email, password);
+      sessionUnlocked = true;
+      if (webAuthnSupported && localStorage.getItem('muscleLogFaceIdOffered') !== '1'){
+        localStorage.setItem('muscleLogFaceIdOffered', '1');
+        setTimeout(()=> openModal('faceIdOfferModal'), 500);
+      }
+    }catch(err){
+      errEl.textContent = 'ログインに失敗しました（メールアドレスまたはパスワードが正しくありません）';
+      console.error(err);
     }
-  }catch(err){
-    errEl.textContent = 'ログインに失敗しました（メールアドレスまたはパスワードが正しくありません）';
-    console.error(err);
-  }
+  });
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async ()=>{
@@ -2131,29 +2149,31 @@ document.getElementById('forgotPasswordLink').addEventListener('click', ()=>{
 
 document.getElementById('forgotPasswordForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const email = document.getElementById('forgotPasswordEmail').value.trim();
-  const msgEl = document.getElementById('forgotPasswordMsg');
-  if (!email){ return; }
-  msgEl.style.color = 'var(--text-dim)';
-  msgEl.textContent = '送信中...';
-  try{
-    await sendPasswordResetEmail(auth, email);
-    msgEl.style.color = 'var(--green)';
-    msgEl.textContent = '再設定メールを送信しました。届いたメールをご確認ください。';
-  }catch(err){
-    console.error(err);
-    if (err.code === 'auth/invalid-email'){
-      msgEl.style.color = 'var(--red)';
-      msgEl.textContent = 'メールアドレスの形式が正しくありません。';
-    } else if (err.code === 'auth/user-not-found'){
-      // 未登録のメールアドレスかどうかを外部に漏らさないよう、成功時と同じ文言を表示する
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const email = document.getElementById('forgotPasswordEmail').value.trim();
+    const msgEl = document.getElementById('forgotPasswordMsg');
+    if (!email){ return; }
+    msgEl.style.color = 'var(--text-dim)';
+    msgEl.textContent = '送信中...';
+    try{
+      await sendPasswordResetEmail(auth, email);
       msgEl.style.color = 'var(--green)';
       msgEl.textContent = '再設定メールを送信しました。届いたメールをご確認ください。';
-    } else {
-      msgEl.style.color = 'var(--red)';
-      msgEl.textContent = '送信できませんでした。しばらくしてからもう一度お試しください。';
+    }catch(err){
+      console.error(err);
+      if (err.code === 'auth/invalid-email'){
+        msgEl.style.color = 'var(--red)';
+        msgEl.textContent = 'メールアドレスの形式が正しくありません。';
+      } else if (err.code === 'auth/user-not-found'){
+        // 未登録のメールアドレスかどうかを外部に漏らさないよう、成功時と同じ文言を表示する
+        msgEl.style.color = 'var(--green)';
+        msgEl.textContent = '再設定メールを送信しました。届いたメールをご確認ください。';
+      } else {
+        msgEl.style.color = 'var(--red)';
+        msgEl.textContent = '送信できませんでした。しばらくしてからもう一度お試しください。';
+      }
     }
-  }
+  });
 });
 
 document.getElementById('settingsBtn').addEventListener('click', ()=> openModal('settingsModal'));
@@ -2170,40 +2190,42 @@ document.getElementById('faceIdOfferYesBtn').addEventListener('click', async ()=
 
 document.getElementById('passwordChangeForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-  const errEl = document.getElementById('passwordChangeError');
-  errEl.textContent = '';
-  const current = document.getElementById('currentPasswordInput').value;
-  const next = document.getElementById('newPasswordInput').value;
-  const confirmVal = document.getElementById('newPasswordConfirmInput').value;
-  if (next.length < 6){
-    errEl.textContent = '新しいパスワードは6文字以上にしてください';
-    return;
-  }
-  if (next !== confirmVal){
-    errEl.textContent = '新しいパスワード（確認）が一致しません';
-    return;
-  }
-  try{
-    const credential = EmailAuthProvider.credential(user.email, current);
-    await reauthenticateWithCredential(user, credential);
-    await updatePassword(user, next);
-    showToast('パスワードを変更しました');
-    document.getElementById('passwordChangeForm').reset();
-    closeModal('settingsModal');
-  }catch(err){
-    console.error(err);
-    if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
-      errEl.textContent = '現在のパスワードが正しくありません';
-    } else if (err.code === 'auth/weak-password'){
-      errEl.textContent = 'パスワードが簡単すぎます。別のパスワードを入力してください';
-    } else if (err.code === 'auth/too-many-requests'){
-      errEl.textContent = '試行回数が多すぎます。しばらくしてから再度お試しください';
-    } else {
-      errEl.textContent = 'パスワードの変更に失敗しました: ' + err.message;
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    const errEl = document.getElementById('passwordChangeError');
+    errEl.textContent = '';
+    const current = document.getElementById('currentPasswordInput').value;
+    const next = document.getElementById('newPasswordInput').value;
+    const confirmVal = document.getElementById('newPasswordConfirmInput').value;
+    if (next.length < 6){
+      errEl.textContent = '新しいパスワードは6文字以上にしてください';
+      return;
     }
-  }
+    if (next !== confirmVal){
+      errEl.textContent = '新しいパスワード（確認）が一致しません';
+      return;
+    }
+    try{
+      const credential = EmailAuthProvider.credential(user.email, current);
+      await reauthenticateWithCredential(user, credential);
+      await updatePassword(user, next);
+      showToast('パスワードを変更しました');
+      document.getElementById('passwordChangeForm').reset();
+      closeModal('settingsModal');
+    }catch(err){
+      console.error(err);
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'){
+        errEl.textContent = '現在のパスワードが正しくありません';
+      } else if (err.code === 'auth/weak-password'){
+        errEl.textContent = 'パスワードが簡単すぎます。別のパスワードを入力してください';
+      } else if (err.code === 'auth/too-many-requests'){
+        errEl.textContent = '試行回数が多すぎます。しばらくしてから再度お試しください';
+      } else {
+        errEl.textContent = 'パスワードの変更に失敗しました: ' + err.message;
+      }
+    }
+  });
 });
 
 async function registerDeviceLock(){
@@ -2599,27 +2621,29 @@ document.getElementById('feedbackBtn').addEventListener('click', ()=>{
 
 document.getElementById('feedbackForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-  const type = document.getElementById('feedbackTypeSelect').value;
-  const content = document.getElementById('feedbackContentInput').value.trim();
-  if (!content) return;
-  try{
-    await addDoc(collection(db, 'feedback'), {
-      type,
-      content,
-      status: 'open',
-      devComment: '',
-      authorUid: user.uid,
-      authorEmail: user.email || '',
-      createdAt: serverTimestamp()
-    });
-    document.getElementById('feedbackContentInput').value = '';
-    showToast('投稿しました。ありがとうございます！');
-  }catch(err){
-    console.error(err);
-    showToast('投稿に失敗しました: ' + err.message);
-  }
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    const type = document.getElementById('feedbackTypeSelect').value;
+    const content = document.getElementById('feedbackContentInput').value.trim();
+    if (!content) return;
+    try{
+      await addDoc(collection(db, 'feedback'), {
+        type,
+        content,
+        status: 'open',
+        devComment: '',
+        authorUid: user.uid,
+        authorEmail: user.email || '',
+        createdAt: serverTimestamp()
+      });
+      document.getElementById('feedbackContentInput').value = '';
+      showToast('投稿しました。ありがとうございます！');
+    }catch(err){
+      console.error(err);
+      showToast('投稿に失敗しました: ' + err.message);
+    }
+  });
 });
 
 /* =========================================================
@@ -3051,30 +3075,32 @@ document.getElementById('goalPhotoFileInput').addEventListener('change', async (
 
 document.getElementById('goalEditForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-  const theme = document.getElementById('goalThemeInput').value || 'blaze';
-  const finalGoal = document.getElementById('goalFinalInput').value.trim();
-  const threeMonthGoal = document.getElementById('goalThreeMonthInput').value.trim();
-  const deadline = document.getElementById('goalDeadlineInput').value;
-  const photoMode = document.getElementById('goalPhotoModeInput').value || 'fixed';
-  const fixedPhotoId = document.getElementById('goalFixedPhotoIdInput').value || '';
-  if (!finalGoal || !threeMonthGoal || !deadline){
-    showToast('最終目標・3ヶ月後の目標・達成期限日をすべて入力してください');
-    return;
-  }
-  const startDate = (goalBannerSettings && goalBannerSettings.startDate) ? goalBannerSettings.startDate : todayStr();
-  try{
-    await setDoc(doc(db, 'users', user.uid, 'settings', 'goalBanner'), {
-      theme, finalGoal, threeMonthGoal, deadline, photoMode, fixedPhotoId, startDate,
-      updatedAt: serverTimestamp()
-    });
-    closeModal('goalEditModal');
-    showToast('目標を保存しました');
-  }catch(err){
-    console.error(err);
-    showToast('保存に失敗しました: ' + err.message);
-  }
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    const theme = document.getElementById('goalThemeInput').value || 'blaze';
+    const finalGoal = document.getElementById('goalFinalInput').value.trim();
+    const threeMonthGoal = document.getElementById('goalThreeMonthInput').value.trim();
+    const deadline = document.getElementById('goalDeadlineInput').value;
+    const photoMode = document.getElementById('goalPhotoModeInput').value || 'fixed';
+    const fixedPhotoId = document.getElementById('goalFixedPhotoIdInput').value || '';
+    if (!finalGoal || !threeMonthGoal || !deadline){
+      showToast('最終目標・3ヶ月後の目標・達成期限日をすべて入力してください');
+      return;
+    }
+    const startDate = (goalBannerSettings && goalBannerSettings.startDate) ? goalBannerSettings.startDate : todayStr();
+    try{
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'goalBanner'), {
+        theme, finalGoal, threeMonthGoal, deadline, photoMode, fixedPhotoId, startDate,
+        updatedAt: serverTimestamp()
+      });
+      closeModal('goalEditModal');
+      showToast('目標を保存しました');
+    }catch(err){
+      console.error(err);
+      showToast('保存に失敗しました: ' + err.message);
+    }
+  });
 });
 
 document.getElementById('goalDeleteBtn').addEventListener('click', ()=>{
@@ -3271,6 +3297,12 @@ document.querySelectorAll('#fatiguePicker .fatigue-btn').forEach(btn=>{
 });
 
 function openWeightModal(entry){
+  // FABの「＋」から新規登録しようとした場合でも、今日の記録が既にあるならそれを編集扱いにする。
+  // 体重記録は日付をドキュメントIDにしているため、気づかないまま新規登録すると
+  // 既存の記録を無警告で上書きしてしまうバグがあったための対策。
+  if (!entry){
+    entry = weightEntries.find(en => en.id === todayStr()) || null;
+  }
   document.getElementById('weightModalTitle').textContent = entry ? '体重を編集' : '体重を記録';
   document.getElementById('weightDocId').value = entry ? entry.id : '';
   document.getElementById('weightDate').value = entry ? entry.date : todayStr();
@@ -3287,25 +3319,44 @@ function openWeightModal(entry){
 
 document.getElementById('weightForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-  const date = document.getElementById('weightDate').value;
-  const weight = parseFloat(document.getElementById('weightValue').value);
-  const note = document.getElementById('weightNote').value.trim();
-  const fatigueRaw = document.getElementById('weightFatigue').value;
-  const fatigue = fatigueRaw ? Number(fatigueRaw) : null;
-  if (!date || isNaN(weight)){
-    showToast('日付と体重を正しく入力してください');
-    return;
-  }
-  try{
-    const ref = doc(db, 'users', user.uid, 'bodyWeight', date);
-    await setDoc(ref, { date, weight, note, fatigue, updatedAt: serverTimestamp() }, { merge: true });
-    closeModal('weightModal');
-  }catch(err){
-    console.error(err);
-    showToast('保存に失敗しました: ' + err.message);
-  }
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    const originalId = document.getElementById('weightDocId').value; // 編集前のドキュメントID（＝編集前の日付）
+    const date = document.getElementById('weightDate').value;
+    const weight = parseFloat(document.getElementById('weightValue').value);
+    const note = document.getElementById('weightNote').value.trim();
+    const fatigueRaw = document.getElementById('weightFatigue').value;
+    const fatigue = fatigueRaw ? Number(fatigueRaw) : null;
+    if (!date || isNaN(weight)){
+      showToast('日付と体重を正しく入力してください');
+      return;
+    }
+    if (weight <= 0 || weight > 500){
+      showToast('体重は0〜500kgの範囲で入力してください');
+      return;
+    }
+    // 体重記録は日付をドキュメントIDにしているため、新規登録・日付変更の結果として
+    // 既に記録がある日付と衝突する場合は、無警告で上書きせずに知らせる。
+    const existingForDate = weightEntries.find(en => en.id === date);
+    if (existingForDate && existingForDate.id !== originalId){
+      showToast(`${date} には既に体重記録があります。一覧からその記録をタップして編集してください`);
+      return;
+    }
+    try{
+      const ref = doc(db, 'users', user.uid, 'bodyWeight', date);
+      await setDoc(ref, { date, weight, note, fatigue, updatedAt: serverTimestamp() }, { merge: true });
+      // 編集中に日付そのものを変更した場合、新しい日付のドキュメントを作っただけでは
+      // 元の日付のドキュメントが残ってしまい、記録が二重になる。ここで元を削除して「移動」を完了させる。
+      if (originalId && originalId !== date){
+        await deleteDoc(doc(db, 'users', user.uid, 'bodyWeight', originalId));
+      }
+      closeModal('weightModal');
+    }catch(err){
+      console.error(err);
+      showToast('保存に失敗しました: ' + err.message);
+    }
+  });
 });
 
 document.getElementById('weightDeleteBtn').addEventListener('click', ()=>{
@@ -3330,21 +3381,27 @@ document.getElementById('editTargetBtn').addEventListener('click', ()=>{
 
 document.getElementById('targetForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-  const value = parseFloat(document.getElementById('targetValue').value);
-  if (isNaN(value)){
-    showToast('目標体重を正しく入力してください');
-    return;
-  }
-  try{
-    const ref = doc(db, 'users', user.uid, 'settings', 'targetWeight');
-    await setDoc(ref, { value, updatedAt: serverTimestamp() }, { merge: true });
-    closeModal('targetModal');
-  }catch(err){
-    console.error(err);
-    showToast('目標体重の保存に失敗しました: ' + err.message);
-  }
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    const value = parseFloat(document.getElementById('targetValue').value);
+    if (isNaN(value)){
+      showToast('目標体重を正しく入力してください');
+      return;
+    }
+    if (value <= 0 || value > 500){
+      showToast('目標体重は0〜500kgの範囲で入力してください');
+      return;
+    }
+    try{
+      const ref = doc(db, 'users', user.uid, 'settings', 'targetWeight');
+      await setDoc(ref, { value, updatedAt: serverTimestamp() }, { merge: true });
+      closeModal('targetModal');
+    }catch(err){
+      console.error(err);
+      showToast('目標体重の保存に失敗しました: ' + err.message);
+    }
+  });
 });
 
 /* =========================================================
@@ -3437,28 +3494,70 @@ function openExerciseModal(entry, presetBodyPart){
 
 document.getElementById('exerciseForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-  const id = document.getElementById('exerciseDocId').value;
-  const bodyPart = document.getElementById('exerciseBodyPart').value.trim();
-  const name = document.getElementById('exerciseName').value.trim();
-  const cue = document.getElementById('exerciseCue').value.trim();
-  if (!bodyPart || !name){
-    showToast('部位と種目名を入力してください');
-    return;
-  }
-  try{
-    const data = { bodyPart, name, cue, updatedAt: serverTimestamp() };
-    if (id){
-      await setDoc(doc(db, 'users', user.uid, 'exercises', id), data, { merge: true });
-    } else {
-      await addDoc(collection(db, 'users', user.uid, 'exercises'), data);
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    const id = document.getElementById('exerciseDocId').value;
+    const bodyPart = document.getElementById('exerciseBodyPart').value.trim();
+    const name = document.getElementById('exerciseName').value.trim();
+    const cue = document.getElementById('exerciseCue').value.trim();
+    if (!bodyPart || !name){
+      showToast('部位と種目名を入力してください');
+      return;
     }
-    closeModal('exerciseModal');
-  }catch(err){
-    console.error(err);
-    showToast('保存に失敗しました: ' + err.message);
-  }
+    // 同じ種目名（前後の空白・大文字小文字の違いは無視）が既に登録されていないか確認する。
+    // トレ記録は種目IDではなく種目名で紐付けているため、同名の種目が2つあると
+    // 一覧に紛らわしい重複が並び、どちらを選んでも記録が混ざって見えてしまう。
+    const nameLower = name.toLowerCase();
+    const dup = exercises.find(ex => ex.id !== id && (ex.name || '').trim().toLowerCase() === nameLower);
+    if (dup){
+      showToast(`「${dup.name}」は既に登録されています（${dup.bodyPart || '未設定'}）`);
+      return;
+    }
+    try{
+      const data = { bodyPart, name, cue, updatedAt: serverTimestamp() };
+      if (id){
+        // 種目名を変更した場合、過去のトレ記録は「種目名の文字列」で紐付いているため
+        // このままでは過去の記録がその種目の推移・ベスト記録などから見えなくなってしまう。
+        // 既存の記録も新しい名前に一括で追従させることで、履歴のつながりを保つ。
+        const before = exercises.find(ex => ex.id === id);
+        const oldName = before ? before.name : null;
+        await setDoc(doc(db, 'users', user.uid, 'exercises', id), data, { merge: true });
+        if (oldName && oldName !== name){
+          const affected = workoutLogs.filter(l => l.exerciseName === oldName);
+          if (affected.length){
+            const CHUNK = 450; // Firestoreの1バッチあたりの書き込み上限(500)に余裕を持たせる
+            for (let i = 0; i < affected.length; i += CHUNK){
+              const batch = writeBatch(db);
+              affected.slice(i, i + CHUNK).forEach(l=>{
+                batch.update(doc(db, 'users', user.uid, 'workoutLogs', l.id), { exerciseName: name });
+              });
+              await batch.commit();
+            }
+          }
+          // ルーティンの種目一覧も種目名の文字列で保持しているため、同様に追従させる。
+          // ここを直さないとルーティン実行時にその種目だけ見つからず、部位未設定のまま開いてしまう。
+          const affectedRoutines = routines.filter(r => (r.exerciseNames || []).includes(oldName));
+          for (const r of affectedRoutines){
+            const newNames = r.exerciseNames.map(n => n === oldName ? name : n);
+            await setDoc(doc(db, 'users', user.uid, 'routines', r.id), { exerciseNames: newNames }, { merge: true });
+          }
+          if (affected.length || affectedRoutines.length){
+            const parts = [];
+            if (affected.length) parts.push(`過去の記録${affected.length}件`);
+            if (affectedRoutines.length) parts.push(`ルーティン${affectedRoutines.length}件`);
+            showToast(`種目名を変更しました（${parts.join('・')}も追従しました）`);
+          }
+        }
+      } else {
+        await addDoc(collection(db, 'users', user.uid, 'exercises'), data);
+      }
+      closeModal('exerciseModal');
+    }catch(err){
+      console.error(err);
+      showToast('保存に失敗しました: ' + err.message);
+    }
+  });
 });
 
 document.getElementById('exerciseDeleteBtn').addEventListener('click', ()=>{
@@ -3647,21 +3746,23 @@ function renderStreakCard(){
 
 document.getElementById('weeklyGoalForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-  const value = parseInt(document.getElementById('weeklyGoalValue').value, 10);
-  if (!value || value < 1){
-    showToast('週の目標回数を正しく入力してください');
-    return;
-  }
-  try{
-    const ref = doc(db, 'users', user.uid, 'settings', 'weeklyGoal');
-    await setDoc(ref, { value, updatedAt: serverTimestamp() }, { merge: true });
-    closeModal('weeklyGoalModal');
-  }catch(err){
-    console.error(err);
-    showToast('週の目標回数の保存に失敗しました: ' + err.message);
-  }
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    const value = parseInt(document.getElementById('weeklyGoalValue').value, 10);
+    if (!value || value < 1 || value > 14){
+      showToast('週の目標回数を正しく入力してください（1〜14回）');
+      return;
+    }
+    try{
+      const ref = doc(db, 'users', user.uid, 'settings', 'weeklyGoal');
+      await setDoc(ref, { value, updatedAt: serverTimestamp() }, { merge: true });
+      closeModal('weeklyGoalModal');
+    }catch(err){
+      console.error(err);
+      showToast('週の目標回数の保存に失敗しました: ' + err.message);
+    }
+  });
 });
 
 function groupWorkoutLogs(logs, mode){
@@ -3846,8 +3947,8 @@ function renderSetsUI(){
     row.className = 'set-row';
     row.innerHTML = `
       <span class="set-idx">${i+1}</span>
-      <input type="number" step="0.5" placeholder="重量kg" value="${s.weight}" data-i="${i}" data-f="weight">
-      <input type="number" step="1" placeholder="回数" value="${s.reps}" data-i="${i}" data-f="reps">
+      <input type="number" step="0.5" min="0" max="1000" placeholder="重量kg" value="${s.weight}" data-i="${i}" data-f="weight">
+      <input type="number" step="1" min="1" max="999" placeholder="回数" value="${s.reps}" data-i="${i}" data-f="reps">
       <button type="button" data-remove="${i}">×</button>
     `;
     wrap.appendChild(row);
@@ -4545,6 +4646,26 @@ function openWorkoutModal(entry, prefill){
   if (!entry && !prefill && draft) showToast('下書きを復元しました');
 }
 
+// トレ記録の保存は「保存」submitボタンと「保存して次のセットへ」ボタンの2箇所から
+// performWorkoutSave()を呼べるため、フォームのsubmitイベントだけをガードする
+// guardedSubmit()では両者の連打・同時押しを防げない。ここで共通の二重送信防止を行う。
+let workoutSaveInFlight = false;
+async function guardedWorkoutSave(){
+  if (workoutSaveInFlight) return { ok: false };
+  workoutSaveInFlight = true;
+  const saveBtn = document.querySelector('#workoutForm button[type="submit"]');
+  const continueBtn = document.getElementById('workoutSaveContinueBtn');
+  if (saveBtn) saveBtn.disabled = true;
+  if (continueBtn) continueBtn.disabled = true;
+  try{
+    return await performWorkoutSave();
+  } finally {
+    workoutSaveInFlight = false;
+    if (saveBtn) saveBtn.disabled = false;
+    if (continueBtn) continueBtn.disabled = false;
+  }
+}
+
 async function performWorkoutSave(){
   const user = auth.currentUser;
   if (!user) return { ok: false };
@@ -4560,6 +4681,13 @@ async function performWorkoutSave(){
   let sets = [];
   let cardioSegments = [];
   if (isCardio){
+    // 距離・時速のどちらか片方だけ入力した区間は、このままだと保存時に無言で
+    // 除外されてしまう（記録した気になっているのに実際は保存されない）ため、先に弾く。
+    const partialCardio = currentCardio.some(c => (c.distanceM !== '') !== (c.speedKmh !== ''));
+    if (partialCardio){
+      showToast('距離・時速の両方を入力するか、両方空欄にしてください');
+      return { ok: false };
+    }
     cardioSegments = currentCardio
       .filter(c => c.distanceM !== '' && c.speedKmh !== '')
       .map(c => ({ distanceM: Number(c.distanceM), speedKmh: Number(c.speedKmh) }));
@@ -4567,12 +4695,34 @@ async function performWorkoutSave(){
       showToast('区間（距離・時速）を1つ以上入力してください');
       return { ok: false };
     }
+    // 数値以外の入力（NaN）がそのまま保存されると、以降その種目の自己ベスト計算などが
+    // ずっとNaNのまま壊れてしまうため、保存前に必ず弾く。
+    const invalidCardio = cardioSegments.some(c => !Number.isFinite(c.distanceM) || !Number.isFinite(c.speedKmh) || c.distanceM <= 0 || c.speedKmh <= 0);
+    if (invalidCardio){
+      showToast('距離・時速には0より大きい数値を入力してください');
+      return { ok: false };
+    }
   } else {
+    // 重量・回数のどちらか片方だけ入力したセットは、このままだと保存時に無言で
+    // 除外されてしまう（例：3セット入力したつもりが2セットしか保存されない）ため、先に弾く。
+    const partialSet = currentSets.some(s => (s.weight !== '') !== (s.reps !== ''));
+    if (partialSet){
+      showToast('重量・回数の両方を入力するか、両方空欄にしてください');
+      return { ok: false };
+    }
     sets = currentSets
       .filter(s => s.weight !== '' && s.reps !== '')
       .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }));
     if (!sets.length){
       showToast('セットを1つ以上入力してください');
+      return { ok: false };
+    }
+    // 数値以外の入力（NaN）や負数・非整数の回数がそのまま保存されると、
+    // 以降その種目の自己ベスト・グラフなどがずっと壊れたままになるため、保存前に必ず弾く。
+    // 重量は自重種目（0kg）を許容するため0以上、回数は1以上の整数のみを許可する。
+    const invalidSet = sets.some(s => !Number.isFinite(s.weight) || !Number.isFinite(s.reps) || s.weight < 0 || s.weight > 1000 || s.reps <= 0 || !Number.isInteger(s.reps));
+    if (invalidSet){
+      showToast('重量は0kg以上、回数は1以上の整数で入力してください');
       return { ok: false };
     }
   }
@@ -4608,7 +4758,7 @@ async function performWorkoutSave(){
 document.getElementById('workoutForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const wasEditing = !!editingWorkoutId;
-  const result = await performWorkoutSave();
+  const result = await guardedWorkoutSave();
   if (result.ok){
     closeModal('workoutModal');
     // ルーティン実行中の「保存」は、次の種目へ自動的に進む
@@ -4627,7 +4777,7 @@ document.getElementById('workoutDraftClearBtn').addEventListener('click', ()=>{
 
 document.getElementById('workoutSaveContinueBtn').addEventListener('click', async ()=>{
   const wasEditing = !!editingWorkoutId;
-  const result = await performWorkoutSave();
+  const result = await guardedWorkoutSave();
   if (result.ok){
     closeModal('workoutModal');
     // ルーティン実行中は、このボタンも「次の種目へ」進める（同じ種目を繰り返すより、ルーティンの進行を優先する）
@@ -4773,6 +4923,7 @@ function openRoutineEditModal(routine){
 
 document.getElementById('routineEditForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
+  await guardedSubmit(e.currentTarget, async ()=>{
   const user = auth.currentUser;
   if (!user) return;
   const name = document.getElementById('routineNameInput').value.trim();
@@ -4797,6 +4948,7 @@ document.getElementById('routineEditForm').addEventListener('submit', async (e)=
     console.error(err);
     showToast('ルーティンの保存に失敗しました: ' + err.message);
   }
+  });
 });
 
 document.getElementById('routineDeleteBtn').addEventListener('click', ()=>{
@@ -5020,6 +5172,7 @@ function openPhaseEditModal(period){
 
 document.getElementById('phaseEditForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
+  await guardedSubmit(e.currentTarget, async ()=>{
   const user = auth.currentUser;
   if (!user) return;
   if (!currentPhaseEditType){ showToast('期間の種類を選択してください'); return; }
@@ -5061,6 +5214,7 @@ document.getElementById('phaseEditForm').addEventListener('submit', async (e)=>{
     console.error(err);
     showToast('期間の保存に失敗しました: ' + err.message);
   }
+  });
 });
 
 document.getElementById('phaseDeleteBtn').addEventListener('click', ()=>{
@@ -5458,8 +5612,11 @@ function openDayDetail(dateStr){
 function openDurationEditModal(dateStr, durSec){
   document.getElementById('durationEditTitle').textContent = dateStr + ' のトレーニング時間';
   document.getElementById('durationEditDate').value = dateStr;
-  const h = Math.floor((durSec || 0) / 3600);
-  const m = Math.round(((durSec || 0) % 3600) / 60);
+  // 秒→分→時に丸める際、秒の端数によっては「0時間60分」のように分が60になってしまう
+  // （例:3599秒 → 時=0,分=round(3599/60)=60）ため、分を先に丸めてから時に繰り上げる。
+  const totalMinRounded = Math.round((durSec || 0) / 60);
+  const h = Math.floor(totalMinRounded / 60);
+  const m = totalMinRounded % 60;
   document.getElementById('durationEditHours').value = h;
   document.getElementById('durationEditMinutes').value = m;
   document.getElementById('durationEditDeleteBtn').style.display = durSec > 0 ? 'block' : 'none';
@@ -5468,29 +5625,31 @@ function openDurationEditModal(dateStr, durSec){
 
 document.getElementById('durationEditForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-  const dateStr = document.getElementById('durationEditDate').value;
-  const h = Number(document.getElementById('durationEditHours').value) || 0;
-  const m = Number(document.getElementById('durationEditMinutes').value) || 0;
-  const totalSec = Math.round(h * 3600 + m * 60);
-  if (totalSec <= 0){
-    showToast('1分以上の時間を入力してください');
-    return;
-  }
-  try{
-    await setDoc(doc(db, 'users', user.uid, 'trainingDuration', dateStr), {
-      date: dateStr,
-      seconds: totalSec,
-      updatedAt: serverTimestamp()
-    });
-    closeModal('durationEditModal');
-    closeModal('dayDetailModal');
-    showToast(`トレーニング時間を保存しました（${formatDurationShort(totalSec)}）`);
-  }catch(err){
-    console.error(err);
-    showToast('トレーニング時間の保存に失敗しました: ' + err.message);
-  }
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    const dateStr = document.getElementById('durationEditDate').value;
+    const h = Number(document.getElementById('durationEditHours').value) || 0;
+    const m = Number(document.getElementById('durationEditMinutes').value) || 0;
+    const totalSec = Math.round(h * 3600 + m * 60);
+    if (totalSec <= 0 || totalSec > 86400){
+      showToast('1分〜24時間の範囲で時間を入力してください');
+      return;
+    }
+    try{
+      await setDoc(doc(db, 'users', user.uid, 'trainingDuration', dateStr), {
+        date: dateStr,
+        seconds: totalSec,
+        updatedAt: serverTimestamp()
+      });
+      closeModal('durationEditModal');
+      closeModal('dayDetailModal');
+      showToast(`トレーニング時間を保存しました（${formatDurationShort(totalSec)}）`);
+    }catch(err){
+      console.error(err);
+      showToast('トレーニング時間の保存に失敗しました: ' + err.message);
+    }
+  });
 });
 
 document.getElementById('durationEditDeleteBtn').addEventListener('click', ()=>{
@@ -5760,7 +5919,9 @@ function attachWheelListener(el, onSettle){
 const big3WheelYears = (()=>{
   const cy = new Date().getFullYear();
   const arr = [];
-  for (let y = cy - 10; y <= cy; y++) arr.push(y);
+  // 年をまたいでアプリを開きっぱなしにしていても（ページ再読み込みなしで）年始に記録できるよう、
+  // 現在年の1年先まで含めておく（この配列はページ読み込み時に1度だけ作られるため）
+  for (let y = cy - 10; y <= cy + 1; y++) arr.push(y);
   return arr;
 })();
 const big3WheelMonths = Array.from({length:12}, (_,i)=> i+1);
@@ -5894,30 +6055,40 @@ document.querySelectorAll('.big3-add-btn').forEach(btn=>{
 
 document.getElementById('big3QuickForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const user = auth.currentUser;
-  if (!user) return;
-  const liftKey = document.getElementById('big3QuickLift').value;
-  const docId = document.getElementById('big3QuickDocId').value;
-  const date = document.getElementById('big3QuickDate').value;
-  const weight = parseFloat(document.getElementById('big3QuickWeight').value);
-  const bwRaw = document.getElementById('big3QuickBodyweight').value;
-  const bodyweight = bwRaw === '' ? null : parseFloat(bwRaw);
-  if (!date || isNaN(weight)){
-    showToast('日付と重量を正しく入力してください');
-    return;
-  }
-  try{
-    const data = { liftKey, date, weight, bodyweight, updatedAt: serverTimestamp() };
-    if (docId){
-      await setDoc(doc(db, 'users', user.uid, 'big3Manual', docId), data, { merge: true });
-    } else {
-      await addDoc(collection(db, 'users', user.uid, 'big3Manual'), data);
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const user = auth.currentUser;
+    if (!user) return;
+    const liftKey = document.getElementById('big3QuickLift').value;
+    const docId = document.getElementById('big3QuickDocId').value;
+    const date = document.getElementById('big3QuickDate').value;
+    const weight = parseFloat(document.getElementById('big3QuickWeight').value);
+    const bwRaw = document.getElementById('big3QuickBodyweight').value;
+    const bodyweight = bwRaw === '' ? null : parseFloat(bwRaw);
+    if (!date || isNaN(weight)){
+      showToast('日付と重量を正しく入力してください');
+      return;
     }
-    closeModal('big3QuickModal');
-  }catch(err){
-    console.error(err);
-    showToast('BIG3記録の保存に失敗しました: ' + err.message);
-  }
+    if (weight < 0 || weight > 1000){
+      showToast('重量は0〜1000kgの範囲で入力してください');
+      return;
+    }
+    if (bodyweight !== null && (isNaN(bodyweight) || bodyweight <= 0 || bodyweight > 500)){
+      showToast('体重は0〜500kgの範囲で入力してください');
+      return;
+    }
+    try{
+      const data = { liftKey, date, weight, bodyweight, updatedAt: serverTimestamp() };
+      if (docId){
+        await setDoc(doc(db, 'users', user.uid, 'big3Manual', docId), data, { merge: true });
+      } else {
+        await addDoc(collection(db, 'users', user.uid, 'big3Manual'), data);
+      }
+      closeModal('big3QuickModal');
+    }catch(err){
+      console.error(err);
+      showToast('BIG3記録の保存に失敗しました: ' + err.message);
+    }
+  });
 });
 
 document.getElementById('big3QuickDeleteBtn').addEventListener('click', ()=>{
@@ -5959,11 +6130,11 @@ async function saveBig3Target(scope, raw){
       return;
     }
     const value = parseFloat(raw);
-    if (isNaN(value)){ showToast('目標を正しく入力してください'); return false; }
+    if (isNaN(value) || value < 0 || value > 3000){ showToast('目標は0〜3000kgの範囲で入力してください'); return false; }
     await setDoc(doc(db, 'users', user.uid, 'settings', 'big3Target'), { value, updatedAt: serverTimestamp() }, { merge: true });
   } else {
     const value = raw === '' ? null : parseFloat(raw);
-    if (raw !== '' && isNaN(value)){ showToast('目標を正しく入力してください'); return false; }
+    if (raw !== '' && (isNaN(value) || value < 0 || value > 1000)){ showToast('目標は0〜1000kgの範囲で入力してください'); return false; }
     await setDoc(doc(db, 'users', user.uid, 'settings', 'big3LiftTargets'), { [scope]: value, updatedAt: serverTimestamp() }, { merge: true });
   }
   return true;
@@ -5971,15 +6142,17 @@ async function saveBig3Target(scope, raw){
 
 document.getElementById('big3TargetForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
-  const scope = document.getElementById('big3TargetScope').value;
-  const raw = document.getElementById('big3TargetValue').value;
-  try{
-    const ok = await saveBig3Target(scope, raw);
-    if (ok !== false) closeModal('big3TargetModal');
-  }catch(err){
-    console.error(err);
-    showToast('目標の保存に失敗しました: ' + err.message);
-  }
+  await guardedSubmit(e.currentTarget, async ()=>{
+    const scope = document.getElementById('big3TargetScope').value;
+    const raw = document.getElementById('big3TargetValue').value;
+    try{
+      const ok = await saveBig3Target(scope, raw);
+      if (ok !== false) closeModal('big3TargetModal');
+    }catch(err){
+      console.error(err);
+      showToast('目標の保存に失敗しました: ' + err.message);
+    }
+  });
 });
 
 document.getElementById('big3TargetClearBtn').addEventListener('click', async ()=>{
@@ -6090,11 +6263,16 @@ function updateSwRecordBanner(){
     banner.style.display = 'none';
   }
 }
+let swRecordBannerSaving = false;
 document.getElementById('swRecordBanner').addEventListener('click', async ()=>{
+  // 連打すると、同じ経過時間分をincrement()で二重に加算してしまう
+  // （非同期処理中はswRecordedElapsedがまだ更新されないため）のでガードする
+  if (swRecordBannerSaving) return;
   const user = auth.currentUser;
   if (!user) return;
   const deltaMs = swElapsed - swRecordedElapsed;
   if (deltaMs < 1000) return;
+  swRecordBannerSaving = true;
   const deltaSec = Math.round(deltaMs / 1000);
   const dateStr = todayStr();
   try{
@@ -6109,6 +6287,8 @@ document.getElementById('swRecordBanner').addEventListener('click', async ()=>{
   }catch(err){
     console.error(err);
     showToast('トレーニング時間の記録に失敗しました: ' + err.message);
+  }finally{
+    swRecordBannerSaving = false;
   }
 });
 document.getElementById('swLapBtn').addEventListener('click', ()=>{
