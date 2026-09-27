@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="MUSCLE LOG">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Shippori+Mincho:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
   :root{
@@ -28,6 +28,7 @@
     --red:#ff3b3b;
     --red-dim:#7a2020;
     --orange:#ff8c1a;
+    --orange-dim:#4a2f0f;
     --green:#39ff88;
     --green-dim:#0f3d26;
     --cyan:#2fb8c9;
@@ -36,7 +37,33 @@
     --radius-sm:9px;
     --tabbar-h:64px;
     --header-h:88px;
+    --font-display:'Oswald','Noto Sans JP',sans-serif;
     font-variant-numeric: tabular-nums;
+  }
+  /* ---------- テーマ「CALM」(設定から切り替え可能) ----------
+     アプリ全体で使う配色・角丸・見出し系フォントをここでまとめて上書きする。
+     コンポーネント側は基本的にvar(--xxx)経由で参照しているため、
+     ここを変えるだけで大部分の画面に反映される。 */
+  :root[data-app-theme="calm"]{
+    --bg:#FAF7F2;
+    --bg-elevated:#FFFFFF;
+    --surface:#FFFFFF;
+    --surface-2:#F5F1E8;
+    --border:#ECE6DA;
+    --text:#2B2A28;
+    --text-dim:#8C8577;
+    --text-faint:#B4AB99;
+    --red:#A6573F;
+    --red-dim:#EFE0D8;
+    --orange:#A9843F;
+    --orange-dim:#F3ECD9;
+    --green:#4B7A5C;
+    --green-dim:#DFEAE2;
+    --cyan:#5B7A94;
+    --cyan-dim:#E3EAEF;
+    --radius:20px;
+    --radius-sm:14px;
+    --font-display:'Fraunces','Shippori Mincho',serif;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{height:100%; overflow-x:hidden; max-width:100%;}
@@ -46,9 +73,10 @@
     color:var(--text);
     font-family:'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     overscroll-behavior-y:none;
+    transition:background 0.2s ease, color 0.2s ease;
   }
   .num, input[type=number]{
-    font-family:'Oswald','Noto Sans JP',sans-serif;
+    font-family:var(--font-display);
     font-weight:600;
   }
   button{font-family:inherit;}
@@ -73,7 +101,7 @@
   }
   .auth-logo{
     text-align:center;
-    font-family:'Oswald',sans-serif;
+    font-family:var(--font-display);
     font-size:28px;
     font-weight:700;
     letter-spacing:1px;
@@ -120,7 +148,7 @@
     padding:10px 2px 8px; font-size:19px; text-align:center; cursor:pointer; color:var(--text-dim); line-height:1.3;
   }
   .fatigue-btn .fatigue-label{ display:block; font-size:9px; margin-top:3px; color:var(--text-faint); }
-  .fatigue-btn.active{ border-color:var(--orange); background:#4a2f0f; }
+  .fatigue-btn.active{ border-color:var(--orange); background:var(--orange-dim); }
   .fatigue-btn.active .fatigue-label{ color:var(--orange); }
   /* iOS Safariのinput[type=date]は指定したwidthを無視して枠からはみ出すことがあるため、
      width:1px + min-width:100% のテクニックで強制的にコンテナ幅に収める */
@@ -170,7 +198,7 @@
     backdrop-filter:blur(6px);
   }
   header.appbar .title{
-    font-family:'Oswald',sans-serif;
+    font-family:var(--font-display);
     font-size:22px;
     font-weight:600;
     letter-spacing:0.5px;
@@ -221,8 +249,22 @@
     text-align:center;
   }
   .summary-box .label{font-size:11px; color:var(--text-dim); margin-bottom:6px;}
-  .summary-box .value{font-family:'Oswald',sans-serif; font-size:22px; font-weight:600;}
+  .summary-box .value{font-family:var(--font-display); font-size:22px; font-weight:600;}
   .summary-box .unit{font-size:12px; color:var(--text-dim); margin-left:2px;}
+  .summary-row-secondary{ margin-top:-6px; }
+  .summary-box.secondary{ padding:10px 12px; }
+  .summary-box.secondary .value{ font-size:16px; }
+
+  /* ---------- 設定画面：デザインテーマ選択 ---------- */
+  .app-theme-picker{ display:flex; gap:10px; }
+  .app-theme-card{
+    flex:1; display:flex; flex-direction:column; align-items:center; gap:8px;
+    background:var(--surface); border:2px solid var(--border); border-radius:var(--radius);
+    padding:12px; cursor:pointer; font-family:inherit;
+  }
+  .app-theme-card.active{ border-color:var(--red); }
+  .app-theme-swatch{ width:100%; height:40px; border-radius:var(--radius-sm); display:block; border:1px solid rgba(255,255,255,0.08); }
+  .app-theme-card-name{ font-size:12px; font-weight:700; color:var(--text); }
   .edit-target-btn{
     font-size:11px; color:var(--text-faint); background:none; border:none;
     text-decoration:underline; cursor:pointer; margin-top:4px;
@@ -237,7 +279,7 @@
     margin-top:14px; background:var(--surface); border:1px dashed var(--border); border-radius:var(--radius);
     padding:20px 18px; text-align:center;
   }
-  .goal-banner-empty .gbe-title{ font-family:'Oswald',sans-serif; font-size:15px; font-weight:600; }
+  .goal-banner-empty .gbe-title{ font-family:var(--font-display); font-size:15px; font-weight:600; }
   .goal-banner-empty .gbe-desc{ font-size:12px; color:var(--text-dim); line-height:1.6; margin:8px 0 14px; }
   .goal-banner-empty .btn{ width:auto; padding:11px 20px; }
 
@@ -411,9 +453,9 @@
     padding:10px 4px; border-bottom:1px solid var(--border); margin-bottom:2px;
     font-size:12.5px; color:var(--text-dim);
   }
-  .day-duration-info b{ color:var(--cyan); font-family:'Oswald',sans-serif; font-weight:600; }
+  .day-duration-info b{ color:var(--cyan); font-family:var(--font-display); font-weight:600; }
   .list-item .date{font-size:12px; color:var(--text-dim);}
-  .list-item .main-val{font-family:'Oswald',sans-serif; font-size:18px; font-weight:600;}
+  .list-item .main-val{font-family:var(--font-display); font-size:18px; font-weight:600;}
   .list-item .main-val-row{display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
   .list-item .note{font-size:12px; color:var(--text-faint); margin-top:2px;}
   .cat-badge{
@@ -421,7 +463,7 @@
     padding:2px 8px; border-radius:20px; background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
   }
   .cat-badge[data-cat="max"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
-  .cat-badge[data-cat="heavy"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .cat-badge[data-cat="heavy"]{ background:var(--orange-dim); border-color:var(--orange); color:var(--orange); }
   .cat-badge[data-cat="medium"]{ background:var(--cyan-dim); border-color:var(--cyan); color:var(--cyan); }
   .empty-msg{color:var(--text-faint); font-size:13px; text-align:center; padding:30px 0;}
 
@@ -435,7 +477,7 @@
   .fb-badge[data-type="bug"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
   .fb-badge[data-type="other"]{ background:var(--surface-2); border-color:var(--border); color:var(--text-dim); }
   .fb-badge[data-status="open"]{ background:var(--surface-2); border-color:var(--border); color:var(--text-dim); }
-  .fb-badge[data-status="in_progress"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .fb-badge[data-status="in_progress"]{ background:var(--orange-dim); border-color:var(--orange); color:var(--orange); }
   .fb-badge[data-status="done"]{ background:var(--green-dim); border-color:var(--green); color:var(--green); }
   .fb-badge[data-status="rejected"]{ background:var(--surface-2); border-color:var(--border); color:var(--text-faint); }
   .fb-item{
@@ -476,7 +518,7 @@
     background:var(--green-dim); color:var(--green); border:1px solid var(--green);
   }
   .mini-badge.plateau{
-    background:#4a2f0f; color:var(--orange); border:1px solid var(--orange);
+    background:var(--orange-dim); color:var(--orange); border:1px solid var(--orange);
   }
   .diary-mark{ background:var(--red-dim); color:var(--red); padding:0 2px; border-radius:3px; }
 
@@ -487,14 +529,14 @@
     padding:22px 10px; text-align:center; cursor:pointer;
   }
   .bp-tile .bp-icon{ font-size:26px; margin-bottom:8px; }
-  .bp-tile .bp-name{ font-family:'Oswald',sans-serif; font-size:14px; font-weight:600; }
+  .bp-tile .bp-name{ font-family:var(--font-display); font-size:14px; font-weight:600; }
   .bp-tile .bp-count{ font-size:11px; color:var(--text-faint); margin-top:4px; }
   .back-row{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
   .back-btn{
     background:var(--surface); border:1px solid var(--border); color:var(--text);
     width:34px; height:34px; border-radius:50%; font-size:16px; cursor:pointer;
   }
-  .back-row .back-title{ font-family:'Oswald',sans-serif; font-size:16px; font-weight:600; }
+  .back-row .back-title{ font-family:var(--font-display); font-size:16px; font-weight:600; }
 
   /* ---------- トレーニング記録: 検索・グループ表示 ---------- */
   .search-wrap{ position:relative; margin-bottom:10px; }
@@ -523,7 +565,7 @@
   .wo-group-summary::marker{ content:''; }
   .wo-group-title-wrap{ display:flex; flex-direction:column; gap:3px; min-width:0; }
   .wo-group-title{
-    font-family:'Oswald',sans-serif; font-size:14px; font-weight:600; color:var(--text);
+    font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--text);
     display:flex; align-items:center; gap:8px;
   }
   .wo-group-sub{ font-size:11px; font-weight:400; color:var(--text-faint); }
@@ -545,9 +587,13 @@
   .pr-cat-row:first-of-type{ margin-top:2px; }
   .pr-cat-row.active{ background:rgba(255,255,255,0.05); }
   .pr-cat-row.active .pr-cat-label{ color:var(--text); }
+  /* 記録がある強度の行はタップしてセット内訳を見られる */
+  .pr-cat-row.clickable{ cursor:pointer; }
+  .pr-cat-row.clickable:active{ background:rgba(255,255,255,0.08); }
+  .pr-cat-row .pr-cat-chevron{ margin-left:auto; color:var(--text-faint); flex-shrink:0; }
   .pr-cat-label{
     font-weight:700; color:var(--text-dim); flex-shrink:0; min-width:60px;
-    font-family:'Oswald',sans-serif; font-size:11.5px;
+    font-family:var(--font-display); font-size:11.5px;
   }
   .pr-cat-none{ color:var(--text-faint); }
   .pr-live-badge-row{ display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
@@ -567,7 +613,7 @@
     background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
     padding:9px 12px; margin:-4px 0 10px; font-size:12px; color:var(--text-dim);
   }
-  .live-volume-row .live-volume-val{ color:var(--text); font-weight:700; font-family:'Oswald',sans-serif; font-size:14px; }
+  .live-volume-row .live-volume-val{ color:var(--text); font-weight:700; font-family:var(--font-display); font-size:14px; }
   .live-volume-row .live-volume-diff{ font-weight:700; }
   .live-volume-row .live-volume-diff.up{ color:var(--green); }
   .live-volume-row .live-volume-diff.down{ color:var(--text-faint); }
@@ -584,7 +630,7 @@
     border-radius:var(--radius-sm); padding:11px 6px; font-size:13px; font-weight:700; cursor:pointer; text-align:center;
   }
   .entry-cat-chip.active[data-cat="max"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
-  .entry-cat-chip.active[data-cat="heavy"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .entry-cat-chip.active[data-cat="heavy"]{ background:var(--orange-dim); border-color:var(--orange); color:var(--orange); }
   .entry-cat-chip.active[data-cat="medium"]{ background:var(--cyan-dim); border-color:var(--cyan); color:var(--cyan); }
   .memo-hint-note{ font-size:11px; color:var(--text-faint); margin-top:5px; }
 
@@ -602,7 +648,7 @@
   .streak-card:empty{ display:none; }
   .streak-card-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
   .streak-stat{ display:flex; flex-direction:column; gap:2px; }
-  .streak-stat .streak-num{ font-family:'Oswald',sans-serif; font-size:20px; font-weight:700; }
+  .streak-stat .streak-num{ font-family:var(--font-display); font-size:20px; font-weight:700; }
   .streak-stat .streak-label{ font-size:10.5px; color:var(--text-faint); }
   .streak-goal-edit-btn{
     font-size:11px; color:var(--text-faint); background:none; border:none; text-decoration:underline; cursor:pointer;
@@ -644,7 +690,7 @@
     display:flex; align-items:center; gap:8px; padding:8px 4px; border-bottom:1px solid var(--border); font-size:13px;
   }
   .routine-selected-row:last-child{ border-bottom:none; }
-  .routine-selected-idx{ color:var(--text-faint); font-family:'Oswald',sans-serif; font-size:12px; width:18px; flex-shrink:0; }
+  .routine-selected-idx{ color:var(--text-faint); font-family:var(--font-display); font-size:12px; width:18px; flex-shrink:0; }
   .routine-selected-name{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .routine-selected-row button{
     background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
@@ -738,6 +784,8 @@
   .modal-overlay.active{display:flex;}
   /* 記録モーダルの中から開くことがあるため、通常のモーダルより手前に重ねて表示する */
   #exerciseStatsModal{ z-index:60; }
+  /* 記録モーダル・種目の推移モーダルのどちらの中からも開けるようにするため、さらに手前に重ねる */
+  #bestSetDetailModal{ z-index:70; }
   .modal-box{
     width:100%;
     max-width:100%;
@@ -806,7 +854,7 @@
     background:var(--surface); border:1px solid var(--border); color:var(--text);
     width:36px; height:36px; border-radius:50%; font-size:16px; cursor:pointer;
   }
-  .cal-header .cal-label{ font-family:'Oswald',sans-serif; font-size:16px; font-weight:600; }
+  .cal-header .cal-label{ font-family:var(--font-display); font-size:16px; font-weight:600; }
   .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
   .cal-dow{ text-align:center; font-size:11px; color:var(--text-faint); padding-bottom:4px; }
   .cal-day{
@@ -856,17 +904,17 @@
     display:inline-flex; align-items:center; gap:3px; font-size:10.5px; font-weight:600;
     padding:2px 7px; border-radius:20px; border:1px solid var(--border); white-space:nowrap;
   }
-  .phase-badge[data-phase="bulk"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .phase-badge[data-phase="bulk"]{ background:var(--orange-dim); border-color:var(--orange); color:var(--orange); }
   .phase-badge[data-phase="cut"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
-  .phase-badge[data-phase="maintain"]{ background:#0f2b1a; border-color:var(--green); color:var(--green); }
+  .phase-badge[data-phase="maintain"]{ background:var(--green-dim); border-color:var(--green); color:var(--green); }
   .phase-type-row{ display:flex; gap:8px; }
   .phase-type-chip{
     flex:1; padding:10px 6px; border-radius:var(--radius-sm); border:1px solid var(--border);
     background:var(--surface-2); color:var(--text-dim); font-size:12.5px; font-weight:600; cursor:pointer; text-align:center;
   }
-  .phase-type-chip.active[data-phase="bulk"]{ background:#4a2f0f; border-color:var(--orange); color:var(--orange); }
+  .phase-type-chip.active[data-phase="bulk"]{ background:var(--orange-dim); border-color:var(--orange); color:var(--orange); }
   .phase-type-chip.active[data-phase="cut"]{ background:var(--red-dim); border-color:var(--red); color:var(--red); }
-  .phase-type-chip.active[data-phase="maintain"]{ background:#0f2b1a; border-color:var(--green); color:var(--green); }
+  .phase-type-chip.active[data-phase="maintain"]{ background:var(--green-dim); border-color:var(--green); color:var(--green); }
   .phase-period-list-item{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
   .phase-period-info{ display:flex; align-items:center; gap:8px; }
   .phase-period-range{ font-size:12px; color:var(--text-dim); }
@@ -874,7 +922,7 @@
 
   /* ---------- BIG3 ---------- */
   .big3-title{
-    font-family:'Oswald',sans-serif; font-size:15px; font-weight:600; margin-bottom:12px;
+    font-family:var(--font-display); font-size:15px; font-weight:600; margin-bottom:12px;
   }
   .big3-chart{ height:180px; }
   .big3-title-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px; }
@@ -909,7 +957,7 @@
   .wheel-pad{ height:72px; }
   .wheel-item{
     height:36px; display:flex; align-items:center; justify-content:center;
-    font-family:'Oswald',sans-serif; font-size:17px; color:var(--text-dim);
+    font-family:var(--font-display); font-size:17px; color:var(--text-dim);
     scroll-snap-align:center; user-select:none;
   }
   .wheel-highlight{
@@ -931,7 +979,7 @@
 
   /* ---------- Timer ---------- */
   .timer-display{
-    font-family:'Oswald',sans-serif; font-size:48px; font-weight:600; text-align:center;
+    font-family:var(--font-display); font-size:48px; font-weight:600; text-align:center;
     margin:28px 0; letter-spacing:1px;
   }
   .timer-controls{ display:flex; gap:10px; justify-content:center; }
@@ -960,7 +1008,7 @@
   .mini-timer-presets{ display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-bottom:10px; }
   .mini-timer-presets .preset-btn{ padding:6px 11px; }
   .mini-timer-display{
-    font-family:'Oswald',sans-serif; font-size:34px; font-weight:600; text-align:center;
+    font-family:var(--font-display); font-size:34px; font-weight:600; text-align:center;
     margin:0 0 12px; letter-spacing:1px;
   }
   .mini-timer-controls{ display:flex; gap:8px; justify-content:center; }
@@ -983,7 +1031,7 @@
     border-bottom:1px solid var(--border); font-size:13px; color:var(--text-dim);
   }
   .lap-row .lap-n{ color:var(--text-faint); }
-  .lap-row .lap-total{ font-family:'Oswald',sans-serif; color:var(--text); }
+  .lap-row .lap-total{ font-family:var(--font-display); color:var(--text); }
 
   /* ---------- Lock screen ---------- */
   #lockScreen{
@@ -1117,6 +1165,17 @@
         </div>
       </div>
 
+      <div class="summary-row summary-row-secondary">
+        <div class="summary-box secondary">
+          <div class="label">先週平均比</div>
+          <div class="value num" id="weightVsLastWeekVal">--</div>
+        </div>
+        <div class="summary-box secondary">
+          <div class="label">先月平均比</div>
+          <div class="value num" id="weightVsLastMonthVal">--</div>
+        </div>
+      </div>
+
       <div id="goalBannerWrap"></div>
 
       <div class="chart-wrap"><canvas id="weightChart"></canvas></div>
@@ -1124,6 +1183,10 @@
       <div class="section-title">疲労度の推移</div>
       <div class="chart-wrap chart-wrap-sm" id="fatigueChartWrap"><canvas id="fatigueChart"></canvas></div>
       <div class="empty-msg" id="fatigueChartEmpty" style="display:none;">まだ疲労度の記録がありません</div>
+
+      <div class="section-title">アップ中の疲労感の推移</div>
+      <div class="chart-wrap chart-wrap-sm" id="warmupFatigueChartWrap"><canvas id="warmupFatigueChart"></canvas></div>
+      <div class="empty-msg" id="warmupFatigueChartEmpty" style="display:none;">まだアップ中の疲労感の記録がありません</div>
 
       <div class="section-title">記録一覧・日記</div>
       <div class="search-wrap">
@@ -1405,6 +1468,17 @@
         <input type="hidden" id="weightFatigue">
       </div>
       <div class="field">
+        <label>アップ中の疲労感（任意）</label>
+        <div class="fatigue-picker" id="warmupFatiguePicker">
+          <button type="button" class="fatigue-btn" data-val="1">😃<span class="fatigue-label">元気</span></button>
+          <button type="button" class="fatigue-btn" data-val="2">🙂<span class="fatigue-label">良好</span></button>
+          <button type="button" class="fatigue-btn" data-val="3">😐<span class="fatigue-label">普通</span></button>
+          <button type="button" class="fatigue-btn" data-val="4">😪<span class="fatigue-label">疲れ気味</span></button>
+          <button type="button" class="fatigue-btn" data-val="5">🥵<span class="fatigue-label">かなり疲れ</span></button>
+        </div>
+        <input type="hidden" id="weightWarmupFatigue">
+      </div>
+      <div class="field">
         <label for="weightNote">日記（任意）</label>
         <textarea id="weightNote" rows="4" placeholder="今日の調子や、感じたことを自由にメモ…"></textarea>
       </div>
@@ -1483,6 +1557,17 @@
     </div>
     <div class="chart-wrap"><canvas id="exerciseStatsChart"></canvas></div>
     <div id="exerciseStatsSummary"></div>
+  </div>
+</div>
+
+<!-- 自己ベストのセット内訳モーダル -->
+<div class="modal-overlay" id="bestSetDetailModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="bestSetDetailTitle">自己ベストの内訳</h2>
+      <button class="modal-close" data-close="bestSetDetailModal">×</button>
+    </div>
+    <div id="bestSetDetailBody"></div>
   </div>
 </div>
 
@@ -1880,6 +1965,22 @@
       <h2>設定</h2>
       <button class="modal-close" data-close="settingsModal">×</button>
     </div>
+    <div class="field" style="padding-bottom:20px; border-bottom:1px solid var(--border);">
+      <label>デザインテーマ</label>
+      <p style="font-size:12px; color:var(--text-dim); margin:0 0 14px; line-height:1.6;">
+        アプリ全体の配色・雰囲気を切り替えられます。この端末だけでなく、アカウントの設定として保存されます。
+      </p>
+      <div class="app-theme-picker" id="appThemePicker">
+        <button type="button" class="app-theme-card" data-app-theme-choice="default">
+          <span class="app-theme-swatch" style="background:linear-gradient(135deg,#0c0c0e 0%,#0c0c0e 55%,#ff3b3b 100%);"></span>
+          <span class="app-theme-card-name">標準</span>
+        </button>
+        <button type="button" class="app-theme-card" data-app-theme-choice="calm">
+          <span class="app-theme-swatch" style="background:linear-gradient(135deg,#FAF7F2 0%,#FAF7F2 55%,#A6573F 100%);"></span>
+          <span class="app-theme-card-name">CALM</span>
+        </button>
+      </div>
+    </div>
     <div class="field">
       <label>Face ID / Touch ID ロック</label>
       <p style="font-size:12px; color:var(--text-dim); margin:0 0 14px; line-height:1.6;">
@@ -2019,6 +2120,18 @@ function escapeHtml(str){
   const d = document.createElement('div');
   d.textContent = str == null ? '' : String(str);
   return d.innerHTML;
+}
+
+// テーマ（標準／CALM）ごとに切り替わるCSS変数の実際の値を読み取る。
+// Chart.jsのグラフはcanvasに色を焼き込む方式で、CSS変数の変化を自動で拾わないため、
+// グラフを描画する瞬間にこの関数で「今の配色」を読み取って渡す必要がある。
+function cssVar(name){
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888888';
+}
+// 16進カラー(#rrggbb)に透過度を付けたグラフ塗りつぶし色を作る（alphaHexは'26'などの2桁16進）
+function cssVarAlpha(name, alphaHex){
+  const v = cssVar(name);
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v + alphaHex : v;
 }
 
 // フォームの二重送信防止：通信が遅い時に「保存」を連打すると同じ内容が
@@ -2178,6 +2291,46 @@ document.getElementById('forgotPasswordForm').addEventListener('submit', async (
 
 document.getElementById('settingsBtn').addEventListener('click', ()=> openModal('settingsModal'));
 
+/* ---------- デザインテーマ（標準／CALM）---------- */
+let currentAppTheme = 'default';
+function applyAppTheme(theme){
+  currentAppTheme = theme === 'calm' ? 'calm' : 'default';
+  if (currentAppTheme === 'calm'){
+    document.documentElement.setAttribute('data-app-theme', 'calm');
+  } else {
+    document.documentElement.removeAttribute('data-app-theme');
+  }
+  document.querySelectorAll('.app-theme-card').forEach(card=>{
+    card.classList.toggle('active', card.dataset.appThemeChoice === currentAppTheme);
+  });
+  // Chart.jsはcanvasに色を焼き込むため、テーマ変更時に主要なグラフを描き直して反映させる
+  // （非表示中の画面のグラフを含め、失敗しても他の処理を止めないよう個別にtry/catchする）
+  try{ renderWeightChart(); }catch(e){ console.warn('[theme] renderWeightChart failed', e); }
+  try{ renderFatigueChart(); }catch(e){ console.warn('[theme] renderFatigueChart failed', e); }
+  try{ renderWarmupFatigueChart(); }catch(e){ console.warn('[theme] renderWarmupFatigueChart failed', e); }
+  try{ renderBig3(); }catch(e){ console.warn('[theme] renderBig3 failed', e); }
+  try{ renderBodyPartBalance(); }catch(e){ console.warn('[theme] renderBodyPartBalance failed', e); }
+}
+let appThemeSaving = false;
+document.querySelectorAll('.app-theme-card').forEach(card=>{
+  card.addEventListener('click', async ()=>{
+    const user = auth.currentUser;
+    if (!user || appThemeSaving) return;
+    const choice = card.dataset.appThemeChoice === 'calm' ? 'calm' : 'default';
+    if (choice === currentAppTheme) return;
+    appThemeSaving = true;
+    applyAppTheme(choice); // 保存を待たず、その場で見た目を切り替える
+    try{
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'appTheme'), { value: choice, updatedAt: serverTimestamp() });
+    }catch(err){
+      console.error(err);
+      showToast('デザインテーマの保存に失敗しました: ' + err.message);
+    }finally{
+      appThemeSaving = false;
+    }
+  });
+});
+
 document.getElementById('settingsEnableFaceIdBtn').addEventListener('click', registerDeviceLock);
 document.getElementById('settingsDisableFaceIdBtn').addEventListener('click', ()=>{
   disableDeviceLock();
@@ -2318,7 +2471,7 @@ document.getElementById('lockPasswordFallbackBtn').addEventListener('click', asy
   catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
 });
 
-let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null, unsubTrainingDuration = null, unsubRoutines = null, unsubWeeklyGoal = null, unsubPhasePeriods = null, unsubFeedback = null, unsubGoalBanner = null, unsubGoalPhotos = null;
+let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null, unsubTrainingDuration = null, unsubRoutines = null, unsubWeeklyGoal = null, unsubPhasePeriods = null, unsubFeedback = null, unsubGoalBanner = null, unsubGoalPhotos = null, unsubAppTheme = null;
 
 onAuthStateChanged(auth, (user)=>{
   if (user){
@@ -2351,6 +2504,9 @@ onAuthStateChanged(auth, (user)=>{
     if (unsubFeedback) unsubFeedback();
     if (unsubGoalBanner) unsubGoalBanner();
     if (unsubGoalPhotos) unsubGoalPhotos();
+    if (unsubAppTheme) unsubAppTheme();
+    // ログアウト後は他人の端末に前のユーザーのテーマが残らないよう標準に戻す
+    applyAppTheme('default');
   }
 });
 
@@ -2362,6 +2518,7 @@ function startListeners(uid){
     renderWeightSummary();
     renderWeightChart();
     renderFatigueChart();
+    renderWarmupFatigueChart();
     renderWeightList();
     renderBig3();
     renderCalendar();
@@ -2378,6 +2535,15 @@ function startListeners(uid){
   }, (err)=>{
     console.error(err);
     showToast('目標体重の読み込みに失敗しました: ' + err.message);
+  });
+
+  const appThemeRef = doc(db, 'users', uid, 'settings', 'appTheme');
+  unsubAppTheme = onSnapshot(appThemeRef, (snap)=>{
+    const value = snap.exists() ? snap.data().value : 'default';
+    applyAppTheme(value === 'calm' ? 'calm' : 'default');
+  }, (err)=>{
+    console.error(err);
+    showToast('デザインテーマの読み込みに失敗しました: ' + err.message);
   });
 
   const exCol = collection(db, 'users', uid, 'exercises');
@@ -3132,6 +3298,49 @@ function renderWeightSummary(){
   const cur = weightEntries.length ? weightEntries[0].weight : null;
   document.getElementById('currentWeightVal').textContent = cur !== null ? Number(cur).toFixed(1) : '--';
   document.getElementById('targetWeightVal').textContent = targetWeight !== null ? Number(targetWeight).toFixed(1) : '--';
+  renderWeightAvgDiff(cur);
+}
+
+// 指定した日付範囲(両端含む)の体重記録の平均を返す。記録が1件もなければnull。
+function avgWeightInRange(startStr, endStr){
+  const vals = weightEntries
+    .filter(e => e.date >= startStr && e.date <= endStr && Number.isFinite(Number(e.weight)))
+    .map(e => Number(e.weight));
+  if (!vals.length) return null;
+  return vals.reduce((a,b)=> a + b, 0) / vals.length;
+}
+// +0.4kg / -0.4kg のように符号付きで表示する（差がほぼ0なら±0.0kg）
+function formatWeightDiff(diff){
+  const rounded = Math.round(diff * 10) / 10;
+  if (Math.abs(rounded) < 0.05) return '±0.0kg';
+  return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}kg`;
+}
+// 「今の体重」と、先週(月〜日)平均・先月(1日〜末日)平均との差を表示する
+function renderWeightAvgDiff(cur){
+  const lastWeekEl = document.getElementById('weightVsLastWeekVal');
+  const lastMonthEl = document.getElementById('weightVsLastMonthVal');
+  if (!lastWeekEl || !lastMonthEl) return;
+  if (cur === null){
+    lastWeekEl.textContent = '--';
+    lastMonthEl.textContent = '--';
+    return;
+  }
+
+  const thisMonday = mondayOfWeek(todayStr());
+  const lastWeekMonday = new Date(thisMonday);
+  lastWeekMonday.setDate(lastWeekMonday.getDate() - 7);
+  const lastWeekSunday = new Date(lastWeekMonday);
+  lastWeekSunday.setDate(lastWeekSunday.getDate() + 6);
+  const lastWeekAvg = avgWeightInRange(toYmd(lastWeekMonday), toYmd(lastWeekSunday));
+  lastWeekEl.textContent = lastWeekAvg !== null ? formatWeightDiff(Number(cur) - lastWeekAvg) : '記録なし';
+
+  const today = parseYmd(todayStr());
+  const firstOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastOfPrevMonth = new Date(firstOfThisMonth);
+  lastOfPrevMonth.setDate(0); // 前月の末日になる
+  const firstOfPrevMonth = new Date(lastOfPrevMonth.getFullYear(), lastOfPrevMonth.getMonth(), 1);
+  const lastMonthAvg = avgWeightInRange(toYmd(firstOfPrevMonth), toYmd(lastOfPrevMonth));
+  lastMonthEl.textContent = lastMonthAvg !== null ? formatWeightDiff(Number(cur) - lastMonthAvg) : '記録なし';
 }
 
 let weightChartInstance = null;
@@ -3143,8 +3352,8 @@ function renderWeightChart(){
   const datasets = [{
     label: '体重',
     data,
-    borderColor: '#ff3b3b',
-    backgroundColor: 'rgba(255,59,59,0.15)',
+    borderColor: cssVar('--red'),
+    backgroundColor: cssVarAlpha('--red', '26'),
     tension: 0.25,
     pointRadius: 3,
     fill: true,
@@ -3154,7 +3363,7 @@ function renderWeightChart(){
     datasets.push({
       label: '🎯 目標',
       data: sorted.map(()=> targetWeight),
-      borderColor: '#ff8c1a',
+      borderColor: cssVar('--orange'),
       borderWidth: 3,
       borderDash: [8,4],
       pointRadius: 0,
@@ -3170,10 +3379,10 @@ function renderWeightChart(){
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#9a9aa0', font: { size: 11 } } } },
+      plugins: { legend: { labels: { color: cssVar('--text-dim'), font: { size: 11 } } } },
       scales: {
-        x: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } },
-        y: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } }
+        x: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { color: cssVar('--border') } },
+        y: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { color: cssVar('--border') } }
       }
     }
   });
@@ -3211,11 +3420,54 @@ function renderFatigueChart(){
         tooltip: { callbacks: { label: (c)=> `${FATIGUE_EMOJI[c.parsed.y]||''} ${FATIGUE_LABELS[c.parsed.y]||''}` } }
       },
       scales: {
-        x: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { display:false } },
+        x: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { display:false } },
         y: {
           min: 0, max: 5,
-          ticks: { stepSize: 1, color: '#6b6b70', font:{size:10}, callback: (v)=> FATIGUE_EMOJI[v] || '' },
-          grid: { color: '#2d2e33' }
+          ticks: { stepSize: 1, color: cssVar('--text-faint'), font:{size:10}, callback: (v)=> FATIGUE_EMOJI[v] || '' },
+          grid: { color: cssVar('--border') }
+        }
+      }
+    }
+  });
+}
+
+let warmupFatigueChartInstance = null;
+function renderWarmupFatigueChart(){
+  const withFatigue = weightEntries
+    .filter(e => e.warmupFatigue !== undefined && e.warmupFatigue !== null && e.warmupFatigue !== '')
+    .slice()
+    .sort((a,b)=> a.date.localeCompare(b.date));
+  const wrap = document.getElementById('warmupFatigueChartWrap');
+  const emptyMsg = document.getElementById('warmupFatigueChartEmpty');
+  if (!withFatigue.length){
+    wrap.style.display = 'none';
+    emptyMsg.style.display = 'block';
+    if (warmupFatigueChartInstance){ warmupFatigueChartInstance.destroy(); warmupFatigueChartInstance = null; }
+    return;
+  }
+  wrap.style.display = 'block';
+  emptyMsg.style.display = 'none';
+  const labels = withFatigue.map(e => e.date.slice(5));
+  const data = withFatigue.map(e => Number(e.warmupFatigue));
+  const colors = data.map(v => FATIGUE_COLORS[v] || '#6b6b70');
+  const ctx = document.getElementById('warmupFatigueChart');
+  if (warmupFatigueChartInstance) warmupFatigueChartInstance.destroy();
+  warmupFatigueChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'アップ中の疲労感', data, backgroundColor: colors, borderRadius: 4, maxBarThickness: 22 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c)=> `${FATIGUE_EMOJI[c.parsed.y]||''} ${FATIGUE_LABELS[c.parsed.y]||''}` } }
+      },
+      scales: {
+        x: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { display:false } },
+        y: {
+          min: 0, max: 5,
+          ticks: { stepSize: 1, color: cssVar('--text-faint'), font:{size:10}, callback: (v)=> FATIGUE_EMOJI[v] || '' },
+          grid: { color: cssVar('--border') }
         }
       }
     }
@@ -3256,7 +3508,7 @@ function renderWeightList(){
     row.className = 'list-item';
     row.innerHTML = `
       <div>
-        <div class="date">${e.date}${e.fatigue ? ` <span title="${escapeHtml(FATIGUE_LABELS[e.fatigue]||'')}">${FATIGUE_EMOJI[e.fatigue]||''}</span>` : ''}</div>
+        <div class="date">${e.date}${e.fatigue ? ` <span title="今朝の疲労感: ${escapeHtml(FATIGUE_LABELS[e.fatigue]||'')}">${FATIGUE_EMOJI[e.fatigue]||''}</span>` : ''}${e.warmupFatigue ? ` <span title="アップ中の疲労感: ${escapeHtml(FATIGUE_LABELS[e.warmupFatigue]||'')}">🏋️${FATIGUE_EMOJI[e.warmupFatigue]||''}</span>` : ''}</div>
         ${e.note ? `<div class="note">${highlightMatch(e.note, q)}</div>` : ''}
       </div>
       <div class="main-val">${Number(e.weight).toFixed(1)} kg</div>
@@ -3296,6 +3548,22 @@ document.querySelectorAll('#fatiguePicker .fatigue-btn').forEach(btn=>{
   });
 });
 
+let selectedWarmupFatigue = null;
+document.querySelectorAll('#warmupFatiguePicker .fatigue-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const val = btn.dataset.val;
+    if (selectedWarmupFatigue === val){
+      selectedWarmupFatigue = null;
+    } else {
+      selectedWarmupFatigue = val;
+    }
+    document.querySelectorAll('#warmupFatiguePicker .fatigue-btn').forEach(b=>{
+      b.classList.toggle('active', b.dataset.val === selectedWarmupFatigue);
+    });
+    document.getElementById('weightWarmupFatigue').value = selectedWarmupFatigue || '';
+  });
+});
+
 function openWeightModal(entry){
   // FABの「＋」から新規登録しようとした場合でも、今日の記録が既にあるならそれを編集扱いにする。
   // 体重記録は日付をドキュメントIDにしているため、気づかないまま新規登録すると
@@ -3313,6 +3581,11 @@ function openWeightModal(entry){
   document.querySelectorAll('#fatiguePicker .fatigue-btn').forEach(b=>{
     b.classList.toggle('active', b.dataset.val === selectedFatigue);
   });
+  selectedWarmupFatigue = (entry && entry.warmupFatigue) ? String(entry.warmupFatigue) : null;
+  document.getElementById('weightWarmupFatigue').value = selectedWarmupFatigue || '';
+  document.querySelectorAll('#warmupFatiguePicker .fatigue-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.val === selectedWarmupFatigue);
+  });
   document.getElementById('weightDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
   openModal('weightModal');
 }
@@ -3328,6 +3601,8 @@ document.getElementById('weightForm').addEventListener('submit', async (e)=>{
     const note = document.getElementById('weightNote').value.trim();
     const fatigueRaw = document.getElementById('weightFatigue').value;
     const fatigue = fatigueRaw ? Number(fatigueRaw) : null;
+    const warmupFatigueRaw = document.getElementById('weightWarmupFatigue').value;
+    const warmupFatigue = warmupFatigueRaw ? Number(warmupFatigueRaw) : null;
     if (!date || isNaN(weight)){
       showToast('日付と体重を正しく入力してください');
       return;
@@ -3345,7 +3620,7 @@ document.getElementById('weightForm').addEventListener('submit', async (e)=>{
     }
     try{
       const ref = doc(db, 'users', user.uid, 'bodyWeight', date);
-      await setDoc(ref, { date, weight, note, fatigue, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(ref, { date, weight, note, fatigue, warmupFatigue, updatedAt: serverTimestamp() }, { merge: true });
       // 編集中に日付そのものを変更した場合、新しい日付のドキュメントを作っただけでは
       // 元の日付のドキュメントが残ってしまい、記録が二重になる。ここで元を削除して「移動」を完了させる。
       if (originalId && originalId !== date){
@@ -4241,7 +4516,7 @@ function openExerciseStatsModal(exerciseName, refDate){
     byCat[logCategory(l)].push({ date: l.date, oneRM: logBest1RM(l) });
   });
   const allDates = [...new Set(logs.map(l => l.date))].sort();
-  const colorMap = { max: '#ff3b3b', heavy: '#ff8c1a', medium: '#2fb8c9' };
+  const colorMap = { max: cssVar('--red'), heavy: cssVar('--orange'), medium: cssVar('--cyan') };
   const datasets = SET_CATEGORIES.map(({key, label})=>{
     const pointsByDate = new Map(byCat[key].map(p => [p.date, p.oneRM]));
     return {
@@ -4271,10 +4546,10 @@ function openExerciseStatsModal(exerciseName, refDate){
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { labels: { color: '#9a9aa0', font: { size: 11 } } } },
+          plugins: { legend: { labels: { color: cssVar('--text-dim'), font: { size: 11 } } } },
           scales: {
-            x: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } },
-            y: { ticks: { color: '#6b6b70', font:{size:10} }, grid: { color: '#2d2e33' } }
+            x: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { color: cssVar('--border') } },
+            y: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { color: cssVar('--border') } }
           }
         }
       });
@@ -4286,13 +4561,17 @@ function openExerciseStatsModal(exerciseName, refDate){
       自己ベスト
       ${SET_CATEGORIES.map(({key, label})=>{
         const rec = recByCat[key];
-        const body = rec.bestWeight !== null
+        const hasRecord = rec.bestWeight !== null;
+        const body = hasRecord
           ? `<b>重量</b> ${rec.bestWeight.toFixed(1)}kg ・ <b>回数</b> ${rec.bestReps}回 ・ <b>Vol</b> ${rec.bestVolume.toFixed(0)}`
           : `<span class="pr-cat-none">記録なし</span>`;
-        return `<div class="pr-cat-row"><span class="pr-cat-label">${escapeHtml(label)}</span>${body}</div>`;
+        return `<div class="pr-cat-row${hasRecord ? ' clickable' : ''}"${hasRecord ? ` data-cat="${key}"` : ''}><span class="pr-cat-label">${escapeHtml(label)}</span>${body}${hasRecord ? '<span class="pr-cat-chevron">›</span>' : ''}</div>`;
       }).join('')}
     </div>
     <div class="pr-info">推定1RMは Epley式（重量 ×（1 + 回数/30））で算出した目安値です。総セッション数: <b>${logs.length}</b>回</div>`;
+    summaryEl.querySelectorAll('.pr-cat-row.clickable').forEach(row=>{
+      row.addEventListener('click', ()=> openBestSetDetailModal(exerciseName, row.dataset.cat, null, ref));
+    });
   }
   openModal('exerciseStatsModal');
 }
@@ -4310,6 +4589,34 @@ function findBestLogByCategory(exerciseName, cat, excludeId, refDate){
     if (vol > bestVol){ bestVol = vol; best = l; }
   });
   return best;
+}
+
+/* 自己ベスト表示の「MAX挑戦／高重量／中重量」の各行をタップした時に、
+   その強度で一番ボリュームが高かった記録（＝自己ベストの記録そのもの）の、各セットの重量・回数を一覧表示する */
+function openBestSetDetailModal(exerciseName, cat, excludeId, refDate){
+  const ref = refDate || todayStr();
+  document.getElementById('bestSetDetailTitle').textContent = `${exerciseName} の自己ベスト（${setCategoryLabel(cat)}）`;
+  const bodyEl = document.getElementById('bestSetDetailBody');
+  const log = findBestLogByCategory(exerciseName, cat, excludeId, ref);
+  const sets = log && log.sets ? log.sets : [];
+  if (!sets.length){
+    bodyEl.innerHTML = '<div class="empty-msg">まだこの強度の記録がありません</div>';
+    openModal('bestSetDetailModal');
+    return;
+  }
+  const totalVolume = sets.reduce((sum, s)=> sum + (Number(s.weight)||0) * (Number(s.reps)||0), 0);
+  const rows = sets.map((s, i)=>{
+    const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
+    return `<div class="list-item" style="cursor:default;">
+      <div class="date">${i + 1}セット目</div>
+      <div class="main-val">${w}kg × ${r}回</div>
+    </div>`;
+  }).join('');
+  bodyEl.innerHTML = `
+    <div class="pr-info">${escapeHtml(log.date)} の記録・合計ボリューム <b>${totalVolume.toFixed(0)}</b></div>
+    <div class="card">${rows}</div>
+  `;
+  openModal('bestSetDetailModal');
 }
 
 /* 強度を選んだ段階で、その強度の自己ベストの各セットの重量・回数を、セット欄に自動入力する（編集は可能） */
@@ -4399,10 +4706,11 @@ function updateWorkoutExerciseInfo(){
       ${SET_CATEGORIES.map(({key, label})=>{
         const rec = recByCat[key];
         const rm = rmByCat[key];
-        const body = rec.bestWeight !== null
+        const hasRecord = rec.bestWeight !== null;
+        const body = hasRecord
           ? `<b>重量</b> ${rec.bestWeight.toFixed(1)}kg ・ <b>回数</b> ${rec.bestReps}回 ・ <b>Vol</b> ${rec.bestVolume.toFixed(0)}` + (rm > 0 ? ` ・ <b>推定1RM</b> ${rm.toFixed(1)}kg` : '')
           : `<span class="pr-cat-none">記録なし</span>`;
-        return `<div class="pr-cat-row${key === currentEntryCategory ? ' active' : ''}"><span class="pr-cat-label">${escapeHtml(label)}</span>${body}</div>`;
+        return `<div class="pr-cat-row${key === currentEntryCategory ? ' active' : ''}${hasRecord ? ' clickable' : ''}"${hasRecord ? ` data-cat="${key}"` : ''}><span class="pr-cat-label">${escapeHtml(label)}</span>${body}${hasRecord ? '<span class="pr-cat-chevron">›</span>' : ''}</div>`;
       }).join('')}
     </div>`;
     if (!editingWorkoutId){
@@ -4425,6 +4733,9 @@ function updateWorkoutExerciseInfo(){
   info.innerHTML = html;
   const statsLinkBtn = document.getElementById('workoutStatsLinkBtn');
   if (statsLinkBtn) statsLinkBtn.addEventListener('click', ()=> openExerciseStatsModal(name, currentWorkoutRefDate()));
+  info.querySelectorAll('.pr-cat-row.clickable').forEach(row=>{
+    row.addEventListener('click', ()=> openBestSetDetailModal(name, row.dataset.cat, editingWorkoutId, refDate));
+  });
   if (bodyPart !== CARDIO_BODY_PART) checkLivePR();
   else { updateLiveVolumeRow(null, null); checkLiveCardioPR(); }
 }
@@ -5370,12 +5681,12 @@ function renderBodyPartBalance(){
   if (bodyPartBalanceChart) bodyPartBalanceChart.destroy();
   bodyPartBalanceChart = new Chart(ctx, {
     type: 'doughnut',
-    data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: '#151517', borderWidth: 2 }] },
+    data: { labels, datasets: [{ data, backgroundColor: colors, borderColor: cssVar('--bg-elevated'), borderWidth: 2 }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#9a9aa0', font: { size: 11 }, padding: 12 } },
+        legend: { position: 'bottom', labels: { color: cssVar('--text-dim'), font: { size: 11 }, padding: 12 } },
         tooltip: { callbacks: { label: (c)=> `${c.label}: ${c.parsed}回` } }
       }
     }
@@ -5546,10 +5857,11 @@ function openDayDetail(dateStr){
        </div>`;
 
   let diaryHtml = '';
-  if (wEntry && (wEntry.note || wEntry.fatigue)){
+  if (wEntry && (wEntry.note || wEntry.fatigue || wEntry.warmupFatigue)){
     const metaParts = [];
     if (wEntry.weight) metaParts.push(`<span>${Number(wEntry.weight).toFixed(1)}kg</span>`);
     if (wEntry.fatigue) metaParts.push(`<span>${FATIGUE_EMOJI[wEntry.fatigue]||''} ${escapeHtml(FATIGUE_LABELS[wEntry.fatigue]||'')}</span>`);
+    if (wEntry.warmupFatigue) metaParts.push(`<span>🏋️ ${FATIGUE_EMOJI[wEntry.warmupFatigue]||''} ${escapeHtml(FATIGUE_LABELS[wEntry.warmupFatigue]||'')}</span>`);
     diaryHtml = `
       <div class="list-item" id="dayDetailDiary">
         <div style="width:100%;">
@@ -5673,9 +5985,9 @@ document.getElementById('durationEditDeleteBtn').addEventListener('click', ()=>{
    ② BIG3・体重比の推移
    ========================================================= */
 const BIG3_CONFIG = [
-  { key: 'squat', label: 'スクワット', keywords: ['スクワット','squat'], color: '#ff3b3b' },
-  { key: 'bench', label: 'ベンチプレス', keywords: ['ベンチプレス','ベンチ','bench'], color: '#ff8c1a' },
-  { key: 'deadlift', label: 'デッドリフト', keywords: ['デッドリフト','デッド','deadlift'], color: '#39ff88' }
+  { key: 'squat', label: 'スクワット', keywords: ['スクワット','squat'], colorVar: '--red' },
+  { key: 'bench', label: 'ベンチプレス', keywords: ['ベンチプレス','ベンチ','bench'], colorVar: '--orange' },
+  { key: 'deadlift', label: 'デッドリフト', keywords: ['デッドリフト','デッド','deadlift'], colorVar: '--green' }
 ];
 const big3Charts = {};
 let big3ManualEntries = [];
@@ -5800,9 +6112,10 @@ function renderBig3Chart(cfg, sessions){
   const weightData = sessions.map(s => s.maxWeight);
   const bwData = sessions.map(s => s.bw);
 
+  const liftColor = cssVar(cfg.colorVar);
   const datasets = [
-    { label: cfg.label + '重量', data: weightData, borderColor: cfg.color, backgroundColor: cfg.color + '33', yAxisID: 'y', tension: 0.25, pointRadius: 3 },
-    { label: '体重', data: bwData, borderColor: '#9a9aa0', borderDash: [4,3], yAxisID: 'y1', tension: 0.25, pointRadius: 2 }
+    { label: cfg.label + '重量', data: weightData, borderColor: liftColor, backgroundColor: liftColor + '33', yAxisID: 'y', tension: 0.25, pointRadius: 3 },
+    { label: '体重', data: bwData, borderColor: cssVar('--text-dim'), borderDash: [4,3], yAxisID: 'y1', tension: 0.25, pointRadius: 2 }
   ];
 
   const liftTarget = big3LiftTargets[cfg.key];
@@ -5810,7 +6123,7 @@ function renderBig3Chart(cfg, sessions){
     datasets.push({
       label: '🎯 目標',
       data: labels.map(()=> liftTarget),
-      borderColor: cfg.color,
+      borderColor: liftColor,
       borderWidth: 2,
       borderDash: [8,4],
       pointRadius: 0,
@@ -5826,11 +6139,11 @@ function renderBig3Chart(cfg, sessions){
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: '#9a9aa0', font: { size: 10 } } } },
+      plugins: { legend: { labels: { color: cssVar('--text-dim'), font: { size: 10 } } } },
       scales: {
-        x: { ticks: { color: '#6b6b70', font: { size: 9 } }, grid: { color: '#2d2e33' } },
-        y: { position: 'left', ticks: { color: '#6b6b70', font: { size: 9 } }, grid: { color: '#2d2e33' } },
-        y1: { position: 'right', ticks: { color: '#6b6b70', font: { size: 9 } }, grid: { display: false } }
+        x: { ticks: { color: cssVar('--text-faint'), font: { size: 9 } }, grid: { color: cssVar('--border') } },
+        y: { position: 'left', ticks: { color: cssVar('--text-faint'), font: { size: 9 } }, grid: { color: cssVar('--border') } },
+        y1: { position: 'right', ticks: { color: cssVar('--text-faint'), font: { size: 9 } }, grid: { display: false } }
       }
     }
   });
