@@ -2274,7 +2274,10 @@ function renderFeedbackList(){
           ).join('')}
         </select>
         <textarea data-fb-comment="${item.id}" rows="2" placeholder="コメントを返信（相手に表示されます）">${escapeHtml(item.devComment || '')}</textarea>
-        <button type="button" class="btn btn-primary fb-admin-save-btn" data-fb-save="${item.id}">保存</button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-primary fb-admin-save-btn" data-fb-save="${item.id}" style="flex:1;">保存</button>
+          <button type="button" class="btn btn-danger fb-admin-save-btn" data-fb-delete="${item.id}" style="flex:0 0 auto; width:auto; padding-left:16px; padding-right:16px;">削除</button>
+        </div>
       </div>
     ` : '';
     const devReplyHtml = (!admin && item.devComment) ? `
@@ -2312,6 +2315,20 @@ function renderFeedbackList(){
           console.error(err);
           showToast('保存に失敗しました: ' + err.message);
         }
+      });
+    });
+    wrap.querySelectorAll('[data-fb-delete]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.dataset.fbDelete;
+        askConfirm('この投稿を削除しますか？（投稿者からも見えなくなります）', async ()=>{
+          try{
+            await deleteDoc(doc(db, 'feedback', id));
+            showToast('削除しました');
+          }catch(err){
+            console.error(err);
+            showToast('削除に失敗しました: ' + err.message);
+          }
+        });
       });
     });
   }
