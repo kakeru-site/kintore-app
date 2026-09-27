@@ -866,6 +866,28 @@
       </div>
       <button type="submit" class="btn btn-primary">ログイン</button>
       <div id="authError"></div>
+      <button type="button" id="forgotPasswordLink" style="display:block; width:100%; background:none; border:none; color:var(--text-dim); font-size:12.5px; text-align:center; margin-top:16px; cursor:pointer; text-decoration:underline; padding:4px;">パスワードをお忘れですか？</button>
+    </form>
+  </div>
+</div>
+
+<!-- パスワード再設定モーダル -->
+<div class="modal-overlay" id="forgotPasswordModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>パスワードを再設定</h2>
+      <button class="modal-close" data-close="forgotPasswordModal">×</button>
+    </div>
+    <p style="font-size:12.5px; color:var(--text-dim); line-height:1.6; margin:0 0 18px;">
+      登録しているメールアドレスを入力すると、パスワード再設定用のメールが届きます。メール内のリンクから新しいパスワードを設定してください。
+    </p>
+    <form id="forgotPasswordForm">
+      <div class="field">
+        <label for="forgotPasswordEmail">メールアドレス</label>
+        <input type="email" id="forgotPasswordEmail" autocomplete="username" required>
+      </div>
+      <div id="forgotPasswordMsg" style="font-size:12.5px; margin-bottom:14px; min-height:16px; text-align:center;"></div>
+      <button type="submit" class="btn btn-primary">再設定メールを送信</button>
     </form>
   </div>
 </div>
@@ -1639,7 +1661,7 @@ if (firebaseConfig.apiKey === "YOUR_API_KEY") {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
-  updatePassword, reauthenticateWithCredential, EmailAuthProvider
+  updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot,
@@ -1786,6 +1808,41 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
 document.getElementById('logoutBtn').addEventListener('click', async ()=>{
   try{ await signOut(auth); }
   catch(err){ showToast('ログアウトに失敗しました: ' + err.message); }
+});
+
+document.getElementById('forgotPasswordLink').addEventListener('click', ()=>{
+  const emailField = document.getElementById('loginEmail');
+  document.getElementById('forgotPasswordEmail').value = emailField ? emailField.value : '';
+  document.getElementById('forgotPasswordMsg').textContent = '';
+  document.getElementById('forgotPasswordMsg').style.color = 'var(--text-dim)';
+  openModal('forgotPasswordModal');
+});
+
+document.getElementById('forgotPasswordForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email = document.getElementById('forgotPasswordEmail').value.trim();
+  const msgEl = document.getElementById('forgotPasswordMsg');
+  if (!email){ return; }
+  msgEl.style.color = 'var(--text-dim)';
+  msgEl.textContent = '送信中...';
+  try{
+    await sendPasswordResetEmail(auth, email);
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = '再設定メールを送信しました。届いたメールをご確認ください。';
+  }catch(err){
+    console.error(err);
+    if (err.code === 'auth/invalid-email'){
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = 'メールアドレスの形式が正しくありません。';
+    } else if (err.code === 'auth/user-not-found'){
+      // 未登録のメールアドレスかどうかを外部に漏らさないよう、成功時と同じ文言を表示する
+      msgEl.style.color = 'var(--green)';
+      msgEl.textContent = '再設定メールを送信しました。届いたメールをご確認ください。';
+    } else {
+      msgEl.style.color = 'var(--red)';
+      msgEl.textContent = '送信できませんでした。しばらくしてからもう一度お試しください。';
+    }
+  }
 });
 
 document.getElementById('settingsBtn').addEventListener('click', ()=> openModal('settingsModal'));
