@@ -353,6 +353,12 @@
     position:absolute; top:3px; right:3px; width:18px; height:18px; border-radius:50%;
     background:rgba(0,0,0,0.6); color:#fff; border:none; font-size:11px; line-height:1; cursor:pointer;
   }
+  .gb-photo-pos-btn{
+    position:absolute; bottom:3px; left:3px; width:18px; height:18px; border-radius:50%;
+    background:rgba(0,0,0,0.6); color:#fff; border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .gb-photo-pos-btn svg{ width:11px; height:11px; display:block; }
   .gb-mode-toggle{ display:flex; gap:8px; margin-top:10px; }
   .gb-mode-btn{
     flex:1; padding:9px 6px; font-size:12px; border-radius:10px; border:1px solid var(--border);
@@ -360,6 +366,27 @@
   }
   .gb-mode-btn.active{ border-color:var(--cyan); color:var(--cyan); background:var(--cyan-dim); }
   .gb-photo-hint{ font-size:11px; color:var(--text-faint); margin-top:8px; line-height:1.6; }
+
+  /* 写真の位置調整モーダル */
+  .gb-position-hint{ font-size:12px; color:var(--text-dim); line-height:1.6; margin:0 0 12px; }
+  .gb-position-stage{
+    position:relative; width:100%; height:200px; border-radius:14px; overflow:hidden;
+    background-color:var(--surface); background-size:cover; background-repeat:no-repeat;
+    border:1px solid var(--border); touch-action:none; cursor:grab; user-select:none;
+  }
+  .gb-position-stage:active{ cursor:grabbing; }
+  .gb-position-stage-crosshair{
+    position:absolute; width:28px; height:28px; border-radius:50%;
+    border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.4);
+    transform:translate(-50%,-50%); pointer-events:none;
+  }
+  .gb-position-stage-crosshair::before, .gb-position-stage-crosshair::after{
+    content:''; position:absolute; background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,0.5);
+  }
+  .gb-position-stage-crosshair::before{ left:50%; top:-5px; bottom:-5px; width:1.5px; transform:translateX(-50%); }
+  .gb-position-stage-crosshair::after{ top:50%; left:-5px; right:-5px; height:1.5px; transform:translateY(-50%); }
+  .gb-position-actions{ display:flex; gap:8px; margin-top:14px; }
+  .gb-position-actions .btn{ flex:1; }
 
   .chart-wrap{
     background:var(--surface);
@@ -1828,6 +1855,24 @@
   </div>
 </div>
 
+<!-- 目標バナー：写真の位置調整モーダル -->
+<div class="modal-overlay" id="goalPhotoPositionModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>写真の位置を調整</h2>
+      <button class="modal-close" data-close="goalPhotoPositionModal">×</button>
+    </div>
+    <p class="gb-position-hint">ドラッグして、カードに見せたい部分を選んでください。</p>
+    <div class="gb-position-stage" id="goalPositionStage">
+      <div class="gb-position-stage-crosshair" id="goalPositionCrosshair"></div>
+    </div>
+    <div class="gb-position-actions">
+      <button type="button" class="btn btn-ghost" id="goalPositionResetBtn">中央に戻す</button>
+      <button type="button" class="btn btn-primary" id="goalPositionSaveBtn">この位置で保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- 設定モーダル -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal-box">
@@ -2637,7 +2682,9 @@ function renderGoalBanner(){
 
   const theme = goalBannerSettings.theme || 'blaze';
   const photo = selectedGoalPhoto();
-  const photoLayerHtml = photo ? `<div class="goal-banner-photo-layer" style="background-image:url('${photo.dataUrl}');"></div>` : '';
+  const photoPosX = photo && photo.photoPosX !== undefined ? photo.photoPosX : 50;
+  const photoPosY = photo && photo.photoPosY !== undefined ? photo.photoPosY : 50;
+  const photoLayerHtml = photo ? `<div class="goal-banner-photo-layer" style="background-image:url('${photo.dataUrl}'); background-position:${photoPosX}% ${photoPosY}%;"></div>` : '';
   const days = goalBannerSettings.deadline ? daysUntil(goalBannerSettings.deadline) : null;
   const daysNum = days !== null ? Math.max(days, 0) : null;
   const pct = (goalBannerSettings.deadline && goalBannerSettings.startDate)
@@ -2788,6 +2835,9 @@ function renderGoalPhotoThumbs(){
     html += `
       <div class="gb-photo-slot filled ${isFixedSelected ? 'fixed-selected' : ''}" data-photo-id="${p.id}">
         <img src="${p.dataUrl}" alt="">
+        <button type="button" class="gb-photo-pos-btn" data-pos-photo="${p.id}" aria-label="位置を調整">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+        </button>
         <button type="button" class="gb-photo-del-btn" data-del-photo="${p.id}" aria-label="削除">×</button>
       </div>
     `;
@@ -2803,9 +2853,16 @@ function renderGoalPhotoThumbs(){
   grid.querySelectorAll('.gb-photo-slot.filled').forEach(el=>{
     el.addEventListener('click', (e)=>{
       if (e.target.closest('[data-del-photo]')) return;
+      if (e.target.closest('[data-pos-photo]')) return;
       if (document.getElementById('goalPhotoModeInput').value !== 'fixed') return;
       document.getElementById('goalFixedPhotoIdInput').value = el.dataset.photoId;
       renderGoalPhotoThumbs();
+    });
+  });
+  grid.querySelectorAll('[data-pos-photo]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openGoalPhotoPositionModal(btn.dataset.posPhoto);
     });
   });
   grid.querySelectorAll('[data-del-photo]').forEach(btn=>{
@@ -2830,6 +2887,87 @@ function renderGoalPhotoThumbs(){
 
   updateGoalPhotoHint();
 }
+
+/* ---------- 背景写真の位置調整（ドラッグでbackground-positionを決める） ---------- */
+let goalPositionEditingPhotoId = null;
+let goalPositionCurrent = { x: 50, y: 50 };
+
+function updateGoalPositionStageUI(){
+  const stage = document.getElementById('goalPositionStage');
+  const crosshair = document.getElementById('goalPositionCrosshair');
+  if (!stage || !crosshair) return;
+  stage.style.backgroundPosition = `${goalPositionCurrent.x}% ${goalPositionCurrent.y}%`;
+  crosshair.style.left = `${goalPositionCurrent.x}%`;
+  crosshair.style.top = `${goalPositionCurrent.y}%`;
+}
+
+function openGoalPhotoPositionModal(photoId){
+  const photo = goalPhotos.find(p => p.id === photoId);
+  if (!photo) return;
+  goalPositionEditingPhotoId = photoId;
+  goalPositionCurrent = {
+    x: (photo.photoPosX !== undefined ? photo.photoPosX : 50),
+    y: (photo.photoPosY !== undefined ? photo.photoPosY : 50)
+  };
+  const stage = document.getElementById('goalPositionStage');
+  stage.style.backgroundImage = `url('${photo.dataUrl}')`;
+  updateGoalPositionStageUI();
+  openModal('goalPhotoPositionModal');
+}
+
+function goalPositionEventToXY(e, stage){
+  const rect = stage.getBoundingClientRect();
+  const point = (e.touches && e.touches[0]) ? e.touches[0] : e;
+  let x = ((point.clientX - rect.left) / rect.width) * 100;
+  let y = ((point.clientY - rect.top) / rect.height) * 100;
+  x = Math.max(0, Math.min(100, x));
+  y = Math.max(0, Math.min(100, y));
+  return { x, y };
+}
+
+(function(){
+  const stage = document.getElementById('goalPositionStage');
+  if (!stage) return;
+  let dragging = false;
+  function start(e){
+    dragging = true;
+    handleMove(e);
+  }
+  function handleMove(e){
+    if (!dragging) return;
+    e.preventDefault();
+    goalPositionCurrent = goalPositionEventToXY(e, stage);
+    updateGoalPositionStageUI();
+  }
+  function end(){ dragging = false; }
+  stage.addEventListener('mousedown', start);
+  window.addEventListener('mousemove', handleMove);
+  window.addEventListener('mouseup', end);
+  stage.addEventListener('touchstart', start, { passive:false });
+  stage.addEventListener('touchmove', handleMove, { passive:false });
+  stage.addEventListener('touchend', end);
+})();
+
+document.getElementById('goalPositionResetBtn').addEventListener('click', ()=>{
+  goalPositionCurrent = { x:50, y:50 };
+  updateGoalPositionStageUI();
+});
+
+document.getElementById('goalPositionSaveBtn').addEventListener('click', async ()=>{
+  const user = auth.currentUser;
+  if (!user || !goalPositionEditingPhotoId) return;
+  try{
+    await setDoc(doc(db, 'users', user.uid, 'goalPhotos', goalPositionEditingPhotoId), {
+      photoPosX: Math.round(goalPositionCurrent.x),
+      photoPosY: Math.round(goalPositionCurrent.y)
+    }, { merge: true });
+    closeModal('goalPhotoPositionModal');
+    showToast('写真の位置を保存しました');
+  }catch(err){
+    console.error(err);
+    showToast('保存に失敗しました: ' + err.message);
+  }
+});
 
 // 画像ファイルを読み込み、指定の最大辺・目標バイト数に収まるようcanvasでJPEG圧縮してdataURL化する
 // （Firebase Storageを使わず、無料枠のFirestoreにそのまま保存できるサイズに抑えるため）
