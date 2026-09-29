@@ -3568,6 +3568,16 @@ function renderWeeklyAvgModal(){
         scales: {
           x: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { display:false } },
           y: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { color: cssVar('--border') } }
+        },
+        // 棒をタップした時にも、一覧の行と同じ「前週比の詳細」が開けるようにする
+        onClick: (evt, elements) => {
+          if (elements && elements.length){
+            const week = weeks[elements[0].index];
+            if (week) openWeekAvgDetail(week.monday);
+          }
+        },
+        onHover: (evt, elements) => {
+          evt.native.target.style.cursor = elements && elements.length ? 'pointer' : 'default';
         }
       }
     });
