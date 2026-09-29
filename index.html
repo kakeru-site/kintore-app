@@ -39,6 +39,10 @@
     --header-h:88px;
     --font-display:'Oswald','Noto Sans JP',sans-serif;
     --header-bg:rgba(12,12,14,0.92);
+    /* 端末やブラウザによってはenv(safe-area-inset-bottom)が0扱いになり、
+       タブバーやFABが画面の本当の下端まで届かず、下に余白が残ることがある。
+       最低限の下余白を確保するためのフロア値としてmax()で組み合わせて使う */
+    --safe-bottom:max(env(safe-area-inset-bottom), 14px);
     font-variant-numeric: tabular-nums;
   }
   /* ---------- テーマ「CALM」(設定から切り替え可能) ----------
@@ -219,7 +223,7 @@
     overflow-y:auto;
     overflow-x:hidden;
     max-width:100%;
-    padding:16px 16px calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 24px) 16px;
+    padding:16px 16px calc(var(--tabbar-h) + var(--safe-bottom) + 24px) 16px;
   }
   .section{display:none;}
   .section.active{display:block;}
@@ -259,6 +263,27 @@
   .summary-row-secondary{ margin-top:-6px; }
   .summary-box.secondary{ padding:10px 12px; }
   .summary-box.secondary .value{ font-size:16px; }
+  .summary-box.clickable{ cursor:pointer; }
+  .summary-box.clickable:active{ background:var(--surface-2); }
+  .summary-box.clickable .label{ text-decoration:underline; text-decoration-style:dotted; text-underline-offset:3px; }
+
+  /* ---------- 週ごとの体重平均モーダル ---------- */
+  .week-avg-row{ cursor:pointer; }
+  .week-avg-row .main-val{ display:flex; align-items:center; gap:4px; }
+  .week-avg-row .week-avg-chevron{ color:var(--text-faint); font-size:14px; }
+  .week-avg-stat{ text-align:center; padding:6px 0 14px; }
+  .week-avg-stat .week-avg-range{ font-size:12px; color:var(--text-faint); margin-bottom:4px; }
+  .week-avg-stat .week-avg-num{ font-size:34px; font-weight:800; font-family:var(--font-display); color:var(--text); }
+  .week-avg-stat .week-avg-sub{ font-size:12px; color:var(--text-dim); margin-top:2px; }
+  .week-avg-compare{ display:flex; align-items:center; justify-content:center; gap:14px; margin-top:6px; }
+  .week-avg-compare .wac-box{ text-align:center; }
+  .week-avg-compare .wac-label{ font-size:11px; color:var(--text-faint); margin-bottom:3px; }
+  .week-avg-compare .wac-val{ font-size:17px; font-weight:700; }
+  .week-avg-compare .wac-arrow{ font-size:18px; color:var(--text-faint); }
+  .week-avg-diff-badge{
+    display:inline-block; margin-top:12px; padding:6px 16px; border-radius:20px;
+    font-size:15px; font-weight:800; background:var(--surface-2); border:1px solid var(--border); color:var(--text);
+  }
 
   /* ---------- 設定画面：デザインテーマ選択 ---------- */
   .app-theme-picker{ display:flex; gap:10px; }
@@ -559,6 +584,44 @@
     display:none; align-items:center; justify-content:center; padding:0;
   }
   .filter-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+
+  /* ---------- 種目の筋肉タグ（検索用） ---------- */
+  .muscle-tag-picker{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .muscle-tag-chip{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:20px; padding:6px 12px; font-size:12px; font-weight:600; cursor:pointer;
+  }
+  .muscle-tag-chip.active{ background:var(--cyan-dim); border-color:var(--cyan); color:var(--cyan); }
+  .muscle-tag-custom-row{ display:flex; gap:8px; }
+  .muscle-tag-custom-row input{
+    flex:1; min-width:0; background:var(--surface); border:1px solid var(--border); color:var(--text);
+    border-radius:var(--radius-sm); padding:9px 12px; font-size:13px;
+  }
+  .muscle-tag-custom-row input:focus{ outline:none; border-color:var(--red); }
+  .muscle-tag-custom-row button{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:var(--radius-sm); padding:0 14px; font-size:13px; font-weight:700; cursor:pointer;
+  }
+
+  /* ---------- 種目タブ：全種目キーワード検索の結果一覧 ---------- */
+  .ex-search-results .list-item .tag{ margin-right:6px; }
+
+  /* ---------- トレ記録モーダル：種目のキーワード検索 ---------- */
+  .workout-ex-search-wrap{ position:relative; }
+  .workout-ex-search-results{
+    position:absolute; left:0; right:0; top:calc(100% + 4px); z-index:5;
+    background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-sm);
+    max-height:240px; overflow-y:auto; box-shadow:0 8px 24px rgba(0,0,0,0.35); display:none;
+  }
+  .workout-ex-search-results.open{ display:block; }
+  .workout-ex-search-row{
+    padding:11px 14px; font-size:13px; cursor:pointer; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; gap:8px; justify-content:space-between;
+  }
+  .workout-ex-search-row:last-child{ border-bottom:none; }
+  .workout-ex-search-row:active{ background:var(--surface-2); }
+  .workout-ex-search-row .wex-name{ font-weight:600; color:var(--text); }
+  .workout-ex-search-empty{ padding:12px 14px; font-size:12px; color:var(--text-faint); }
   .wo-search-summary{ font-size:12px; color:var(--text-faint); margin:-2px 2px 12px; }
   .wo-group{ border-bottom:1px solid var(--border); }
   .wo-group:last-child{ border-bottom:none; }
@@ -705,12 +768,12 @@
   /* ---------- Tab bar ---------- */
   .tabbar{
     position:fixed; left:0; right:0; bottom:0;
-    height:calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+    height:calc(var(--tabbar-h) + var(--safe-bottom));
     display:flex;
     background:var(--surface-2);
     border-top:1px solid var(--border);
     border-radius:22px 22px 0 0;
-    padding-bottom:env(safe-area-inset-bottom);
+    padding-bottom:var(--safe-bottom);
     box-shadow:0 -10px 28px rgba(0,0,0,0.5);
     z-index:20;
   }
@@ -752,7 +815,7 @@
   .fab{
     position:fixed;
     right:18px;
-    bottom:calc(var(--tabbar-h) + 18px + env(safe-area-inset-bottom));
+    bottom:calc(var(--tabbar-h) + 18px + var(--safe-bottom));
     width:56px; height:56px;
     border-radius:50%;
     background:var(--red);
@@ -769,7 +832,7 @@
 
   .quick-jump-btn{
     position:fixed; left:18px;
-    bottom:calc(var(--tabbar-h) + 18px + env(safe-area-inset-bottom));
+    bottom:calc(var(--tabbar-h) + 18px + var(--safe-bottom));
     height:44px;
     background:var(--surface-2); border:1px solid var(--border); color:var(--text);
     border-radius:22px; padding:0 16px 0 14px; font-size:13px; font-weight:700;
@@ -791,6 +854,8 @@
   #exerciseStatsModal{ z-index:60; }
   /* 記録モーダル・種目の推移モーダルのどちらの中からも開けるようにするため、さらに手前に重ねる */
   #bestSetDetailModal{ z-index:70; }
+  /* 週ごとの体重平均モーダルの中から開くため、さらに手前に重ねる */
+  #weekAvgDetailModal{ z-index:60; }
   .modal-box{
     width:100%;
     max-width:100%;
@@ -800,7 +865,7 @@
     box-sizing:border-box;
     background:var(--bg-elevated);
     border-radius:20px 20px 0 0;
-    padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+    padding:20px 20px calc(20px + var(--safe-bottom));
     animation:slideUp 0.2s ease-out;
   }
   @keyframes slideUp{from{transform:translateY(30px); opacity:0;} to{transform:translateY(0); opacity:1;}}
@@ -816,6 +881,16 @@
   .modal-actions .btn{flex:1;}
   .modal-actions-secondary{display:flex; gap:8px; margin-top:10px;}
   .modal-actions-secondary .btn{flex:1; padding:10px 10px; font-size:12.5px; font-weight:600;}
+  /* 使い方モーダル：マニュアル(manual.html)を全画面に近いiframeで表示する */
+  #helpModal .modal-box{
+    height:100dvh; max-height:100dvh; padding:0; border-radius:0;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  #helpModal .modal-header{
+    padding:calc(env(safe-area-inset-top) + 14px) 20px 14px; margin-bottom:0;
+    border-bottom:1px solid var(--border); flex-shrink:0;
+  }
+  #helpFrame{ flex:1; width:100%; border:none; background:var(--bg); }
   .draft-clear-link{
     display:none; width:100%; text-align:center; background:none; border:none;
     color:var(--text-faint); font-size:12px; text-decoration:underline;
@@ -1146,7 +1221,7 @@
   <header class="appbar">
     <span class="title" id="pageTitle">体重記録</span>
     <div class="header-actions">
-      <a class="logout" href="manual.html" target="_blank" rel="noopener">使い方</a>
+      <button class="logout" id="helpBtn">使い方</button>
       <button class="logout" id="feedbackBtn">意見箱</button>
       <button class="logout" id="settingsBtn">設定</button>
       <button class="logout" id="logoutBtn">ログアウト</button>
@@ -1171,7 +1246,7 @@
       </div>
 
       <div class="summary-row summary-row-secondary">
-        <div class="summary-box secondary">
+        <div class="summary-box secondary clickable" id="weekAvgTile">
           <div class="label">先週平均比</div>
           <div class="value num" id="weightVsLastWeekVal">--</div>
         </div>
@@ -1206,6 +1281,10 @@
 
     <!-- ④ 種目登録 -->
     <section class="section" id="section-exercises">
+      <div class="search-wrap">
+        <input type="text" id="exerciseSearchInput" class="search-input" placeholder="種目名や筋肉タグで検索（例: 三頭筋）" autocomplete="off">
+        <button type="button" id="exerciseSearchClearBtn" class="search-clear-btn" aria-label="検索をクリア">✕</button>
+      </div>
       <div id="bpTilesView">
         <div class="bp-tiles" id="bpTiles"></div>
       </div>
@@ -1215,6 +1294,10 @@
           <span class="back-title" id="bpListTitle"></span>
         </div>
         <div class="card"><div id="exerciseList"></div></div>
+      </div>
+      <div id="exerciseSearchView" style="display:none;">
+        <div class="wo-search-summary" id="exerciseSearchSummary"></div>
+        <div class="card ex-search-results"><div id="exerciseSearchResults"></div></div>
       </div>
     </section>
 
@@ -1514,6 +1597,30 @@
   </div>
 </div>
 
+<!-- 週ごとの体重平均 モーダル -->
+<div class="modal-overlay" id="weeklyAvgModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>週ごとの体重平均</h2>
+      <button class="modal-close" data-close="weeklyAvgModal">×</button>
+    </div>
+    <p class="phase-scope-note">月曜始まりの週ごとに体重の平均を集計しています。週をタップすると、前週平均との増減がわかります。</p>
+    <div class="chart-wrap chart-wrap-sm"><canvas id="weeklyAvgChart"></canvas></div>
+    <div class="card" id="weeklyAvgListWrap"><div id="weeklyAvgList"></div></div>
+  </div>
+</div>
+
+<!-- 週平均の詳細（前週比）モーダル -->
+<div class="modal-overlay" id="weekAvgDetailModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="weekAvgDetailTitle">週の体重平均</h2>
+      <button class="modal-close" data-close="weekAvgDetailModal">×</button>
+    </div>
+    <div id="weekAvgDetailBody"></div>
+  </div>
+</div>
+
 <!-- 種目 追加/編集モーダル -->
 <div class="modal-overlay" id="exerciseModal">
   <div class="modal-box">
@@ -1540,6 +1647,14 @@
       <div class="field">
         <label for="exerciseName">種目名</label>
         <input type="text" id="exerciseName" required>
+      </div>
+      <div class="field">
+        <label>筋肉タグ<span class="field-hint">（任意・複数可。種目タブや記録時のキーワード検索で使われます）</span></label>
+        <div class="muscle-tag-picker" id="muscleTagPicker"></div>
+        <div class="muscle-tag-custom-row">
+          <input type="text" id="muscleTagCustomInput" placeholder="他のタグを追加（Enterで追加）">
+          <button type="button" id="muscleTagCustomAddBtn">追加</button>
+        </div>
       </div>
       <div class="field">
         <label for="exerciseCue">ポイント（効かせるために意識すること）</label>
@@ -1603,6 +1718,10 @@
       </div>
       <div class="field">
         <label>種目（タップした順番で登録されます）</label>
+        <div class="search-wrap" style="margin-bottom:10px;">
+          <input type="text" id="routineExerciseSearchInput" class="search-input" placeholder="種目名や筋肉タグで検索（例: 三頭筋）" autocomplete="off">
+          <button type="button" id="routineExerciseSearchClearBtn" class="search-clear-btn" aria-label="検索をクリア">✕</button>
+        </div>
         <div id="routineExercisePicker" class="routine-picker"></div>
       </div>
       <div class="field">
@@ -1643,7 +1762,7 @@
       <h2>増量期・減量期・維持期</h2>
       <button class="modal-close" data-close="phaseListModal">×</button>
     </div>
-    <p class="phase-scope-note">自己ベストや「次回の目標」は、同じ期間（増量期 or 減量期・維持期）の記録どうしだけで比較されます。維持期と減量期はトレーニング量が同じなので、同じグループとして扱われます。</p>
+    <p class="phase-scope-note">自己ベストや「次回の目標」は、同じ期間（増量期 or 減量期・維持期）の記録どうしで比較されます。維持期と減量期はトレーニング量が同じなので、同じグループとして扱われます。増量期は食事量が多く数値が伸びやすいため、減量期・維持期側からは増量期の記録は対象外になりますが、逆に増量期側からは減量期・維持期の記録もあわせて見られます。</p>
     <div id="phasePeriodListWrap"></div>
     <button type="button" class="btn btn-ghost" id="phaseAddNewBtn" style="width:100%; margin-top:10px;">＋ 新しい期間を追加</button>
   </div>
@@ -1691,6 +1810,11 @@
       <div class="field">
         <label for="workoutDate">日付</label>
         <input type="date" id="workoutDate" required>
+      </div>
+      <div class="field workout-ex-search-wrap">
+        <label for="workoutExerciseSearchInput">種目をキーワードで探す<span class="field-hint">（任意・種目名や筋肉タグで検索）</span></label>
+        <input type="text" id="workoutExerciseSearchInput" placeholder="例: 三頭筋" autocomplete="off">
+        <div class="workout-ex-search-results" id="workoutExerciseSearchResults"></div>
       </div>
       <div class="field">
         <label for="workoutBodyPartSelect">部位</label>
@@ -1960,6 +2084,19 @@
       <button type="button" class="btn btn-ghost" id="goalPositionResetBtn">中央に戻す</button>
       <button type="button" class="btn btn-primary" id="goalPositionSaveBtn">この位置で保存</button>
     </div>
+  </div>
+</div>
+
+<!-- 使い方モーダル（別タブで開く方式だと、特にホーム画面に追加したアプリではタブが分かれず
+     同じ画面がmanual.htmlに置き換わってしまい、「戻る」を押すとアプリが最初から再読み込みされて
+     元の画面・入力中の内容が失われることがあったため、ページ遷移せずアプリ内でiframe表示する方式にした -->
+<div class="modal-overlay" id="helpModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>使い方</h2>
+      <button class="modal-close" data-close="helpModal">×</button>
+    </div>
+    <iframe id="helpFrame" title="使い方マニュアル"></iframe>
   </div>
 </div>
 
@@ -2295,6 +2432,12 @@ document.getElementById('forgotPasswordForm').addEventListener('submit', async (
 });
 
 document.getElementById('settingsBtn').addEventListener('click', ()=> openModal('settingsModal'));
+document.getElementById('helpBtn').addEventListener('click', ()=>{
+  // 初回タップ時だけ読み込む（毎回の起動時に1.7MB超のマニュアルを先読みしないため）
+  const frame = document.getElementById('helpFrame');
+  if (!frame.src) frame.src = 'manual.html';
+  openModal('helpModal');
+});
 
 /* ---------- デザインテーマ（標準／CALM）---------- */
 let currentAppTheme = 'default';
@@ -2561,6 +2704,7 @@ function startListeners(uid){
       .sort((a,b)=> (a.bodyPart||'').localeCompare(b.bodyPart||'', 'ja') || (a.name||'').localeCompare(b.name||'', 'ja'));
     renderBpTiles();
     if (currentBPFilter) renderExerciseList();
+    if (exerciseSearchQuery.trim()) renderExerciseSearchResults();
     updateWorkoutBodyPartOptions();
   }, (err)=>{
     console.error(err);
@@ -3352,6 +3496,154 @@ function renderWeightAvgDiff(cur){
   lastMonthEl.textContent = lastMonthAvg !== null ? formatWeightDiff(Number(cur) - lastMonthAvg) : '記録なし';
 }
 
+/* ---------- 週ごとの体重平均（「先週平均比」タップで開く） ---------- */
+
+// +1.2% / -0.8% のように符号付きで表示する（差がほぼ0なら±0.0%）
+function formatPercentDiff(pct){
+  const rounded = Math.round(pct * 10) / 10;
+  if (Math.abs(rounded) < 0.05) return '±0.0%';
+  return `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}%`;
+}
+
+// 月曜始まりの週ごとに体重の平均を集計する。記録がある週だけを、古い順に返す
+function computeWeeklyAverages(){
+  const byWeek = new Map();
+  weightEntries.forEach(e=>{
+    const w = Number(e.weight);
+    if (!Number.isFinite(w)) return;
+    const monday = toYmd(mondayOfWeek(e.date));
+    if (!byWeek.has(monday)) byWeek.set(monday, []);
+    byWeek.get(monday).push(w);
+  });
+  return [...byWeek.entries()]
+    .map(([monday, vals]) => ({ monday, avg: vals.reduce((a,b)=> a + b, 0) / vals.length, count: vals.length }))
+    .sort((a,b)=> a.monday.localeCompare(b.monday));
+}
+
+// 指定した週（月曜日の日付文字列）の平均と、その直前の週（暦上の前週。記録の有無は問わない）の平均を返す
+function weekVsPrevWeek(mondayStr){
+  const monday = parseYmd(mondayStr);
+  const sunday = new Date(monday); sunday.setDate(sunday.getDate() + 6);
+  const thisAvg = avgWeightInRange(toYmd(monday), toYmd(sunday));
+  const prevMonday = new Date(monday); prevMonday.setDate(prevMonday.getDate() - 7);
+  const prevSunday = new Date(prevMonday); prevSunday.setDate(prevSunday.getDate() + 6);
+  const prevAvg = avgWeightInRange(toYmd(prevMonday), toYmd(prevSunday));
+  return { thisAvg, prevAvg, prevMondayStr: toYmd(prevMonday), prevSundayStr: toYmd(prevSunday) };
+}
+
+let weeklyAvgChartInstance = null;
+function renderWeeklyAvgModal(){
+  const weeks = computeWeeklyAverages();
+  const listWrap = document.getElementById('weeklyAvgList');
+  const chartWrap = document.getElementById('weeklyAvgChart').closest('.chart-wrap');
+
+  if (!weeks.length){
+    chartWrap.style.display = 'none';
+    listWrap.innerHTML = '<div class="empty-msg">まだ体重の記録がありません</div>';
+    if (weeklyAvgChartInstance){ weeklyAvgChartInstance.destroy(); weeklyAvgChartInstance = null; }
+    return;
+  }
+  chartWrap.style.display = '';
+
+  if (weeklyAvgChartInstance){ weeklyAvgChartInstance.destroy(); weeklyAvgChartInstance = null; }
+  try{
+    const ctx = document.getElementById('weeklyAvgChart');
+    weeklyAvgChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: weeks.map(w => formatWeekRangeJp(parseYmd(w.monday))),
+        datasets: [{
+          label: '週平均体重',
+          data: weeks.map(w => +w.avg.toFixed(1)),
+          backgroundColor: cssVarAlpha('--red', '66'),
+          borderColor: cssVar('--red'),
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { display:false } },
+          y: { ticks: { color: cssVar('--text-faint'), font:{size:10} }, grid: { color: cssVar('--border') } }
+        }
+      }
+    });
+  }catch(err){
+    console.warn('週平均グラフの描画に失敗しました:', err);
+  }
+
+  // 一覧は新しい週が上にくるようにする（体重記録一覧など他の一覧と同じ並び順）
+  const listed = [...weeks].reverse();
+  listWrap.innerHTML = listed.map(w => `
+    <div class="list-item week-avg-row" data-monday="${w.monday}">
+      <div>
+        <div class="date">${escapeHtml(formatWeekRangeJp(parseYmd(w.monday)))}</div>
+        <div class="note">${w.count}件の記録から算出</div>
+      </div>
+      <div class="main-val">${w.avg.toFixed(1)} kg<span class="week-avg-chevron">›</span></div>
+    </div>
+  `).join('');
+  listWrap.querySelectorAll('.week-avg-row').forEach(row=>{
+    row.addEventListener('click', ()=> openWeekAvgDetail(row.dataset.monday));
+  });
+}
+
+document.getElementById('weekAvgTile').addEventListener('click', ()=>{
+  renderWeeklyAvgModal();
+  openModal('weeklyAvgModal');
+});
+
+function openWeekAvgDetail(mondayStr){
+  const rangeLabel = formatWeekRangeJp(parseYmd(mondayStr));
+  document.getElementById('weekAvgDetailTitle').textContent = `${rangeLabel} の体重平均`;
+  const { thisAvg, prevAvg, prevMondayStr } = weekVsPrevWeek(mondayStr);
+  const bodyEl = document.getElementById('weekAvgDetailBody');
+
+  if (thisAvg === null){
+    bodyEl.innerHTML = '<div class="empty-msg">この週の記録がありません</div>';
+    openModal('weekAvgDetailModal');
+    return;
+  }
+
+  const prevRangeLabel = formatWeekRangeJp(parseYmd(prevMondayStr));
+  let compareHtml;
+  if (prevAvg === null){
+    compareHtml = `<div class="pr-info" style="text-align:center;">比較できる前週（${escapeHtml(prevRangeLabel)}）の記録がありません</div>`;
+  } else {
+    const diff = thisAvg - prevAvg;
+    const pct = (diff / prevAvg) * 100;
+    compareHtml = `
+      <div class="week-avg-compare">
+        <div class="wac-box">
+          <div class="wac-label">前週（${escapeHtml(prevRangeLabel)}）</div>
+          <div class="wac-val">${prevAvg.toFixed(1)}kg</div>
+        </div>
+        <div class="wac-arrow">→</div>
+        <div class="wac-box">
+          <div class="wac-label">今週</div>
+          <div class="wac-val">${thisAvg.toFixed(1)}kg</div>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <span class="week-avg-diff-badge">${formatWeightDiff(diff)}（${formatPercentDiff(pct)}）</span>
+      </div>
+    `;
+  }
+
+  bodyEl.innerHTML = `
+    <div class="week-avg-stat">
+      <div class="week-avg-range">${escapeHtml(rangeLabel)}</div>
+      <div class="week-avg-num">${thisAvg.toFixed(1)}<span style="font-size:16px; font-weight:600;">kg</span></div>
+      <div class="week-avg-sub">週平均</div>
+    </div>
+    ${compareHtml}
+  `;
+  openModal('weekAvgDetailModal');
+}
+
 let weightChartInstance = null;
 function renderWeightChart(){
   const sorted = [...weightEntries].sort((a,b)=> a.date.localeCompare(b.date));
@@ -3747,6 +4039,7 @@ function renderExerciseList(){
         ${currentBPFilter === 'その他' ? `<span class="tag">${escapeHtml(e.bodyPart || '未設定')}</span>` : ''}
         <div class="main-val" style="margin-top:4px;">${escapeHtml(e.name)}</div>
         ${e.cue ? `<div class="note">${escapeHtml(e.cue)}</div>` : ''}
+        ${Array.isArray(e.muscleTags) && e.muscleTags.length ? `<div class="badge-row">${e.muscleTags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
         ${plateauExerciseNames.has(e.name) ? '<div class="badge-row"><span class="mini-badge plateau">⏸️ 直近3回、重量が変わっていません</span></div>' : ''}
       </div>
       <button type="button" class="stats-icon-btn" data-stats-name="${escapeHtml(e.name)}" aria-label="推移を見る">📈</button>
@@ -3766,12 +4059,131 @@ function renderExerciseList(){
   });
 }
 
+/* 種目名 or 筋肉タグのどちらかにキーワードが含まれていればヒットとする（種目タブ・トレ記録共通） */
+function exerciseMatchesQuery(ex, qLower){
+  if (!qLower) return false;
+  if ((ex.name || '').toLowerCase().includes(qLower)) return true;
+  return Array.isArray(ex.muscleTags) && ex.muscleTags.some(t => (t || '').toLowerCase().includes(qLower));
+}
+
+/* ---------- 種目タブ：部位を問わないキーワード検索（種目名・筋肉タグ） ---------- */
+let exerciseSearchQuery = '';
+
+function updateExerciseView(){
+  const searching = exerciseSearchQuery.trim() !== '';
+  if (searching){
+    document.getElementById('bpTilesView').style.display = 'none';
+    document.getElementById('exerciseListView').style.display = 'none';
+    document.getElementById('exerciseSearchView').style.display = 'block';
+    renderExerciseSearchResults();
+  } else {
+    document.getElementById('exerciseSearchView').style.display = 'none';
+    if (currentBPFilter){
+      document.getElementById('exerciseListView').style.display = 'block';
+      document.getElementById('bpTilesView').style.display = 'none';
+    } else {
+      document.getElementById('bpTilesView').style.display = 'block';
+      document.getElementById('exerciseListView').style.display = 'none';
+    }
+  }
+}
+
+function renderExerciseSearchResults(){
+  const qLower = exerciseSearchQuery.trim().toLowerCase();
+  const list = exercises.filter(e => exerciseMatchesQuery(e, qLower));
+  document.getElementById('exerciseSearchSummary').textContent = `「${exerciseSearchQuery.trim()}」の検索結果：${list.length}件`;
+  const wrap = document.getElementById('exerciseSearchResults');
+  if (!list.length){
+    wrap.innerHTML = '<div class="empty-msg">一致する種目が見つかりませんでした</div>';
+    return;
+  }
+  const { plateauExerciseNames } = buildRecordIndex();
+  wrap.innerHTML = list.map(e => `
+    <div class="list-item" data-id="${e.id}">
+      <div>
+        <span class="tag">${escapeHtml(e.bodyPart || '未設定')}</span>
+        <div class="main-val" style="margin-top:4px;">${escapeHtml(e.name)}</div>
+        ${e.cue ? `<div class="note">${escapeHtml(e.cue)}</div>` : ''}
+        ${Array.isArray(e.muscleTags) && e.muscleTags.length ? `<div class="badge-row">${e.muscleTags.map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+        ${plateauExerciseNames.has(e.name) ? '<div class="badge-row"><span class="mini-badge plateau">⏸️ 直近3回、重量が変わっていません</span></div>' : ''}
+      </div>
+      <button type="button" class="stats-icon-btn" data-stats-name="${escapeHtml(e.name)}" aria-label="推移を見る">📈</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.list-item').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const ex = exercises.find(x=>x.id===row.dataset.id);
+      openExerciseModal(ex);
+    });
+  });
+  wrap.querySelectorAll('.stats-icon-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openExerciseStatsModal(btn.dataset.statsName);
+    });
+  });
+}
+
+document.getElementById('exerciseSearchInput').addEventListener('input', (e)=>{
+  exerciseSearchQuery = e.target.value;
+  document.getElementById('exerciseSearchClearBtn').style.display = exerciseSearchQuery.trim() ? 'flex' : 'none';
+  updateExerciseView();
+});
+document.getElementById('exerciseSearchClearBtn').addEventListener('click', ()=>{
+  exerciseSearchQuery = '';
+  document.getElementById('exerciseSearchInput').value = '';
+  document.getElementById('exerciseSearchClearBtn').style.display = 'none';
+  updateExerciseView();
+});
+
+/* 筋肉タグ：種目タブ・トレ記録の種目選択どちらでも「三頭筋」のような言葉で検索できるようにするための
+   任意タグ。名前に含まれていなくても、このタグがあれば検索にヒットする */
+const MUSCLE_TAG_PRESETS = [
+  '二頭筋','三頭筋','前腕','大胸筋','広背筋','僧帽筋','三角筋',
+  '大腿四頭筋','ハムストリングス','大臀筋','ふくらはぎ','腹直筋','脊柱起立筋'
+];
+let selectedMuscleTags = [];
+function renderMuscleTagPicker(){
+  const wrap = document.getElementById('muscleTagPicker');
+  // プリセットに無いタグ（既存データやカスタム追加分）もチップとして表示できるようにする
+  const allTags = [...new Set([...MUSCLE_TAG_PRESETS, ...selectedMuscleTags])];
+  wrap.innerHTML = allTags.map(tag => `
+    <button type="button" class="muscle-tag-chip${selectedMuscleTags.includes(tag) ? ' active' : ''}" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</button>
+  `).join('');
+  wrap.querySelectorAll('.muscle-tag-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const tag = chip.dataset.tag;
+      if (selectedMuscleTags.includes(tag)){
+        selectedMuscleTags = selectedMuscleTags.filter(t => t !== tag);
+      } else {
+        selectedMuscleTags = [...selectedMuscleTags, tag];
+      }
+      renderMuscleTagPicker();
+    });
+  });
+}
+function addCustomMuscleTag(){
+  const input = document.getElementById('muscleTagCustomInput');
+  const tag = input.value.trim();
+  if (!tag) return;
+  if (!selectedMuscleTags.includes(tag)) selectedMuscleTags = [...selectedMuscleTags, tag];
+  input.value = '';
+  renderMuscleTagPicker();
+}
+document.getElementById('muscleTagCustomAddBtn').addEventListener('click', addCustomMuscleTag);
+document.getElementById('muscleTagCustomInput').addEventListener('keydown', (e)=>{
+  if (e.key === 'Enter'){ e.preventDefault(); addCustomMuscleTag(); }
+});
+
 function openExerciseModal(entry, presetBodyPart){
   document.getElementById('exerciseModalTitle').textContent = entry ? '種目を編集' : '種目を登録';
   document.getElementById('exerciseDocId').value = entry ? entry.id : '';
   document.getElementById('exerciseBodyPart').value = entry ? entry.bodyPart : (presetBodyPart || '');
   document.getElementById('exerciseName').value = entry ? entry.name : '';
   document.getElementById('exerciseCue').value = entry ? (entry.cue || '') : '';
+  selectedMuscleTags = entry && Array.isArray(entry.muscleTags) ? [...entry.muscleTags] : [];
+  document.getElementById('muscleTagCustomInput').value = '';
+  renderMuscleTagPicker();
   document.getElementById('exerciseDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
   openModal('exerciseModal');
 }
@@ -3799,7 +4211,8 @@ document.getElementById('exerciseForm').addEventListener('submit', async (e)=>{
       return;
     }
     try{
-      const data = { bodyPart, name, cue, updatedAt: serverTimestamp() };
+      const muscleTags = selectedMuscleTags.slice();
+      const data = { bodyPart, name, cue, muscleTags, updatedAt: serverTimestamp() };
       if (id){
         // 種目名を変更した場合、過去のトレ記録は「種目名の文字列」で紐付いているため
         // このままでは過去の記録がその種目の推移・ベスト記録などから見えなくなってしまう。
@@ -4542,7 +4955,7 @@ function openExerciseStatsModal(exerciseName, refDate){
   if (exerciseStatsChartInstance){ exerciseStatsChartInstance.destroy(); exerciseStatsChartInstance = null; }
   const summaryEl = document.getElementById('exerciseStatsSummary');
   const scopeGroup = getPhaseGroupForDate(ref);
-  const scopeNoteHtml = `<p class="phase-scope-note">${scopeGroup ? `${escapeHtml(phaseGroupLabel(scopeGroup))}の記録のみ表示中` : '期間未設定のため、全期間の記録を表示中'}</p>`;
+  const scopeNoteHtml = `<p class="phase-scope-note">${scopeGroup ? `${escapeHtml(phaseScopeNoteText(scopeGroup))}を表示中` : '期間未設定のため、全期間の記録を表示中'}</p>`;
   if (!datasets.length){
     summaryEl.innerHTML = scopeNoteHtml + '<div class="empty-msg">まだ記録がありません</div>';
   } else {
@@ -4705,7 +5118,7 @@ function updateWorkoutExerciseInfo(){
   const refDate = currentWorkoutRefDate();
   const phaseGroupNote = (()=>{
     const g = getPhaseGroupForDate(refDate);
-    return g ? `（${escapeHtml(phaseGroupLabel(g))}の記録のみ）` : '（期間未設定：全期間）';
+    return g ? `（${escapeHtml(phaseScopeNoteText(g))}）` : '（期間未設定：全期間）';
   })();
   if (bodyPart !== CARDIO_BODY_PART){
     const recByCat = getBestRecordsByCategory(name, editingWorkoutId, refDate);
@@ -4757,6 +5170,59 @@ document.getElementById('workoutExerciseSelect').addEventListener('change', ()=>
   } else {
     applySetPlaceholderHints();
   }
+});
+
+/* ---------- トレ記録モーダル：種目名・筋肉タグのキーワード検索から部位・種目を一発選択 ---------- */
+function renderWorkoutExerciseSearchResults(){
+  const wrap = document.getElementById('workoutExerciseSearchResults');
+  const qLower = document.getElementById('workoutExerciseSearchInput').value.trim().toLowerCase();
+  if (!qLower){
+    wrap.classList.remove('open');
+    wrap.innerHTML = '';
+    return;
+  }
+  const list = exercises.filter(e => exerciseMatchesQuery(e, qLower)).slice(0, 20);
+  wrap.innerHTML = list.length
+    ? list.map(e => `
+        <div class="workout-ex-search-row" data-id="${e.id}">
+          <span class="wex-name">${escapeHtml(e.name)}</span>
+          <span class="tag">${escapeHtml(e.bodyPart || '未設定')}</span>
+        </div>
+      `).join('')
+    : '<div class="workout-ex-search-empty">一致する種目が見つかりませんでした</div>';
+  wrap.querySelectorAll('.workout-ex-search-row').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const ex = exercises.find(x => x.id === row.dataset.id);
+      if (!ex) return;
+      document.getElementById('workoutBodyPartSelect').value = ex.bodyPart;
+      updateWorkoutExerciseOptions(ex.bodyPart, ex.name);
+      // 部位セレクト・種目セレクトを手で選んだ時とまったく同じ副作用（情報パネル更新・
+      // 有酸素プレースホルダー・セット自動入力・メモ引き継ぎ等）を起こす
+      updateWorkoutExerciseInfo();
+      toggleWorkoutInputMode();
+      applyCardioPlaceholderHints();
+      if (!editingWorkoutId){
+        autofillSetsFromCategory(currentEntryCategory);
+        applyMemoPrefill();
+      } else {
+        applySetPlaceholderHints();
+      }
+      document.getElementById('workoutExerciseSearchInput').value = '';
+      wrap.classList.remove('open');
+      wrap.innerHTML = '';
+    });
+  });
+  wrap.classList.add('open');
+}
+document.getElementById('workoutExerciseSearchInput').addEventListener('input', renderWorkoutExerciseSearchResults);
+document.getElementById('workoutExerciseSearchInput').addEventListener('focus', ()=>{
+  if (document.getElementById('workoutExerciseSearchInput').value.trim()) renderWorkoutExerciseSearchResults();
+});
+document.addEventListener('click', (e)=>{
+  const wrap = document.getElementById('workoutExerciseSearchResults');
+  if (!wrap.classList.contains('open')) return;
+  if (e.target.closest('.workout-ex-search-wrap')) return;
+  wrap.classList.remove('open');
 });
 
 /* 入力中のセットから「現時点でのボリューム」を計算し、自己ベストとの差を表示する。
@@ -4903,6 +5369,9 @@ function openWorkoutModal(entry, prefill){
   document.getElementById('workoutModalTitle').textContent = entry ? 'トレーニングを編集' : 'トレーニングを記録';
   editingWorkoutId = entry ? entry.id : null;
   document.getElementById('workoutDocId').value = entry ? entry.id : '';
+  document.getElementById('workoutExerciseSearchInput').value = '';
+  document.getElementById('workoutExerciseSearchResults').classList.remove('open');
+  document.getElementById('workoutExerciseSearchResults').innerHTML = '';
 
   const draft = (!entry && !prefill) ? loadWorkoutDraft() : null;
   const src = entry || prefill || draft;
@@ -5171,6 +5640,7 @@ document.getElementById('routineAddNewBtn').addEventListener('click', ()=>{
 });
 
 let routineSelectedNames = [];
+let routineSearchQuery = '';
 function renderRoutinePicker(){
   const wrap = document.getElementById('routineExercisePicker');
   const strengthExercises = exercises.filter(e => e.bodyPart !== CARDIO_BODY_PART);
@@ -5178,7 +5648,13 @@ function renderRoutinePicker(){
     wrap.innerHTML = '<div class="empty-msg">先に「種目」タブから種目を登録してください</div>';
     return;
   }
-  wrap.innerHTML = strengthExercises.map(e => `
+  const qLower = routineSearchQuery.trim().toLowerCase();
+  const list = qLower ? strengthExercises.filter(e => exerciseMatchesQuery(e, qLower)) : strengthExercises;
+  if (!list.length){
+    wrap.innerHTML = '<div class="empty-msg">一致する種目が見つかりませんでした</div>';
+    return;
+  }
+  wrap.innerHTML = list.map(e => `
     <button type="button" class="routine-picker-chip${routineSelectedNames.includes(e.name) ? ' selected' : ''}" data-name="${escapeHtml(e.name)}">${escapeHtml(e.name)}</button>
   `).join('');
   wrap.querySelectorAll('.routine-picker-chip').forEach(chip=>{
@@ -5192,6 +5668,17 @@ function renderRoutinePicker(){
     });
   });
 }
+document.getElementById('routineExerciseSearchInput').addEventListener('input', (e)=>{
+  routineSearchQuery = e.target.value;
+  document.getElementById('routineExerciseSearchClearBtn').style.display = routineSearchQuery.trim() ? 'flex' : 'none';
+  renderRoutinePicker();
+});
+document.getElementById('routineExerciseSearchClearBtn').addEventListener('click', ()=>{
+  routineSearchQuery = '';
+  document.getElementById('routineExerciseSearchInput').value = '';
+  document.getElementById('routineExerciseSearchClearBtn').style.display = 'none';
+  renderRoutinePicker();
+});
 function renderRoutineSelectedList(){
   const wrap = document.getElementById('routineSelectedList');
   if (!routineSelectedNames.length){
@@ -5235,6 +5722,9 @@ function openRoutineEditModal(routine){
   document.getElementById('routineDocId').value = routine ? routine.id : '';
   document.getElementById('routineNameInput').value = routine ? routine.name : '';
   routineSelectedNames = routine ? (routine.exerciseNames || []).slice() : [];
+  routineSearchQuery = '';
+  document.getElementById('routineExerciseSearchInput').value = '';
+  document.getElementById('routineExerciseSearchClearBtn').style.display = 'none';
   renderRoutinePicker();
   renderRoutineSelectedList();
   document.getElementById('routineDeleteBtn').style.display = routine ? 'inline-flex' : 'none';
@@ -5362,6 +5852,13 @@ function phaseGroupLabel(group){
   if (group === 'cutmaintain') return '減量期・維持期';
   return '';
 }
+/* 自己ベスト等の絞り込み範囲を説明する文言。増量期基準の時は減量期・維持期の記録も対象に含むため「のみ」と言わない
+   （inSamePhaseGroup()の一方向の仕様に合わせている） */
+function phaseScopeNoteText(group){
+  if (group === 'bulk') return '増量期・減量期・維持期の記録';
+  if (group === 'cutmaintain') return '減量期・維持期の記録のみ';
+  return '';
+}
 function phaseDotColor(key){
   if (key === 'bulk') return 'var(--orange)';
   if (key === 'cut') return 'var(--red)';
@@ -5390,7 +5887,12 @@ function inSamePhaseGroup(dateStr, refDate){
   if (!refGroup) return true;
   const dateGroup = getPhaseGroupForDate(dateStr);
   if (!dateGroup) return true;
-  return dateGroup === refGroup;
+  if (dateGroup === refGroup) return true;
+  // 増量期は食事量が多く数値が伸びやすいため、減量期・維持期の自己ベストの基準に増量期の記録を混ぜてしまうと
+  // 実力を見誤らせてしまう。一方、増量期を基準にしている時は、より条件が厳しい減量期・維持期の記録も
+  // 参考として見られた方が有用なので、増量期基準の時だけ減量期・維持期の記録も対象に含める（逆方向は含めない）。
+  if (refGroup === 'bulk' && dateGroup === 'cutmaintain') return true;
+  return false;
 }
 /* 記録モーダルが開いている間の「基準日」（自己ベスト等をどの期間で絞り込むかの基準）。
    その記録自体の日付（過去日にさかのぼって入力する場合も、その日付が属する期間で判定する） */
