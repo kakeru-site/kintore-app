@@ -1759,7 +1759,7 @@
       <h2>増量期・減量期・維持期</h2>
       <button class="modal-close" data-close="phaseListModal">×</button>
     </div>
-    <p class="phase-scope-note">自己ベストや「次回の目標」は、同じ期間（増量期 or 減量期・維持期）の記録どうしで比較されます。維持期と減量期はトレーニング量が同じなので、同じグループとして扱われます。増量期は食事量が多く数値が伸びやすいため、減量期・維持期側からは増量期の記録は対象外になりますが、逆に増量期側からは減量期・維持期の記録もあわせて見られます。</p>
+    <p class="phase-scope-note">自己ベストや「次回の目標」の比較・自動入力は、同じ期間（増量期 or 減量期・維持期）の記録どうしだけで行われます。維持期と減量期はトレーニング量が同じなので、同じグループとして扱われます。増量期は食事量が多く数値が伸びやすいため、グループをまたいで比較すると実力を見誤ってしまうので、比較はグループごとに厳密に分けています。ただし増量期に記録する時だけ、参考として減量期・維持期の自己ベストも別枠で並べて表示します（比較や自動入力には使いません）。</p>
     <div id="phasePeriodListWrap"></div>
     <button type="button" class="btn btn-ghost" id="phaseAddNewBtn" style="width:100%; margin-top:10px;">＋ 新しい期間を追加</button>
   </div>
@@ -4872,6 +4872,43 @@ function getBestRecordsByCategory(exerciseName, excludeId, refDate){
   return result;
 }
 
+/* getBestRecordsByCategoryのグループ明示指定版。増量期に記録中でも、減量期・維持期の自己ベストを
+   「比較には使わないが参考として見たい」というニーズのために、refDateではなくグループそのものを直接指定する */
+function getBestRecordsByCategoryForGroup(exerciseName, excludeId, group){
+  const result = {};
+  SET_CATEGORIES.forEach(({key})=>{ result[key] = { bestWeight: null, bestReps: null, bestVolume: null, bestSetCount: null }; });
+  const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l) && dateMatchesPhaseGroup(l.date, group));
+  logs.forEach(l=>{
+    const cat = logCategory(l);
+    const rec = result[cat];
+    let vol = 0;
+    (l.sets || []).forEach(s=>{
+      const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
+      if (rec.bestWeight === null || w > rec.bestWeight) rec.bestWeight = w;
+      if (rec.bestReps === null || r > rec.bestReps) rec.bestReps = r;
+      vol += w * r;
+    });
+    if (rec.bestVolume === null || vol > rec.bestVolume) rec.bestVolume = vol;
+    const setCount = (l.sets || []).length;
+    if (rec.bestSetCount === null || setCount > rec.bestSetCount) rec.bestSetCount = setCount;
+  });
+  return result;
+}
+
+/* MAX挑戦・高重量・中重量の自己ベスト3行分のHTMLを組み立てる共通ヘルパー。
+   トレ記録モーダル・種目タブの推移モーダルの両方で使う */
+function buildBestRecordsRowsHtml(recByCat, rmByCat, highlightCat){
+  return SET_CATEGORIES.map(({key, label})=>{
+    const rec = recByCat[key];
+    const rm = rmByCat ? (rmByCat[key] || 0) : 0;
+    const hasRecord = rec.bestWeight !== null;
+    const body = hasRecord
+      ? `<b>重量</b> ${rec.bestWeight.toFixed(1)}kg ・ <b>回数</b> ${rec.bestReps}回 ・ <b>Vol</b> ${rec.bestVolume.toFixed(0)}` + (rm > 0 ? ` ・ <b>推定1RM</b> ${rm.toFixed(1)}kg` : '')
+      : `<span class="pr-cat-none">記録なし</span>`;
+    return `<div class="pr-cat-row${key === highlightCat ? ' active' : ''}${hasRecord ? ' clickable' : ''}"${hasRecord ? ` data-cat="${key}"` : ''}><span class="pr-cat-label">${escapeHtml(label)}</span>${body}${hasRecord ? '<span class="pr-cat-chevron">›</span>' : ''}</div>`;
+  }).join('');
+}
+
 /* Epley式で推定1RMを計算する（強度をまたいで成長を1本の指標で比較するため） */
 function estimate1RM(weight, reps){
   const w = Number(weight) || 0, r = Number(reps) || 0;
@@ -4962,10 +4999,10 @@ function openExerciseStatsModal(exerciseName, refDate){
   if (exerciseStatsChartInstance){ exerciseStatsChartInstance.destroy(); exerciseStatsChartInstance = null; }
   const summaryEl = document.getElementById('exerciseStatsSummary');
   const scopeGroup = getPhaseGroupForDate(ref);
-  const scopeNoteHtml = `<p class="phase-scope-note">${scopeGroup ? `${escapeHtml(phaseScopeNoteText(scopeGroup))}を表示中` : '期間未設定のため、全期間の記録を表示中'}</p>`;
-  if (!datasets.length){
-    summaryEl.innerHTML = scopeNoteHtml + '<div class="empty-msg">まだ記録がありません</div>';
-  } else {
+  const scopeNoteHtml = scopeGroup === 'bulk'
+    ? '<p class="phase-scope-note">増量期の記録と、減量期・維持期の記録を分けて表示しています（比較や自動入力には増量期の記録のみを使います）。</p>'
+    : `<p class="phase-scope-note">${scopeGroup ? `${escapeHtml(phaseScopeNoteText(scopeGroup))}を表示中` : '期間未設定のため、全期間の記録を表示中'}</p>`;
+  if (datasets.length){
     // Chart.jsはCDN読み込みのため、オフライン等で読み込めていない場合でもモーダル自体は開けるようにする
     try{
       const ctx = document.getElementById('exerciseStatsChart');
@@ -4985,21 +5022,37 @@ function openExerciseStatsModal(exerciseName, refDate){
     }catch(err){
       console.warn('グラフの描画に失敗しました:', err);
     }
-    const recByCat = getBestRecordsByCategory(exerciseName, null, ref);
-    summaryEl.innerHTML = scopeNoteHtml + `<div class="pr-info">
-      自己ベスト
-      ${SET_CATEGORIES.map(({key, label})=>{
-        const rec = recByCat[key];
-        const hasRecord = rec.bestWeight !== null;
-        const body = hasRecord
-          ? `<b>重量</b> ${rec.bestWeight.toFixed(1)}kg ・ <b>回数</b> ${rec.bestReps}回 ・ <b>Vol</b> ${rec.bestVolume.toFixed(0)}`
-          : `<span class="pr-cat-none">記録なし</span>`;
-        return `<div class="pr-cat-row${hasRecord ? ' clickable' : ''}"${hasRecord ? ` data-cat="${key}"` : ''}><span class="pr-cat-label">${escapeHtml(label)}</span>${body}${hasRecord ? '<span class="pr-cat-chevron">›</span>' : ''}</div>`;
-      }).join('')}
+  }
+  // 増量期基準の時は、比較には使わない参考情報として減量期・維持期の自己ベストも別枠で並べて表示する
+  let bestBlockHtml;
+  if (scopeGroup === 'bulk'){
+    const recBulk = getBestRecordsByCategory(exerciseName, null, ref);
+    const recCut = getBestRecordsByCategoryForGroup(exerciseName, null, 'cutmaintain');
+    bestBlockHtml = `<div class="pr-info" data-best-group="bulk">
+      自己ベスト（${escapeHtml(phaseGroupLabel('bulk'))}）
+      ${buildBestRecordsRowsHtml(recBulk, null, null)}
     </div>
-    <div class="pr-info">推定1RMは Epley式（重量 ×（1 + 回数/30））で算出した目安値です。総セッション数: <b>${logs.length}</b>回</div>`;
+    <div class="pr-info" data-best-group="cutmaintain">
+      自己ベスト（${escapeHtml(phaseGroupLabel('cutmaintain'))}）<span class="phase-scope-note" style="display:inline; margin:0 0 0 4px;">参考</span>
+      ${buildBestRecordsRowsHtml(recCut, null, null)}
+    </div>`;
+  } else {
+    const recByCat = getBestRecordsByCategory(exerciseName, null, ref);
+    bestBlockHtml = `<div class="pr-info">
+      自己ベスト
+      ${buildBestRecordsRowsHtml(recByCat, null, null)}
+    </div>`;
+  }
+  const hasAnyBestRecord = /data-cat=/.test(bestBlockHtml);
+  if (!logs.length && !hasAnyBestRecord){
+    summaryEl.innerHTML = scopeNoteHtml + '<div class="empty-msg">まだ記録がありません</div>';
+  } else {
+    summaryEl.innerHTML = scopeNoteHtml + bestBlockHtml +
+      `<div class="pr-info">推定1RMは Epley式（重量 ×（1 + 回数/30））で算出した目安値です。総セッション数: <b>${logs.length}</b>回</div>`;
     summaryEl.querySelectorAll('.pr-cat-row.clickable').forEach(row=>{
-      row.addEventListener('click', ()=> openBestSetDetailModal(exerciseName, row.dataset.cat, null, ref));
+      const groupWrap = row.closest('[data-best-group]');
+      const explicitGroup = groupWrap ? groupWrap.dataset.bestGroup : null;
+      row.addEventListener('click', ()=> openBestSetDetailModal(exerciseName, row.dataset.cat, null, ref, explicitGroup));
     });
   }
   openModal('exerciseStatsModal');
@@ -5019,14 +5072,29 @@ function findBestLogByCategory(exerciseName, cat, excludeId, refDate){
   });
   return best;
 }
+/* findBestLogByCategoryのグループ明示指定版（参考表示の別枠パネル用） */
+function findBestLogByCategoryForGroup(exerciseName, cat, excludeId, group){
+  let best = null, bestVol = -1;
+  workoutLogs.forEach(l=>{
+    if (l.exerciseName !== exerciseName || l.id === excludeId || isCardioLog(l)) return;
+    if (logCategory(l) !== cat) return;
+    if (!dateMatchesPhaseGroup(l.date, group)) return;
+    const vol = (l.sets || []).reduce((sum,s)=> sum + (Number(s.weight)||0) * (Number(s.reps)||0), 0);
+    if (vol > bestVol){ bestVol = vol; best = l; }
+  });
+  return best;
+}
 
 /* 自己ベスト表示の「MAX挑戦／高重量／中重量」の各行をタップした時に、
    その強度で一番ボリュームが高かった記録（＝自己ベストの記録そのもの）の、各セットの重量・回数を一覧表示する */
-function openBestSetDetailModal(exerciseName, cat, excludeId, refDate){
+function openBestSetDetailModal(exerciseName, cat, excludeId, refDate, explicitGroup){
   const ref = refDate || todayStr();
-  document.getElementById('bestSetDetailTitle').textContent = `${exerciseName} の自己ベスト（${setCategoryLabel(cat)}）`;
+  const groupSuffix = explicitGroup ? `・${phaseGroupLabel(explicitGroup)}` : '';
+  document.getElementById('bestSetDetailTitle').textContent = `${exerciseName} の自己ベスト（${setCategoryLabel(cat)}${groupSuffix}）`;
   const bodyEl = document.getElementById('bestSetDetailBody');
-  const log = findBestLogByCategory(exerciseName, cat, excludeId, ref);
+  const log = explicitGroup
+    ? findBestLogByCategoryForGroup(exerciseName, cat, excludeId, explicitGroup)
+    : findBestLogByCategory(exerciseName, cat, excludeId, ref);
   const sets = log && log.sets ? log.sets : [];
   if (!sets.length){
     bodyEl.innerHTML = '<div class="empty-msg">まだこの強度の記録がありません</div>';
@@ -5123,25 +5191,27 @@ function updateWorkoutExerciseInfo(){
     html += `<div class="pr-info">💡 ${escapeHtml(match.cue)}</div>`;
   }
   const refDate = currentWorkoutRefDate();
-  const phaseGroupNote = (()=>{
-    const g = getPhaseGroupForDate(refDate);
-    return g ? `（${escapeHtml(phaseScopeNoteText(g))}）` : '（期間未設定：全期間）';
-  })();
+  const scopeGroupForInfo = getPhaseGroupForDate(refDate);
+  const phaseGroupNote = scopeGroupForInfo ? `（${escapeHtml(phaseScopeNoteText(scopeGroupForInfo))}）` : '（期間未設定：全期間）';
   if (bodyPart !== CARDIO_BODY_PART){
     const recByCat = getBestRecordsByCategory(name, editingWorkoutId, refDate);
     const rmByCat = getBest1RMByCategory(name, editingWorkoutId, refDate);
-    html += `<div class="pr-info">
-      自己ベスト<span class="phase-scope-note" style="display:inline; margin:0 0 0 4px;">${phaseGroupNote}</span>
-      ${SET_CATEGORIES.map(({key, label})=>{
-        const rec = recByCat[key];
-        const rm = rmByCat[key];
-        const hasRecord = rec.bestWeight !== null;
-        const body = hasRecord
-          ? `<b>重量</b> ${rec.bestWeight.toFixed(1)}kg ・ <b>回数</b> ${rec.bestReps}回 ・ <b>Vol</b> ${rec.bestVolume.toFixed(0)}` + (rm > 0 ? ` ・ <b>推定1RM</b> ${rm.toFixed(1)}kg` : '')
-          : `<span class="pr-cat-none">記録なし</span>`;
-        return `<div class="pr-cat-row${key === currentEntryCategory ? ' active' : ''}${hasRecord ? ' clickable' : ''}"${hasRecord ? ` data-cat="${key}"` : ''}><span class="pr-cat-label">${escapeHtml(label)}</span>${body}${hasRecord ? '<span class="pr-cat-chevron">›</span>' : ''}</div>`;
-      }).join('')}
-    </div>`;
+    if (scopeGroupForInfo === 'bulk'){
+      const recCut = getBestRecordsByCategoryForGroup(name, editingWorkoutId, 'cutmaintain');
+      html += `<div class="pr-info" data-best-group="bulk">
+        自己ベスト<span class="phase-scope-note" style="display:inline; margin:0 0 0 4px;">${phaseGroupNote}</span>
+        ${buildBestRecordsRowsHtml(recByCat, rmByCat, currentEntryCategory)}
+      </div>
+      <div class="pr-info" data-best-group="cutmaintain">
+        自己ベスト（${escapeHtml(phaseGroupLabel('cutmaintain'))}）<span class="phase-scope-note" style="display:inline; margin:0 0 0 4px;">参考・比較や自動入力には使いません</span>
+        ${buildBestRecordsRowsHtml(recCut, null, null)}
+      </div>`;
+    } else {
+      html += `<div class="pr-info">
+        自己ベスト<span class="phase-scope-note" style="display:inline; margin:0 0 0 4px;">${phaseGroupNote}</span>
+        ${buildBestRecordsRowsHtml(recByCat, rmByCat, currentEntryCategory)}
+      </div>`;
+    }
     if (!editingWorkoutId){
       const suggestion = suggestNextTarget(name, currentEntryCategory, refDate);
       if (suggestion){
@@ -5163,7 +5233,9 @@ function updateWorkoutExerciseInfo(){
   const statsLinkBtn = document.getElementById('workoutStatsLinkBtn');
   if (statsLinkBtn) statsLinkBtn.addEventListener('click', ()=> openExerciseStatsModal(name, currentWorkoutRefDate()));
   info.querySelectorAll('.pr-cat-row.clickable').forEach(row=>{
-    row.addEventListener('click', ()=> openBestSetDetailModal(name, row.dataset.cat, editingWorkoutId, refDate));
+    const groupWrap = row.closest('[data-best-group]');
+    const explicitGroup = groupWrap && groupWrap.dataset.bestGroup === 'cutmaintain' ? 'cutmaintain' : null;
+    row.addEventListener('click', ()=> openBestSetDetailModal(name, row.dataset.cat, editingWorkoutId, refDate, explicitGroup));
   });
   if (bodyPart !== CARDIO_BODY_PART) checkLivePR();
   else { updateLiveVolumeRow(null, null); checkLiveCardioPR(); }
@@ -5859,10 +5931,9 @@ function phaseGroupLabel(group){
   if (group === 'cutmaintain') return '減量期・維持期';
   return '';
 }
-/* 自己ベスト等の絞り込み範囲を説明する文言。増量期基準の時は減量期・維持期の記録も対象に含むため「のみ」と言わない
-   （inSamePhaseGroup()の一方向の仕様に合わせている） */
+/* 自己ベスト等の絞り込み範囲を説明する文言。比較・自動入力は常に同じグループのみが対象 */
 function phaseScopeNoteText(group){
-  if (group === 'bulk') return '増量期・減量期・維持期の記録';
+  if (group === 'bulk') return '増量期の記録のみ';
   if (group === 'cutmaintain') return '減量期・維持期の記録のみ';
   return '';
 }
@@ -5885,21 +5956,24 @@ function getPhaseGroupForDate(dateStr){
   const p = getPhasePeriodForDate(dateStr);
   return p ? phaseGroupOf(p.phase) : null;
 }
+/* ある日付の記録が、指定したグループに属するかどうかの判定。
+   その記録自体の日付にトレーニング期が設定されていない場合（＝トレーニング期を使い始める前の過去記録など）は、
+   絞り込まず含める（自己ベストや過去記録が急に「記録なし」になって消えたように見えないようにするため） */
+function dateMatchesPhaseGroup(dateStr, group){
+  const dateGroup = getPhaseGroupForDate(dateStr);
+  if (!dateGroup) return true;
+  return dateGroup === group;
+}
 /* refDateの属する期間グループと同じグループの記録だけに絞り込む判定。
    refDateに期間が設定されていない場合は絞り込まない（全期間を対象にする）。
-   また、比較対象の記録自体の日付にトレーニング期が設定されていない場合（＝トレーニング期を使い始める前の過去記録など）も、
-   絞り込まず含める（自己ベストや過去記録が急に「記録なし」になって消えたように見えないようにするため） */
+   自己ベスト・次回の目標・自動入力などの「比較」に使う判定は、常に同じグループどうしだけに厳密に絞る
+   （増量期は食事量が多く数値が伸びやすいため、グループをまたいで比較すると実力を見誤らせてしまうため）。
+   増量期の記録を入力中に限り、減量期・維持期の自己ベストを「参考として別枠で」表示する機能は、
+   この関数を使わず getBestRecordsByCategoryForGroup() 等で別グループを明示的に指定して取得する。 */
 function inSamePhaseGroup(dateStr, refDate){
   const refGroup = getPhaseGroupForDate(refDate);
   if (!refGroup) return true;
-  const dateGroup = getPhaseGroupForDate(dateStr);
-  if (!dateGroup) return true;
-  if (dateGroup === refGroup) return true;
-  // 増量期は食事量が多く数値が伸びやすいため、減量期・維持期の自己ベストの基準に増量期の記録を混ぜてしまうと
-  // 実力を見誤らせてしまう。一方、増量期を基準にしている時は、より条件が厳しい減量期・維持期の記録も
-  // 参考として見られた方が有用なので、増量期基準の時だけ減量期・維持期の記録も対象に含める（逆方向は含めない）。
-  if (refGroup === 'bulk' && dateGroup === 'cutmaintain') return true;
-  return false;
+  return dateMatchesPhaseGroup(dateStr, refGroup);
 }
 /* 記録モーダルが開いている間の「基準日」（自己ベスト等をどの期間で絞り込むかの基準）。
    その記録自体の日付（過去日にさかのぼって入力する場合も、その日付が属する期間で判定する） */
