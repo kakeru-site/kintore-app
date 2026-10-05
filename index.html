@@ -484,6 +484,8 @@
     font-size:12.5px; color:var(--text-dim);
   }
   .day-duration-info b{ color:var(--cyan); font-family:var(--font-display); font-weight:600; }
+  .day-duration-sessions{ margin-top:6px; display:flex; flex-direction:column; gap:3px; }
+  .day-duration-session-row{ display:flex; justify-content:space-between; gap:10px; font-size:11.5px; color:var(--text-faint); padding-left:2px; }
   .list-item .date{font-size:12px; color:var(--text-dim);}
   .list-item .main-val{font-family:var(--font-display); font-size:18px; font-weight:600;}
   .list-item .main-val-row{display:flex; align-items:center; gap:7px; flex-wrap:wrap;}
@@ -682,6 +684,7 @@
     padding:9px 12px; margin:-4px 0 10px; font-size:12px; color:var(--text-dim);
   }
   .live-volume-row .live-volume-val{ color:var(--text); font-weight:700; font-family:var(--font-display); font-size:14px; }
+  .live-volume-row .live-volume-incl{ color:var(--text-faint); font-weight:400; font-size:11px; }
   .live-volume-row .live-volume-diff{ font-weight:700; }
   .live-volume-row .live-volume-diff.up{ color:var(--green); }
   .live-volume-row .live-volume-diff.down{ color:var(--text-faint); }
@@ -907,6 +910,12 @@
   .set-row .set-idx{ width:18px; color:var(--text-faint); font-size:12px; flex-shrink:0; }
   .set-row input{ flex:1; }
   .set-row button{ background:none; border:none; color:var(--text-faint); font-size:20px; cursor:pointer; width:26px; flex-shrink:0; }
+  .set-row .set-drop-btn{
+    background:none; border:1px solid var(--border); color:var(--text-faint); font-size:11px; font-weight:700;
+    padding:0 9px; height:28px; line-height:1; border-radius:999px; cursor:pointer; flex-shrink:0; white-space:nowrap;
+  }
+  .set-row .set-drop-btn.active{ background:var(--orange-dim); border-color:var(--orange); color:var(--orange); }
+  .set-row.is-drop{ opacity:0.82; }
   .add-set-btn{
     width:100%; padding:10px; border:1px dashed var(--border); background:none;
     color:var(--text-dim); border-radius:var(--radius-sm); cursor:pointer; font-size:13px; margin-top:2px;
@@ -1365,6 +1374,15 @@
           <canvas id="bodyPartBalanceChart"></canvas>
         </div>
         <div class="empty-msg" id="bodyPartBalanceEmpty" style="display:none;">直近60日の記録がありません</div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:10px;"><span>トレーニング時間帯の傾向（全期間）</span></div>
+        <div class="pr-info" id="timeOfDaySummary" style="margin-bottom:8px;"></div>
+        <div class="chart-wrap" id="timeOfDayWrap" style="height:160px;">
+          <canvas id="timeOfDayChart"></canvas>
+        </div>
+        <div class="empty-msg" id="timeOfDayEmpty" style="display:none;">ストップウォッチで記録したトレーニング時間がまだありません</div>
+        <p style="font-size:11px; color:var(--text-faint); margin-top:8px;">※ ストップウォッチの「記録する」で保存した、開始〜記録した時刻をもとにした目安の内訳です。手入力で保存した時間は含まれません。</p>
       </div>
       <div class="cal-header">
         <button id="calPrevBtn">‹</button>
@@ -2240,7 +2258,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot,
-  query, orderBy, serverTimestamp, enableIndexedDbPersistence, increment, writeBatch
+  query, orderBy, serverTimestamp, enableIndexedDbPersistence, increment, writeBatch, arrayUnion
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 
 const app = initializeApp(firebaseConfig);
@@ -2802,13 +2820,16 @@ function startListeners(uid){
   const tdCol = collection(db, 'users', uid, 'trainingDuration');
   unsubTrainingDuration = onSnapshot(tdCol, (snap)=>{
     trainingDurations = {};
+    trainingDurationSessions = {};
     snap.docs.forEach(d=>{
       const data = d.data();
       trainingDurations[d.id] = Number(data.seconds) || 0;
+      trainingDurationSessions[d.id] = Array.isArray(data.sessions) ? data.sessions : [];
     });
     renderWorkoutList();
     renderPeriodSummary();
     renderCalendar();
+    renderTrainingTimeOfDayStats();
   }, (err)=>{
     console.error(err);
   });
@@ -4354,6 +4375,7 @@ document.getElementById('exerciseDeleteBtn').addEventListener('click', ()=>{
    ========================================================= */
 let workoutLogs = [];
 let trainingDurations = {}; // { 'YYYY-MM-DD': 秒数 } ストップウォッチから記録したその日のトレーニング時間
+let trainingDurationSessions = {}; // { 'YYYY-MM-DD': [{ start:'HH:MM', end:'HH:MM', seconds:N }] } 開始〜記録した時刻の内訳（ストップウォッチ経由のみ）
 let routines = [];
 let weeklyGoalSessions = null;
 let phasePeriods = [];
@@ -4731,11 +4753,12 @@ function renderSetsUI(){
   wrap.innerHTML = '';
   currentSets.forEach((s,i)=>{
     const row = document.createElement('div');
-    row.className = 'set-row';
+    row.className = 'set-row' + (s.drop ? ' is-drop' : '');
     row.innerHTML = `
       <span class="set-idx">${i+1}</span>
       <input type="number" step="0.5" min="0" max="1000" placeholder="重量kg" value="${s.weight}" data-i="${i}" data-f="weight">
       <input type="number" step="1" min="0" max="999" placeholder="回数" value="${s.reps}" data-i="${i}" data-f="reps">
+      <button type="button" class="set-drop-btn${s.drop ? ' active' : ''}" data-drop="${i}">ドロップ</button>
       <button type="button" data-remove="${i}">×</button>
     `;
     wrap.appendChild(row);
@@ -4743,6 +4766,14 @@ function renderSetsUI(){
   wrap.querySelectorAll('input').forEach(inp=>{
     inp.addEventListener('input', ()=>{
       currentSets[+inp.dataset.i][inp.dataset.f] = inp.value;
+      checkLivePR();
+    });
+  });
+  wrap.querySelectorAll('[data-drop]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = +btn.dataset.drop;
+      currentSets[i].drop = !currentSets[i].drop;
+      renderSetsUI();
       checkLivePR();
     });
   });
@@ -4782,7 +4813,7 @@ function applySetPlaceholderHints(){
 }
 
 document.getElementById('addSetBtn').addEventListener('click', ()=>{
-  currentSets.push({ weight: '', reps: '' });
+  currentSets.push({ weight: '', reps: '', drop: false });
   renderSetsUI();
 });
 
@@ -5047,16 +5078,25 @@ function openGripStatsModal(exerciseName){
   openModal('exerciseStatsModal');
 }
 
+/* ドロップセット（直前のセットに続けて重量を落として追い込む手法）としてマークされたセットは、
+   「正規のボリューム」としての自己ベスト判定・ボリューム更新バッジからは除外する。
+   除外版（PR判定用）と、含めた版（トレ記録画面でその場の総負荷量を見たい時用）を分けて計算できるようにする。 */
+function setVolume(s){
+  return (Number(s.weight) || 0) * (Number(s.reps) || 0);
+}
+function setsVolume(sets, includeDrop){
+  return (sets || []).reduce((sum, s)=> sum + (includeDrop || !s.drop ? setVolume(s) : 0), 0);
+}
+
 function getBestRecords(exerciseName, excludeId){
   const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId);
   let bestWeight = null, bestReps = null, bestVolume = null, bestSetCount = null;
   logs.forEach(l=>{
-    let vol = 0;
+    const vol = setsVolume(l.sets);
     (l.sets || []).forEach(s=>{
       const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
       if (bestWeight === null || w > bestWeight) bestWeight = w;
       if (bestReps === null || r > bestReps) bestReps = r;
-      vol += w * r;
     });
     if (bestVolume === null || vol > bestVolume) bestVolume = vol;
     const setCount = (l.sets || []).length;
@@ -5082,12 +5122,11 @@ function getBestRecordsByCategory(exerciseName, excludeId, refDate){
   logs.forEach(l=>{
     const cat = logCategory(l);
     const rec = result[cat];
-    let vol = 0;
+    const vol = setsVolume(l.sets);
     (l.sets || []).forEach(s=>{
       const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
       if (rec.bestWeight === null || w > rec.bestWeight) rec.bestWeight = w;
       if (rec.bestReps === null || r > rec.bestReps) rec.bestReps = r;
-      vol += w * r;
     });
     if (rec.bestVolume === null || vol > rec.bestVolume) rec.bestVolume = vol;
     const setCount = (l.sets || []).length;
@@ -5105,12 +5144,11 @@ function getBestRecordsByCategoryForGroup(exerciseName, excludeId, group){
   logs.forEach(l=>{
     const cat = logCategory(l);
     const rec = result[cat];
-    let vol = 0;
+    const vol = setsVolume(l.sets);
     (l.sets || []).forEach(s=>{
       const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
       if (rec.bestWeight === null || w > rec.bestWeight) rec.bestWeight = w;
       if (rec.bestReps === null || r > rec.bestReps) rec.bestReps = r;
-      vol += w * r;
     });
     if (rec.bestVolume === null || vol > rec.bestVolume) rec.bestVolume = vol;
     const setCount = (l.sets || []).length;
@@ -5296,7 +5334,7 @@ function findBestLogByCategory(exerciseName, cat, excludeId, refDate){
     if (l.exerciseName !== exerciseName || l.id === excludeId || isCardioLog(l) || isGripLog(l)) return;
     if (logCategory(l) !== cat) return;
     if (!inSamePhaseGroup(l.date, ref)) return;
-    const vol = (l.sets || []).reduce((sum,s)=> sum + (Number(s.weight)||0) * (Number(s.reps)||0), 0);
+    const vol = setsVolume(l.sets);
     if (vol > bestVol){ bestVol = vol; best = l; }
   });
   return best;
@@ -5308,7 +5346,7 @@ function findBestLogByCategoryForGroup(exerciseName, cat, excludeId, group){
     if (l.exerciseName !== exerciseName || l.id === excludeId || isCardioLog(l) || isGripLog(l)) return;
     if (logCategory(l) !== cat) return;
     if (!dateMatchesPhaseGroup(l.date, group)) return;
-    const vol = (l.sets || []).reduce((sum,s)=> sum + (Number(s.weight)||0) * (Number(s.reps)||0), 0);
+    const vol = setsVolume(l.sets);
     if (vol > bestVol){ bestVol = vol; best = l; }
   });
   return best;
@@ -5330,16 +5368,21 @@ function openBestSetDetailModal(exerciseName, cat, excludeId, refDate, explicitG
     openModal('bestSetDetailModal');
     return;
   }
-  const totalVolume = sets.reduce((sum, s)=> sum + (Number(s.weight)||0) * (Number(s.reps)||0), 0);
+  const hasDrop = sets.some(s=> s.drop);
+  const totalVolume = setsVolume(sets, true);
+  const totalVolumeExDrop = setsVolume(sets, false);
   const rows = sets.map((s, i)=>{
     const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
     return `<div class="list-item" style="cursor:default;">
-      <div class="date">${i + 1}セット目</div>
+      <div class="date">${i + 1}セット目${s.drop ? ' <span class="mini-badge">ドロップ</span>' : ''}</div>
       <div class="main-val">${w}kg × ${r}回</div>
     </div>`;
   }).join('');
+  const volLine = hasDrop
+    ? `合計ボリューム（ドロップ含む）<b>${totalVolume.toFixed(0)}</b>・（除く）<b>${totalVolumeExDrop.toFixed(0)}</b>`
+    : `合計ボリューム <b>${totalVolume.toFixed(0)}</b>`;
   bodyEl.innerHTML = `
-    <div class="pr-info">${escapeHtml(log.date)} の記録・合計ボリューム <b>${totalVolume.toFixed(0)}</b></div>
+    <div class="pr-info">${escapeHtml(log.date)} の記録・${volLine}</div>
     <div class="card">${rows}</div>
   `;
   openModal('bestSetDetailModal');
@@ -5351,8 +5394,8 @@ function autofillSetsFromCategory(cat){
   if (!name) return;
   const ref = findBestLogByCategory(name, cat, editingWorkoutId, currentWorkoutRefDate());
   currentSets = (ref && ref.sets && ref.sets.length)
-    ? ref.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps) }))
-    : [{ weight: '', reps: '' }];
+    ? ref.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps), drop: !!s.drop }))
+    : [{ weight: '', reps: '', drop: false }];
   renderSetsUI();
   checkLivePR();
 }
@@ -5544,7 +5587,7 @@ document.addEventListener('click', (e)=>{
 
 /* 入力中のセットから「現時点でのボリューム」を計算し、自己ベストとの差を表示する。
    過去MAXとどれくらい違うのかをセット入力中にその場で把握できるようにするため。 */
-function updateLiveVolumeRow(curVolume, bestVolume){
+function updateLiveVolumeRow(curVolume, bestVolume, curVolumeIncl){
   const rowEl = document.getElementById('liveVolumeRow');
   if (!rowEl) return;
   if (curVolume === null){
@@ -5552,13 +5595,18 @@ function updateLiveVolumeRow(curVolume, bestVolume){
     rowEl.innerHTML = '';
     return;
   }
-  const curText = curVolume % 1 === 0 ? String(curVolume) : curVolume.toFixed(1);
+  const fmt = v => v % 1 === 0 ? String(v) : v.toFixed(1);
+  const hasDrop = curVolumeIncl !== undefined && curVolumeIncl !== curVolume;
+  const curLabel = hasDrop ? 'ドロップ除くボリューム' : '現時点でのボリューム';
+  const curHtml = hasDrop
+    ? `<span>${curLabel} <span class="live-volume-val">${fmt(curVolume)}</span><span class="live-volume-incl"> ／ 含む ${fmt(curVolumeIncl)}</span></span>`
+    : `<span>${curLabel} <span class="live-volume-val">${fmt(curVolume)}</span></span>`;
   let diffHtml;
   if (bestVolume === null){
     diffHtml = '<span class="live-volume-diff even">自己ベスト記録なし</span>';
   } else {
     const diff = curVolume - bestVolume;
-    const diffText = (Math.abs(diff) % 1 === 0 ? String(Math.abs(diff)) : Math.abs(diff).toFixed(1));
+    const diffText = fmt(Math.abs(diff));
     if (diff > 0){
       diffHtml = `<span class="live-volume-diff up">自己ベスト比 +${diffText}</span>`;
     } else if (diff < 0){
@@ -5568,7 +5616,7 @@ function updateLiveVolumeRow(curVolume, bestVolume){
     }
   }
   rowEl.style.display = 'flex';
-  rowEl.innerHTML = `<span>現時点でのボリューム <span class="live-volume-val">${curText}</span></span>${diffHtml}`;
+  rowEl.innerHTML = `${curHtml}${diffHtml}`;
 }
 
 function checkLivePR(){
@@ -5581,16 +5629,20 @@ function checkLivePR(){
   const rec = recByCat[currentEntryCategory] || recByCat.medium;
   const validSets = currentSets
     .filter(s => s.weight !== '' && s.reps !== '')
-    .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }));
+    .map(s => ({ weight: Number(s.weight), reps: Number(s.reps), drop: !!s.drop }));
   if (!validSets.length){ updateLiveVolumeRow(null, null); return; }
   const curMaxWeight = Math.max(...validSets.map(s=>s.weight));
   const curMaxReps = Math.max(...validSets.map(s=>s.reps));
-  const curVolume = validSets.reduce((sum,s)=> sum + s.weight*s.reps, 0);
-  updateLiveVolumeRow(curVolume, rec.bestVolume);
+  // ボリューム更新・自己ベスト判定には「ドロップセットを含めないボリューム」を使う（追い込みのための
+  // ドロップセットでボリュームが膨らんで、実質的な自己ベスト更新と混同されないようにするため）。
+  // その場の総負荷量を見たいという用途のために「含めたボリューム」もあわせて表示する。
+  const curVolumeExDrop = validSets.reduce((sum,s)=> sum + (s.drop ? 0 : s.weight*s.reps), 0);
+  const curVolumeIncl = validSets.reduce((sum,s)=> sum + s.weight*s.reps, 0);
+  updateLiveVolumeRow(curVolumeExDrop, rec.bestVolume, curVolumeIncl);
   const badges = [];
   if (rec.bestWeight === null || curMaxWeight > rec.bestWeight) badges.push('🏋️重量更新');
   if (rec.bestReps === null || curMaxReps > rec.bestReps) badges.push('🔁回数更新');
-  if (rec.bestVolume === null || curVolume > rec.bestVolume) badges.push('📊ボリューム更新');
+  if (rec.bestVolume === null || curVolumeExDrop > rec.bestVolume) badges.push('📊ボリューム更新');
   if (badges.length){
     const rowEl = document.createElement('div');
     rowEl.className = 'pr-live-badge-row';
@@ -5704,7 +5756,7 @@ function openWorkoutModal(entry, prefill){
   const entryIsGrip = entry ? isGripLog(entry) : (bp === GRIP_BODY_PART);
 
   if (entry){
-    currentSets = (!entryIsCardio && !entryIsGrip) ? entry.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps) })) : [{ weight: '', reps: '' }];
+    currentSets = (!entryIsCardio && !entryIsGrip) ? entry.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps), drop: !!s.drop })) : [{ weight: '', reps: '', drop: false }];
     currentCardio = entryIsCardio ? entry.cardioSegments.map(c => ({ distanceM: String(c.distanceM), speedKmh: String(c.speedKmh) })) : [{ distanceM: '', speedKmh: '' }];
     currentGrip = entryIsGrip ? {
       right: Number.isFinite(entry.gripRight) ? String(entry.gripRight) : '',
@@ -5713,17 +5765,17 @@ function openWorkoutModal(entry, prefill){
     currentEntryCategory = (entryIsCardio || entryIsGrip) ? 'medium' : logCategory(entry);
   } else if (prefill){
     // 「保存して次のセットへ」: 部位・種目・強度はそのまま、セットは空欄から
-    currentSets = [{ weight: '', reps: '' }];
+    currentSets = [{ weight: '', reps: '', drop: false }];
     currentCardio = [{ distanceM: '', speedKmh: '' }];
     currentGrip = { right: '', left: '' };
     currentEntryCategory = prefill.category || 'medium';
   } else if (draft){
-    currentSets = (draft.sets && draft.sets.length) ? draft.sets.map(s => ({ weight: s.weight, reps: s.reps })) : [{ weight: '', reps: '' }];
+    currentSets = (draft.sets && draft.sets.length) ? draft.sets.map(s => ({ weight: s.weight, reps: s.reps, drop: !!s.drop })) : [{ weight: '', reps: '', drop: false }];
     currentCardio = (draft.cardio && draft.cardio.length) ? draft.cardio : [{ distanceM: '', speedKmh: '' }];
     currentGrip = draft.grip ? draft.grip : { right: '', left: '' };
     currentEntryCategory = draft.category || 'medium';
   } else {
-    currentSets = [{ weight: '', reps: '' }];
+    currentSets = [{ weight: '', reps: '', drop: false }];
     currentCardio = [{ distanceM: '', speedKmh: '' }];
     currentGrip = { right: '', left: '' };
     currentEntryCategory = 'medium';
@@ -5846,7 +5898,7 @@ async function performWorkoutSave(){
     }
     sets = currentSets
       .filter(s => s.weight !== '' && s.reps !== '')
-      .map(s => ({ weight: Number(s.weight), reps: Number(s.reps) }));
+      .map(s => ({ weight: Number(s.weight), reps: Number(s.reps), drop: !!s.drop }));
     if (!sets.length){
       showToast('セットを1つ以上入力してください');
       return { ok: false };
@@ -5903,7 +5955,8 @@ document.getElementById('workoutForm').addEventListener('submit', async (e)=>{
 });
 
 document.getElementById('workoutDraftSaveBtn').addEventListener('click', ()=>{
-  saveWorkoutDraft(false);
+  // 下書きの保存自体が何らかの理由で失敗しても、モーダルは必ず閉じるようにする
+  try{ saveWorkoutDraft(false); }catch(err){ console.error(err); }
   closeModal('workoutModal');
 });
 
@@ -6416,12 +6469,12 @@ function computeSessionRecords(){
     let bw = null, br = null, bv = null;
     let prevW = null, prevPrevW = null; // 停滞検知用：直近2回分の最大重量を保持
     map[name] = logs.map(l=>{
-      let sw = null, sr = null, vol = 0;
+      let sw = null, sr = null;
+      const vol = setsVolume(l.sets);
       (l.sets || []).forEach(s=>{
         const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
         if (sw === null || w > sw) sw = w;
         if (sr === null || r > sr) sr = r;
-        vol += w * r;
       });
       const isWeightPR = bw === null || sw > bw;
       const isRepsPR = br === null || sr > br;
@@ -6549,6 +6602,65 @@ function renderBodyPartBalance(){
       plugins: {
         legend: { position: 'bottom', labels: { color: cssVar('--text-dim'), font: { size: 11 }, padding: 12 } },
         tooltip: { callbacks: { label: (c)=> `${c.label}: ${c.parsed}回` } }
+      }
+    }
+  });
+}
+
+/* トレーニング時間帯の傾向：ストップウォッチで記録した区間（開始〜記録した時刻）を、開始した時間帯(0〜23時)で
+   集計する。数年後に「だいたい何時から何時にトレーニングしていたか」を振り返れるようにするための内訳表示で、
+   精密な統計ではなく目安なので、開始時刻が属する「時」だけを数える簡易な集計にしている。 */
+let timeOfDayChart = null;
+function allTrainingSessions(){
+  const list = [];
+  Object.keys(trainingDurationSessions).forEach(dateStr=>{
+    (trainingDurationSessions[dateStr] || []).forEach(s=>{
+      if (s && typeof s.start === 'string' && /^\d{1,2}:\d{2}$/.test(s.start)) list.push(s);
+    });
+  });
+  return list;
+}
+function renderTrainingTimeOfDayStats(){
+  const summaryEl = document.getElementById('timeOfDaySummary');
+  const wrap = document.getElementById('timeOfDayWrap');
+  const emptyMsg = document.getElementById('timeOfDayEmpty');
+  if (!summaryEl || !wrap || !emptyMsg) return;
+  const sessions = allTrainingSessions();
+  if (!sessions.length){
+    wrap.style.display = 'none';
+    emptyMsg.style.display = 'block';
+    summaryEl.textContent = '';
+    if (timeOfDayChart){ timeOfDayChart.destroy(); timeOfDayChart = null; }
+    return;
+  }
+  wrap.style.display = 'block';
+  emptyMsg.style.display = 'none';
+
+  const hourCounts = new Array(24).fill(0);
+  sessions.forEach(s=>{
+    const h = Number(s.start.split(':')[0]);
+    if (h >= 0 && h <= 23) hourCounts[h]++;
+  });
+  const topHour = hourCounts.indexOf(Math.max(...hourCounts));
+  const topCount = hourCounts[topHour];
+  summaryEl.innerHTML = `よく <b>${topHour}時台</b> に開始しています（${topCount}回・全${sessions.length}回中）`;
+
+  const labels = Array.from({length:24}, (_,h)=> `${h}`);
+  const ctx = document.getElementById('timeOfDayChart');
+  if (timeOfDayChart) timeOfDayChart.destroy();
+  timeOfDayChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: hourCounts, backgroundColor: cssVar('--cyan'), borderRadius: 3 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (c)=> `${c.label}時台: ${c.parsed.y}回` } }
+      },
+      scales: {
+        x: { ticks: { color: cssVar('--text-faint'), font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: cssVar('--text-faint'), font: { size: 9 }, stepSize: 1 }, grid: { color: cssVar('--border') } }
       }
     }
   });
@@ -6708,10 +6820,20 @@ function openDayDetail(dateStr){
   const wEntry = weightEntries.find(e => e.date === dateStr);
 
   const durSec = trainingDurations[dateStr];
+  const sessions = trainingDurationSessions[dateStr] || [];
+  // ストップウォッチ経由で記録した区間（開始〜記録した時刻）があれば、内訳として並べて見られるようにする
+  const sessionsHtml = sessions.length
+    ? `<div class="day-duration-sessions">${sessions.map(s =>
+        `<div class="day-duration-session-row"><span>${escapeHtml(s.start)}〜${escapeHtml(s.end)}</span><span>${formatDurationShort(s.seconds)}</span></div>`
+      ).join('')}</div>`
+    : '';
   const durationHtml = durSec
-    ? `<div class="day-duration-info" id="dayDetailDuration" style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-         <span>⏱ トレーニング時間 <b>${formatDurationShort(durSec)}</b></span>
-         <button type="button" class="btn-icon-sm" id="dayDetailDurationEditBtn" aria-label="編集">✎</button>
+    ? `<div class="day-duration-info" id="dayDetailDuration">
+         <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+           <span>⏱ トレーニング時間 <b>${formatDurationShort(durSec)}</b></span>
+           <button type="button" class="btn-icon-sm" id="dayDetailDurationEditBtn" aria-label="編集">✎</button>
+         </div>
+         ${sessionsHtml}
        </div>`
     : `<div class="day-duration-info" id="dayDetailDurationAdd" style="cursor:pointer; color:var(--cyan); display:flex; align-items:center; gap:6px;">
          ＋ トレーニング時間を記録
@@ -7353,6 +7475,8 @@ document.addEventListener('visibilitychange', ()=>{
 /* ストップウォッチ（ラップ付き） */
 let swRunning = false, swStartTs = 0, swElapsed = 0, swRAF = null;
 let swRecordedElapsed = 0; // これまでにその日のトレーニング時間として記録済みの経過時間(ms)
+let swSessionStartClock = null; // このストップウォッチ(リセットからの一連)を開始した時刻（壁時計）
+let swLastRecordClock = null; // 直前に「記録する」を押した時刻（次回の区間の開始点にする）
 let laps = [];
 function formatSw(ms){
   const cs = Math.floor((ms % 1000) / 100);
@@ -7360,6 +7484,10 @@ function formatSw(ms){
   const s = totalSec % 60;
   const m = Math.floor(totalSec / 60);
   return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${cs}`;
+}
+// 24時間表記のHH:MMに整形する（カレンダー・記録の内訳表示用）
+function formatClockHM(d){
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 function swTick(){
   if (!swRunning) return;
@@ -7369,6 +7497,8 @@ function swTick(){
 }
 document.getElementById('swStartBtn').addEventListener('click', (e)=>{
   if (!swRunning){
+    // リセット後の最初の開始だけを「このセッションの開始時刻」として記録する（一時停止からの再開では更新しない）
+    if (swElapsed === 0) swSessionStartClock = new Date();
     swRunning = true;
     swStartTs = Date.now() - swElapsed;
     swTick();
@@ -7389,6 +7519,8 @@ document.getElementById('swResetBtn').addEventListener('click', ()=>{
   maybeReleaseWakeLock();
   swElapsed = 0;
   swRecordedElapsed = 0;
+  swSessionStartClock = null;
+  swLastRecordClock = null;
   laps = [];
   renderLaps();
   document.getElementById('swDisplay').textContent = formatSw(0);
@@ -7421,15 +7553,22 @@ document.getElementById('swRecordBanner').addEventListener('click', async ()=>{
   swRecordBannerSaving = true;
   const deltaSec = Math.round(deltaMs / 1000);
   const dateStr = todayStr();
+  // 開始時刻: 前回「記録する」を押した時刻があればそこから、無ければこのセッションの開始時刻から。
+  // 記録時刻: 今、この「記録する」を押した時刻。どちらも24時間表記で保存する（振り返り用の内訳なので目安で十分）。
+  const nowClock = new Date();
+  const segStartClock = swLastRecordClock || swSessionStartClock || nowClock;
+  const session = { start: formatClockHM(segStartClock), end: formatClockHM(nowClock), seconds: deltaSec };
   try{
     await setDoc(doc(db, 'users', user.uid, 'trainingDuration', dateStr), {
       date: dateStr,
       seconds: increment(deltaSec),
+      sessions: arrayUnion(session),
       updatedAt: serverTimestamp()
     }, { merge: true });
     swRecordedElapsed = swElapsed;
+    swLastRecordClock = nowClock;
     updateSwRecordBanner();
-    showToast(`トレーニング時間を記録しました（+${formatDurationShort(deltaSec)}）`);
+    showToast(`トレーニング時間を記録しました（+${formatDurationShort(deltaSec)}・${session.start}〜${session.end}）`);
   }catch(err){
     console.error(err);
     showToast('トレーニング時間の記録に失敗しました: ' + err.message);
