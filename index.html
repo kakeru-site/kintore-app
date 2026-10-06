@@ -151,6 +151,7 @@
     opacity:1;
   }
   .field-hint{ font-size:11px; font-weight:400; color:var(--text-faint); margin-left:2px; }
+  .set-drop-hint{ font-size:11px; color:var(--text-faint); margin:2px 0 8px; }
   .fatigue-picker{ display:flex; gap:6px; }
   .fatigue-btn{
     flex:1; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm);
@@ -906,16 +907,22 @@
   .confirm-box p{font-size:14px; color:var(--text-dim); margin:0 0 18px;}
 
   /* ---------- Sets rows ---------- */
-  .set-row{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .set-row{ display:flex; gap:7px; align-items:center; margin-bottom:6px; padding:4px 6px; border-radius:var(--radius-sm); transition:background-color 0.15s ease; }
   .set-row .set-idx{ width:18px; color:var(--text-faint); font-size:12px; flex-shrink:0; }
-  .set-row input{ flex:1; }
+  .set-row input{ flex:1; min-width:0; }
   .set-row button{ background:none; border:none; color:var(--text-faint); font-size:20px; cursor:pointer; width:26px; flex-shrink:0; }
-  .set-row .set-drop-btn{
-    background:none; border:1px solid var(--border); color:var(--text-faint); font-size:11px; font-weight:700;
-    padding:0 9px; height:28px; line-height:1; border-radius:999px; cursor:pointer; flex-shrink:0; white-space:nowrap;
+  /* ドロップセットの切り替えは、文字ラベルだと行が窮屈な端末（文字サイズを大きくしている等）で
+     となりの×ボタンと重なって見えるバグがあったため、固定サイズの円形アイコンボタンに変更した。
+     width/heightを明示指定することで、上の `.set-row button{ width:26px }` に幅だけ奪われることも防いでいる。 */
+  .set-row .set-drop-toggle{
+    width:28px; height:28px; flex-shrink:0; padding:0; border-radius:50%;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-faint);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
   }
-  .set-row .set-drop-btn.active{ background:var(--orange-dim); border-color:var(--orange); color:var(--orange); }
-  .set-row.is-drop{ opacity:0.82; }
+  .set-row .set-drop-toggle svg{ width:14px; height:14px; }
+  .set-row .set-drop-toggle.active{ background:var(--orange); border-color:var(--orange); color:#fff; }
+  .set-row.is-drop{ background:var(--orange-dim); }
+  .set-row.is-drop .set-idx{ color:var(--orange); font-weight:600; }
   .add-set-btn{
     width:100%; padding:10px; border:1px dashed var(--border); background:none;
     color:var(--text-dim); border-radius:var(--radius-sm); cursor:pointer; font-size:13px; margin-top:2px;
@@ -1855,6 +1862,7 @@
       </div>
       <div class="field" id="setsFieldWrap">
         <label>セット <span class="field-hint" id="setsBestHint"></span></label>
+        <p class="set-drop-hint">↓↓ をタップすると、そのセットをドロップセット（直前に続けて重量を落とすセット）にできます</p>
         <div class="live-volume-row" id="liveVolumeRow" style="display:none;"></div>
         <div id="setsContainer"></div>
         <button type="button" class="add-set-btn" id="addSetBtn">＋ セットを追加</button>
@@ -4751,6 +4759,8 @@ function badgeHtml(rec){
 function renderSetsUI(){
   const wrap = document.getElementById('setsContainer');
   wrap.innerHTML = '';
+  // ドロップセットの切り替えアイコン（↓↓）。直前のセットに続けて重量を落として追い込む「ドロップセット」の目印。
+  const DROP_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 7 12 13 18 7"/><polyline points="6 14 12 20 18 14"/></svg>';
   currentSets.forEach((s,i)=>{
     const row = document.createElement('div');
     row.className = 'set-row' + (s.drop ? ' is-drop' : '');
@@ -4758,8 +4768,8 @@ function renderSetsUI(){
       <span class="set-idx">${i+1}</span>
       <input type="number" step="0.5" min="0" max="1000" placeholder="重量kg" value="${s.weight}" data-i="${i}" data-f="weight">
       <input type="number" step="1" min="0" max="999" placeholder="回数" value="${s.reps}" data-i="${i}" data-f="reps">
-      <button type="button" class="set-drop-btn${s.drop ? ' active' : ''}" data-drop="${i}">ドロップ</button>
-      <button type="button" data-remove="${i}">×</button>
+      <button type="button" class="set-drop-toggle${s.drop ? ' active' : ''}" data-drop="${i}" aria-pressed="${s.drop ? 'true' : 'false'}" aria-label="${i+1}セット目をドロップセットにする">${DROP_ICON_SVG}</button>
+      <button type="button" data-remove="${i}" aria-label="${i+1}セット目を削除">×</button>
     `;
     wrap.appendChild(row);
   });
@@ -4775,6 +4785,7 @@ function renderSetsUI(){
       currentSets[i].drop = !currentSets[i].drop;
       renderSetsUI();
       checkLivePR();
+      showToast(currentSets[i].drop ? `セット${i+1}をドロップセットにしました` : `セット${i+1}のドロップセットを解除しました`);
     });
   });
   wrap.querySelectorAll('[data-remove]').forEach(btn=>{
