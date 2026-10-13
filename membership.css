@@ -1,0 +1,48 @@
+/* 会員制まわりの画面(ゲート・申込・振込案内・バナー) */
+#memberGate{
+  display:none; position:fixed; inset:0; z-index:160; background:var(--bg);
+  overflow-y:auto; padding:24px; align-items:flex-start; justify-content:center;
+}
+#memberGate.active{ display:flex; }
+.mg-card{
+  width:100%; max-width:380px; margin:auto;
+  background:var(--bg-elevated); border:1px solid var(--border);
+  border-radius:var(--radius); padding:28px 22px;
+}
+.mg-title{ font-size:17px; font-weight:700; text-align:center; margin:6px 0 10px; }
+.mg-text{ color:var(--text-dim); font-size:13px; line-height:1.8; margin:0 0 14px; }
+.mg-meta{ background:var(--surface); border-radius:var(--radius-sm); padding:12px 14px; font-size:13px; line-height:1.9; margin-bottom:14px; }
+.mg-meta b{ color:var(--text); }
+.mg-warn{
+  border:2px dashed var(--orange); color:var(--orange); background:var(--orange-dim);
+  border-radius:var(--radius-sm); padding:10px 12px; font-size:12.5px; line-height:1.7; margin-bottom:14px;
+}
+.mg-actions{ display:flex; flex-direction:column; gap:10px; margin-top:16px; }
+.mg-plans{ display:flex; gap:10px; margin-bottom:14px; }
+.mg-plan{
+  flex:1; padding:12px 8px; text-align:center; cursor:pointer;
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm);
+  color:var(--text); font-size:13px; font-family:inherit;
+}
+.mg-plan b{ display:block; font-size:16px; margin-top:2px; }
+.mg-plan.active{ border-color:var(--red); }
+.mg-ok{ color:var(--green); font-size:13px; line-height:1.8; margin-bottom:12px; }
+.mg-err{ color:var(--red); font-size:12.5px; min-height:16px; margin-bottom:10px; }
+.mg-check{ display:flex; gap:8px; align-items:flex-start; font-size:12.5px; color:var(--text-dim); line-height:1.6; margin-bottom:14px; }
+.mg-check input{ margin-top:3px; }
+.mg-check a{ color:var(--text); }
+
+/* アプリ上部のお知らせバナー */
+#memberBanner{
+  display:none; align-items:center; gap:10px; justify-content:space-between;
+  padding:9px 16px; background:var(--orange-dim); color:var(--orange);
+  font-size:12.5px; line-height:1.5; border-bottom:1px solid var(--border);
+}
+#memberBanner.active{ display:flex; }
+#memberBanner button{
+  flex:none; background:var(--orange); color:#111; border:none; border-radius:999px;
+  padding:6px 12px; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer;
+}
+
+.member-info-box{ padding-bottom:20px; margin-bottom:20px; border-bottom:1px solid var(--border); }
+.member-info-box label{ display:block; margin-bottom:8px; font-weight:700; font-size:13px; }

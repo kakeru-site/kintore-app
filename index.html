@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Shippori+Mincho:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="membership.css">
 <style>
   :root{
     --bg:#0c0c0e;
@@ -1202,8 +1203,8 @@
     <div class="auth-sub">筋トレ記録アプリ</div>
     <form id="loginForm">
       <div class="field">
-        <label for="loginEmail">メールアドレス</label>
-        <input type="email" id="loginEmail" autocomplete="username" required>
+        <label for="loginEmail">ログインID またはメールアドレス</label>
+        <input type="text" id="loginEmail" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
       </div>
       <div class="field">
         <label for="loginPassword">パスワード</label>
@@ -1224,7 +1225,8 @@
       <button class="modal-close" data-close="forgotPasswordModal">×</button>
     </div>
     <p style="font-size:12.5px; color:var(--text-dim); line-height:1.6; margin:0 0 18px;">
-      登録しているメールアドレスを入力すると、パスワード再設定用のメールが届きます。メール内のリンクから新しいパスワードを設定してください。
+      登録しているメールアドレスを入力すると、パスワード再設定用のメールが届きます。メール内のリンクから新しいパスワードを設定してください。<br>
+      <b>ログインIDでご登録の方</b>は、この方法では再設定できません。お手数ですが運営までご連絡ください。
     </p>
     <form id="forgotPasswordForm">
       <div class="field">
@@ -2262,23 +2264,27 @@ if (firebaseConfig.apiKey === "YOUR_API_KEY") {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut,
-  updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail
+  updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail,
+  createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot,
-  query, orderBy, serverTimestamp, enableIndexedDbPersistence, increment, writeBatch, arrayUnion
+  query, orderBy, serverTimestamp, enableIndexedDbPersistence, increment, writeBatch, arrayUnion,
+  getDoc, updateDoc, Timestamp, terminate, clearIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import { createMembership } from "./membership-ui.js";
+import { toAuthEmail } from "./membership.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// 意見箱の返信・ステータス変更ができる「開発者」のメールアドレス。
-// 増やしたい場合はこの配列にメールアドレスを追加してください（Firestoreのセキュリティルール側も合わせて更新が必要です）。
-const ADMIN_EMAILS = ["kakeru.4258@gmail.com"];
+// 意見箱の返信・ステータス変更ができる「管理者」のUID。
+// Firestoreのセキュリティルール(isAdmin)のUIDと必ず同じにしてください。
+const ADMIN_UID = "";
 function isAdminUser(){
   const u = auth.currentUser;
-  return !!(u && u.email && ADMIN_EMAILS.includes(u.email));
+  return !!(u && ADMIN_UID && u.uid === ADMIN_UID);
 }
 
 // 電波が悪い場所でも直近のデータを見られるよう、Firestoreのオフラインキャッシュを有効化。
@@ -2377,6 +2383,50 @@ document.getElementById('confirmOkBtn').addEventListener('click', ()=>{
   confirmCallback = null;
 });
 
+/* ---------- 会員制(承認済み・期限内の人だけアプリを使える) ---------- */
+const membership = createMembership({
+  auth, db,
+  fs: { doc, getDoc, setDoc, updateDoc, serverTimestamp, Timestamp, terminate, clearIndexedDbPersistence },
+  authApi: { createUserWithEmailAndPassword, signOut },
+  ui: { openModal, closeModal, showToast, guardedSubmit, escapeHtml }
+});
+let memberAllowed = false;
+let memberCheckSeq = 0;
+let permissionRecheckTimer = null;
+
+function isLockPending(){
+  return localStorage.getItem('muscleLogFaceIdEnabled') === '1'
+    && !!localStorage.getItem('muscleLogFaceIdCredId') && !sessionUnlocked;
+}
+function showAppScreen(){
+  if (memberAllowed) document.getElementById('appScreen').classList.add('active');
+}
+async function runMembershipCheck(user){
+  const seq = ++memberCheckSeq;
+  const ok = await membership.check(user);
+  if (seq !== memberCheckSeq || !auth.currentUser || auth.currentUser.uid !== user.uid) return;
+  if (ok){
+    if (!memberAllowed){
+      memberAllowed = true;
+      startListeners(user.uid);
+    }
+    if (!isLockPending()) showAppScreen();
+  } else {
+    memberAllowed = false;
+    stopListeners();
+    document.getElementById('appScreen').classList.remove('active');
+    hideLockScreen();
+  }
+}
+// ルール側で拒否されたら(期限切れ・停止など)、会員状態をもう一度だけ確認する
+function onListenError(err){
+  if (!err || err.code !== 'permission-denied') return;
+  clearTimeout(permissionRecheckTimer);
+  permissionRecheckTimer = setTimeout(()=>{
+    if (auth.currentUser) runMembershipCheck(auth.currentUser);
+  }, 500);
+}
+
 /* ---------- タブ切り替え ---------- */
 let activeSection = 'weight';
 function switchToSection(name){
@@ -2426,7 +2476,7 @@ let sessionUnlocked = false;
 document.getElementById('loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   await guardedSubmit(e.currentTarget, async ()=>{
-    const email = document.getElementById('loginEmail').value;
+    const email = toAuthEmail(document.getElementById('loginEmail').value);
     const password = document.getElementById('loginPassword').value;
     const errEl = document.getElementById('authError');
     errEl.textContent = '';
@@ -2438,7 +2488,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e)=>{
         setTimeout(()=> openModal('faceIdOfferModal'), 500);
       }
     }catch(err){
-      errEl.textContent = 'ログインに失敗しました（メールアドレスまたはパスワードが正しくありません）';
+      errEl.textContent = 'ログインに失敗しました（IDまたはパスワードが正しくありません）';
       console.error(err);
     }
   });
@@ -2689,7 +2739,7 @@ document.getElementById('faceIdUnlockBtn').addEventListener('click', async ()=>{
   if (ok){
     sessionUnlocked = true;
     hideLockScreen();
-    document.getElementById('appScreen').classList.add('active');
+    showAppScreen();
   } else {
     showToast('認証に失敗しました。もう一度お試しください');
   }
@@ -2708,39 +2758,31 @@ document.getElementById('lockPasswordFallbackBtn').addEventListener('click', asy
 
 let unsubWeight = null, unsubTarget = null, unsubExercises = null, unsubWorkoutLogs = null, unsubBig3Manual = null, unsubBig3Target = null, unsubBig3LiftTargets = null, unsubTrainingDuration = null, unsubRoutines = null, unsubWeeklyGoal = null, unsubPhasePeriods = null, unsubFeedback = null, unsubGoalBanner = null, unsubGoalPhotos = null, unsubAppTheme = null, unsubAge = null;
 
+function stopListeners(){
+  [unsubWeight, unsubTarget, unsubExercises, unsubWorkoutLogs, unsubBig3Manual, unsubBig3Target,
+   unsubBig3LiftTargets, unsubTrainingDuration, unsubRoutines, unsubWeeklyGoal, unsubPhasePeriods,
+   unsubFeedback, unsubGoalBanner, unsubGoalPhotos, unsubAppTheme, unsubAge
+  ].forEach(fn => { if (fn) fn(); });
+  unsubWeight = unsubTarget = unsubExercises = unsubWorkoutLogs = unsubBig3Manual = unsubBig3Target = null;
+  unsubBig3LiftTargets = unsubTrainingDuration = unsubRoutines = unsubWeeklyGoal = unsubPhasePeriods = null;
+  unsubFeedback = unsubGoalBanner = unsubGoalPhotos = unsubAppTheme = unsubAge = null;
+}
+
 onAuthStateChanged(auth, (user)=>{
   if (user){
     document.getElementById('authScreen').style.display = 'none';
-    const lockEnabled = localStorage.getItem('muscleLogFaceIdEnabled') === '1'
-      && !!localStorage.getItem('muscleLogFaceIdCredId');
-    if (lockEnabled && !sessionUnlocked){
-      showLockScreen();
-    } else {
-      hideLockScreen();
-      document.getElementById('appScreen').classList.add('active');
-    }
-    startListeners(user.uid);
+    // 会員状態を確認できるまでアプリ画面は出さない。確認後、runMembershipCheckが表示とデータ読み込みを行う
+    if (isLockPending()) showLockScreen();
+    else hideLockScreen();
+    runMembershipCheck(user);
   } else {
+    memberCheckSeq++;
+    memberAllowed = false;
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('appScreen').classList.remove('active');
     hideLockScreen();
     sessionUnlocked = false;
-    if (unsubWeight) unsubWeight();
-    if (unsubTarget) unsubTarget();
-    if (unsubExercises) unsubExercises();
-    if (unsubWorkoutLogs) unsubWorkoutLogs();
-    if (unsubBig3Manual) unsubBig3Manual();
-    if (unsubBig3Target) unsubBig3Target();
-    if (unsubBig3LiftTargets) unsubBig3LiftTargets();
-    if (unsubTrainingDuration) unsubTrainingDuration();
-    if (unsubRoutines) unsubRoutines();
-    if (unsubWeeklyGoal) unsubWeeklyGoal();
-    if (unsubPhasePeriods) unsubPhasePeriods();
-    if (unsubFeedback) unsubFeedback();
-    if (unsubGoalBanner) unsubGoalBanner();
-    if (unsubGoalPhotos) unsubGoalPhotos();
-    if (unsubAppTheme) unsubAppTheme();
-    if (unsubAge) unsubAge();
+    stopListeners();
     // ログアウト後は他人の端末に前のユーザーのテーマが残らないよう標準に戻す
     applyAppTheme('default');
   }
@@ -2760,6 +2802,7 @@ function startListeners(uid){
     renderCalendar();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('体重データの読み込みに失敗しました: ' + err.message);
   });
 
@@ -2770,6 +2813,7 @@ function startListeners(uid){
     renderWeightChart();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('目標体重の読み込みに失敗しました: ' + err.message);
   });
 
@@ -2779,6 +2823,7 @@ function startListeners(uid){
     applyAppTheme(value === 'calm' ? 'calm' : 'default');
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('デザインテーマの読み込みに失敗しました: ' + err.message);
   });
 
@@ -2788,6 +2833,7 @@ function startListeners(uid){
     renderGripLiveScore();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('年齢の読み込みに失敗しました: ' + err.message);
   });
 
@@ -2801,6 +2847,7 @@ function startListeners(uid){
     updateWorkoutBodyPartOptions();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('種目データの読み込みに失敗しました: ' + err.message);
   });
 
@@ -2822,6 +2869,7 @@ function startListeners(uid){
     if (currentBPFilter) renderExerciseList();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('トレーニング記録の読み込みに失敗しました: ' + err.message);
   });
 
@@ -2840,6 +2888,7 @@ function startListeners(uid){
     renderTrainingTimeOfDayStats();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
   });
 
   const big3Col = collection(db, 'users', uid, 'big3Manual');
@@ -2848,6 +2897,7 @@ function startListeners(uid){
     renderBig3();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('BIG3手動記録の読み込みに失敗しました: ' + err.message);
   });
 
@@ -2857,6 +2907,7 @@ function startListeners(uid){
     renderBig3();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('BIG3目標の読み込みに失敗しました: ' + err.message);
   });
 
@@ -2871,6 +2922,7 @@ function startListeners(uid){
     renderBig3();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('BIG3種目別目標の読み込みに失敗しました: ' + err.message);
   });
 
@@ -2881,6 +2933,7 @@ function startListeners(uid){
     renderRoutineList();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('ルーティンの読み込みに失敗しました: ' + err.message);
   });
 
@@ -2890,6 +2943,7 @@ function startListeners(uid){
     renderStreakCard();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
   });
 
   const phasePeriodsCol = collection(db, 'users', uid, 'phasePeriods');
@@ -2902,6 +2956,7 @@ function startListeners(uid){
     renderWorkoutList();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
     showToast('期間データの読み込みに失敗しました: ' + err.message);
   });
 
@@ -2912,6 +2967,7 @@ function startListeners(uid){
     renderFeedbackList();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
   });
 
   const goalBannerRef = doc(db, 'users', uid, 'settings', 'goalBanner');
@@ -2920,6 +2976,7 @@ function startListeners(uid){
     renderGoalBanner();
   }, (err)=>{
     console.error(err);
+    onListenError(err);
   });
 
   const goalPhotosCol = collection(db, 'users', uid, 'goalPhotos');
@@ -2932,6 +2989,7 @@ function startListeners(uid){
     }
   }, (err)=>{
     console.error(err);
+    onListenError(err);
   });
 }
 
@@ -2986,7 +3044,7 @@ function renderFeedbackList(){
           <span class="fb-item-date">${formatFeedbackDate(item.createdAt)}</span>
         </div>
         <div class="fb-item-content">${escapeHtml(item.content || '')}</div>
-        <div class="fb-item-author">投稿者：${escapeHtml(item.authorEmail || '不明')}</div>
+        <div class="fb-item-author">投稿者：${escapeHtml(item.authorLabel || '会員')}</div>
         ${devReplyHtml}
         ${adminBoxHtml}
       </div>
@@ -3049,7 +3107,7 @@ document.getElementById('feedbackForm').addEventListener('submit', async (e)=>{
         status: 'open',
         devComment: '',
         authorUid: user.uid,
-        authorEmail: user.email || '',
+        authorLabel: membership.authorLabel(),
         createdAt: serverTimestamp()
       });
       document.getElementById('feedbackContentInput').value = '';
