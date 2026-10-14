@@ -936,6 +936,22 @@
   .cardio-inputs input{ flex:1; min-width:0; }
   .cardio-pace{ font-size:11px; color:var(--orange); white-space:nowrap; min-width:60px; text-align:right; }
   .cardio-inputs button{ background:none; border:none; color:var(--text-faint); font-size:20px; cursor:pointer; width:26px; flex-shrink:0; }
+  .cardio-summary{
+    display:none; margin-top:12px; padding:10px 12px; border-radius:var(--radius-sm);
+    background:var(--surface-2); font-size:13px; line-height:1.7; color:var(--text);
+  }
+  .cardio-summary b{ font-size:15px; }
+  .cardio-summary .cs-sub{ color:var(--text-dim); font-size:12px; }
+  .cardio-manual{ display:flex; gap:10px; margin-top:14px; align-items:flex-start; }
+  .cardio-manual-col{ flex:1; min-width:0; }
+  .cardio-manual-col label{ display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; white-space:nowrap; }
+  .cardio-manual-col input{ width:100%; }
+  .cardio-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .cardio-chips button{
+    padding:6px 11px; border-radius:999px; border:1px solid var(--border); background:var(--surface);
+    color:var(--text-dim); font-size:12px; font-family:inherit; cursor:pointer;
+  }
+  .cardio-chips button.active{ border-color:var(--red); color:var(--red); }
   /* ---------- 握力の左右入力 ---------- */
   .grip-inputs{ display:flex; gap:10px; }
   .grip-input-col{ flex:1; }
@@ -1873,6 +1889,25 @@
         <label>区間（距離と時速） <span class="field-hint" id="cardioBestHint"></span></label>
         <div id="cardioSegments"></div>
         <button type="button" class="add-set-btn" id="addCardioSegmentBtn">＋ 区間を追加</button>
+        <div class="cardio-summary" id="cardioSummary"></div>
+        <div class="cardio-manual">
+          <div class="cardio-manual-col">
+            <label for="cardioMinutesInput">有酸素時間（分）</label>
+            <input type="number" id="cardioMinutesInput" inputmode="decimal" min="0" step="1" placeholder="例: 30">
+            <div class="cardio-chips" id="cardioMinuteChips">
+              <button type="button" data-min="10">10</button>
+              <button type="button" data-min="20">20</button>
+              <button type="button" data-min="30">30</button>
+              <button type="button" data-min="45">45</button>
+              <button type="button" data-min="60">60</button>
+            </div>
+          </div>
+          <div class="cardio-manual-col">
+            <label for="cardioKmInput">トータル距離（km）</label>
+            <input type="number" id="cardioKmInput" inputmode="decimal" min="0" step="0.01" placeholder="例: 5.2">
+          </div>
+        </div>
+        <p class="field-hint" style="margin:8px 0 0;">どちらも任意です。空欄のときは、区間から自動で計算します。区間を入れず、時間と距離だけでも記録できます。</p>
       </div>
       <div class="field" id="gripFieldWrap" style="display:none;">
         <label>握力 (kg)</label>
@@ -4466,6 +4501,7 @@ function formatDurationShort(totalSeconds){
 }
 let currentSets = [];
 let currentCardio = [];
+let currentCardioManual = { minutes: '', km: '' }; // 手入力の有酸素時間(分)・トータル距離(km)
 let currentGrip = { right: '', left: '' };
 let editingWorkoutId = null;
 let currentEntryCategory = 'medium'; // 'max' | 'heavy' | 'medium'（記録全体で1つ。セットごとには持たない）
@@ -4474,7 +4510,42 @@ const GRIP_BODY_PART = '握力';
 let currentUserAge = null; // 設定＞年齢。握力の年代別平均との比較に使う
 
 function isCardioLog(l){
-  return l.bodyPart === CARDIO_BODY_PART && Array.isArray(l.cardioSegments) && l.cardioSegments.length > 0;
+  if (l.bodyPart !== CARDIO_BODY_PART) return false;
+  const hasSegments = Array.isArray(l.cardioSegments) && l.cardioSegments.length > 0;
+  return hasSegments || Number(l.cardioMinutes) > 0 || Number(l.cardioTotalKm) > 0;
+}
+
+/* 有酸素の合計距離・時間。手入力(cardioTotalKm / cardioMinutes)があればそれを優先し、
+   無ければ区間(距離と時速)から計算する */
+function cardioSegDistanceM(l){
+  return (l.cardioSegments || []).reduce((sum,c)=> sum + (Number(c.distanceM) || 0), 0);
+}
+function cardioSegMinutes(l){
+  return (l.cardioSegments || []).reduce((sum,c)=>{
+    const d = Number(c.distanceM) || 0, v = Number(c.speedKmh) || 0;
+    return sum + (v > 0 ? d / 1000 / v * 60 : 0);
+  }, 0);
+}
+function cardioTotalKm(l){
+  return Number(l.cardioTotalKm) > 0 ? Number(l.cardioTotalKm) : cardioSegDistanceM(l) / 1000;
+}
+function cardioMinutes(l){
+  return Number(l.cardioMinutes) > 0 ? Number(l.cardioMinutes) : cardioSegMinutes(l);
+}
+// 最速ペースの判定用の時速。区間があれば最大の時速、無ければ「距離÷時間」の平均時速
+function cardioMaxSpeed(l){
+  const seg = (l.cardioSegments || []).reduce((mx,c)=> Math.max(mx, Number(c.speedKmh) || 0), 0);
+  if (seg > 0) return seg;
+  const km = cardioTotalKm(l), min = cardioMinutes(l);
+  return (km > 0 && min > 0) ? km / (min / 60) : 0;
+}
+function formatKm(km){
+  return km.toFixed(2).replace(/\.?0+$/, '');
+}
+function formatMinutes(min){
+  const m = Math.round(min);
+  if (m < 1) return '1分未満';
+  return m >= 60 ? `${Math.floor(m / 60)}時間${String(m % 60).padStart(2,'0')}分` : `${m}分`;
 }
 
 function isGripLog(l){
@@ -4500,12 +4571,19 @@ function formatPace(speedKmh){
 function formatLogSummary(l){
   if (isCardioLog(l)){
     let cum = 0;
-    return l.cardioSegments.map(c=>{
+    const segText = (l.cardioSegments || []).map(c=>{
       const dist = Number(c.distanceM) || 0;
       const from = cum; const to = cum + dist; cum = to;
       const spd = Number(c.speedKmh) || 0;
       return `${from}〜${to}m 時速${spd}km(${formatPace(spd)}/km)`;
     }).join(' / ');
+    const km = cardioTotalKm(l), min = cardioMinutes(l);
+    const totals = [];
+    if (km > 0) totals.push(`${formatKm(km)}km`);
+    if (min > 0) totals.push(formatMinutes(min));
+    if (km > 0 && min > 0) totals.push(`平均${formatPace(km / (min / 60))}/km`);
+    const head = totals.length ? '合計 ' + totals.join('・') : '';
+    return [head, segText].filter(Boolean).join(' ／ ');
   }
   if (isGripLog(l)){
     const parts = [];
@@ -4912,6 +4990,10 @@ function renderCardioUI(){
       renderCardioUI();
     });
   });
+  const minInput = document.getElementById('cardioMinutesInput');
+  const kmInput = document.getElementById('cardioKmInput');
+  if (minInput) minInput.value = currentCardioManual.minutes;
+  if (kmInput) kmInput.value = currentCardioManual.km;
   updateCardioLabels();
   applyCardioPlaceholderHints();
 }
@@ -4937,6 +5019,68 @@ function applyCardioPlaceholderHints(){
   }
 }
 
+// 入力中の有酸素の合計距離・時間(手入力があれば優先、無ければ区間から計算)
+function cardioLiveTotals(){
+  const segs = currentCardio
+    .filter(c => c.distanceM !== '' && c.speedKmh !== '')
+    .map(c => ({ distanceM: Number(c.distanceM), speedKmh: Number(c.speedKmh) }))
+    .filter(c => c.distanceM > 0 && c.speedKmh > 0);
+  const segKm = segs.length ? segs.reduce((s,c)=> s + c.distanceM, 0) / 1000 : null;
+  const segMin = segs.length ? segs.reduce((s,c)=> s + c.distanceM / 1000 / c.speedKmh * 60, 0) : null;
+  const mMin = Number(currentCardioManual.minutes), mKm = Number(currentCardioManual.km);
+  const manualMin = (currentCardioManual.minutes !== '' && mMin > 0) ? mMin : null;
+  const manualKm = (currentCardioManual.km !== '' && mKm > 0) ? mKm : null;
+  const km = manualKm !== null ? manualKm : segKm;
+  const minutes = manualMin !== null ? manualMin : segMin;
+  const maxSpeed = segs.length
+    ? Math.max(...segs.map(c => c.speedKmh))
+    : ((km > 0 && minutes > 0) ? km / (minutes / 60) : 0);
+  return { segKm, segMin, manualMin, manualKm, km, minutes, maxSpeed };
+}
+
+function renderCardioSummary(){
+  const el = document.getElementById('cardioSummary');
+  if (!el) return;
+  const t = cardioLiveTotals();
+  const minInput = document.getElementById('cardioMinutesInput');
+  const kmInput = document.getElementById('cardioKmInput');
+  if (minInput) minInput.placeholder = t.segMin !== null ? `自動 ${Math.round(t.segMin)}` : '例: 30';
+  if (kmInput) kmInput.placeholder = t.segKm !== null ? `自動 ${formatKm(t.segKm)}` : '例: 5.2';
+  document.querySelectorAll('#cardioMinuteChips button').forEach(b=>{
+    b.classList.toggle('active', t.manualMin !== null && Number(b.dataset.min) === t.manualMin);
+  });
+  if (!(t.km > 0) && !(t.minutes > 0)){
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  const parts = [];
+  if (t.km > 0) parts.push(`<b>${formatKm(t.km)}</b>km${t.manualKm !== null ? '<span class="cs-sub">（手入力）</span>' : ''}`);
+  if (t.minutes > 0) parts.push(`<b>${formatMinutes(t.minutes)}</b>${t.manualMin !== null ? '<span class="cs-sub">（手入力）</span>' : ''}`);
+  let html = `合計 ${parts.join(' ・ ')}`;
+  if (t.km > 0 && t.minutes > 0) html += `<br><span class="cs-sub">平均ペース ${formatPace(t.km / (t.minutes / 60))}/km</span>`;
+  el.innerHTML = html;
+  el.style.display = 'block';
+}
+
+document.getElementById('cardioMinutesInput').addEventListener('input', (e)=>{
+  currentCardioManual.minutes = e.target.value;
+  updateCardioLabels();
+});
+document.getElementById('cardioKmInput').addEventListener('input', (e)=>{
+  currentCardioManual.km = e.target.value;
+  updateCardioLabels();
+});
+// 分のクイック入力:同じ値をもう一度押すと解除
+document.querySelectorAll('#cardioMinuteChips button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const v = btn.dataset.min;
+    currentCardioManual.minutes = (String(currentCardioManual.minutes) === v) ? '' : v;
+    document.getElementById('cardioMinutesInput').value = currentCardioManual.minutes;
+    updateCardioLabels();
+  });
+});
+
 function updateCardioLabels(){
   let cum = 0;
   currentCardio.forEach((c,i)=>{
@@ -4952,6 +5096,7 @@ function updateCardioLabels(){
       paceEl.textContent = spd > 0 ? formatPace(spd) + '/km' : '--:--/km';
     }
   });
+  renderCardioSummary();
   checkLiveCardioPR();
 }
 
@@ -4975,8 +5120,8 @@ function getBestCardioRecords(exerciseName, excludeId, refDate){
   const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && isCardioLog(l) && inSamePhaseGroup(l.date, refDate || todayStr()));
   let bestDistance = null, bestSpeed = null, bestSegmentCount = null;
   logs.forEach(l=>{
-    const totalDistance = l.cardioSegments.reduce((sum,c)=> sum + (Number(c.distanceM) || 0), 0);
-    const maxSpeed = l.cardioSegments.reduce((mx,c)=> Math.max(mx, Number(c.speedKmh) || 0), 0);
+    const totalDistance = Math.round(cardioTotalKm(l) * 1000);
+    const maxSpeed = cardioMaxSpeed(l);
     if (bestDistance === null || totalDistance > bestDistance) bestDistance = totalDistance;
     if (bestSpeed === null || maxSpeed > bestSpeed) bestSpeed = maxSpeed;
     const segCount = (l.cardioSegments || []).length;
@@ -4992,15 +5137,12 @@ function checkLiveCardioPR(){
   const existingBadge = info.querySelector('.pr-live-badge');
   if (existingBadge) existingBadge.remove();
   const rec = getBestCardioRecords(name, editingWorkoutId, currentWorkoutRefDate());
-  const validSegs = currentCardio
-    .filter(c => c.distanceM !== '' && c.speedKmh !== '')
-    .map(c => ({ distanceM: Number(c.distanceM), speedKmh: Number(c.speedKmh) }));
-  if (!validSegs.length) return;
-  const totalDistance = validSegs.reduce((sum,c)=> sum + c.distanceM, 0);
-  const maxSpeed = Math.max(...validSegs.map(c=>c.speedKmh));
+  const t = cardioLiveTotals();
+  if (!(t.km > 0) && !(t.maxSpeed > 0)) return;
+  const totalDistance = Math.round(t.km * 1000);
   const badges = [];
-  if (rec.bestDistance === null || totalDistance > rec.bestDistance) badges.push('🏃最長距離更新');
-  if (rec.bestSpeed === null || maxSpeed > rec.bestSpeed) badges.push('⚡最速ペース更新');
+  if (t.km > 0 && (rec.bestDistance === null || totalDistance > rec.bestDistance)) badges.push('🏃最長距離更新');
+  if (t.maxSpeed > 0 && (rec.bestSpeed === null || t.maxSpeed > rec.bestSpeed)) badges.push('⚡最速ペース更新');
   if (badges.length){
     const badgeEl = document.createElement('div');
     badgeEl.className = 'pr-live-badge';
@@ -5778,6 +5920,7 @@ function collectWorkoutDraft(){
     memo: document.getElementById('workoutMemo').value,
     sets: currentSets,
     cardio: currentCardio,
+    cardioManual: currentCardioManual,
     grip: currentGrip
   };
 }
@@ -5788,6 +5931,7 @@ function saveWorkoutDraft(silent){
   const hasContent = draft.bodyPart || draft.exerciseName ||
     draft.sets.some(s => s.weight !== '' || s.reps !== '') ||
     draft.cardio.some(c => c.distanceM !== '' || c.speedKmh !== '') ||
+    (draft.cardioManual && (draft.cardioManual.minutes !== '' || draft.cardioManual.km !== '')) ||
     (draft.grip && (draft.grip.right !== '' || draft.grip.left !== ''));
   if (!hasContent){
     localStorage.removeItem(WORKOUT_DRAFT_KEY);
@@ -5839,7 +5983,11 @@ function openWorkoutModal(entry, prefill){
 
   if (entry){
     currentSets = (!entryIsCardio && !entryIsGrip) ? entry.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps), drop: !!s.drop })) : [{ weight: '', reps: '', drop: false }];
-    currentCardio = entryIsCardio ? entry.cardioSegments.map(c => ({ distanceM: String(c.distanceM), speedKmh: String(c.speedKmh) })) : [{ distanceM: '', speedKmh: '' }];
+    currentCardio = (entryIsCardio && (entry.cardioSegments || []).length) ? entry.cardioSegments.map(c => ({ distanceM: String(c.distanceM), speedKmh: String(c.speedKmh) })) : [{ distanceM: '', speedKmh: '' }];
+    currentCardioManual = entryIsCardio ? {
+      minutes: Number(entry.cardioMinutes) > 0 ? String(entry.cardioMinutes) : '',
+      km: Number(entry.cardioTotalKm) > 0 ? String(entry.cardioTotalKm) : ''
+    } : { minutes: '', km: '' };
     currentGrip = entryIsGrip ? {
       right: Number.isFinite(entry.gripRight) ? String(entry.gripRight) : '',
       left: Number.isFinite(entry.gripLeft) ? String(entry.gripLeft) : ''
@@ -5849,16 +5997,19 @@ function openWorkoutModal(entry, prefill){
     // 「保存して次のセットへ」: 部位・種目・強度はそのまま、セットは空欄から
     currentSets = [{ weight: '', reps: '', drop: false }];
     currentCardio = [{ distanceM: '', speedKmh: '' }];
+    currentCardioManual = { minutes: '', km: '' };
     currentGrip = { right: '', left: '' };
     currentEntryCategory = prefill.category || 'medium';
   } else if (draft){
     currentSets = (draft.sets && draft.sets.length) ? draft.sets.map(s => ({ weight: s.weight, reps: s.reps, drop: !!s.drop })) : [{ weight: '', reps: '', drop: false }];
     currentCardio = (draft.cardio && draft.cardio.length) ? draft.cardio : [{ distanceM: '', speedKmh: '' }];
+    currentCardioManual = draft.cardioManual ? { minutes: draft.cardioManual.minutes || '', km: draft.cardioManual.km || '' } : { minutes: '', km: '' };
     currentGrip = draft.grip ? draft.grip : { right: '', left: '' };
     currentEntryCategory = draft.category || 'medium';
   } else {
     currentSets = [{ weight: '', reps: '', drop: false }];
     currentCardio = [{ distanceM: '', speedKmh: '' }];
+    currentCardioManual = { minutes: '', km: '' };
     currentGrip = { right: '', left: '' };
     currentEntryCategory = 'medium';
   }
@@ -5932,6 +6083,7 @@ async function performWorkoutSave(){
   const isGrip = bodyPart === GRIP_BODY_PART;
   let sets = [];
   let cardioSegments = [];
+  let cardioMinutesManual = null, cardioKmManual = null;
   let gripRight = null, gripLeft = null;
   if (isGrip){
     const rawRight = document.getElementById('gripRightInput').value;
@@ -5959,8 +6111,21 @@ async function performWorkoutSave(){
     cardioSegments = currentCardio
       .filter(c => c.distanceM !== '' && c.speedKmh !== '')
       .map(c => ({ distanceM: Number(c.distanceM), speedKmh: Number(c.speedKmh) }));
-    if (!cardioSegments.length){
-      showToast('区間（距離・時速）を1つ以上入力してください');
+    // 手入力の有酸素時間(分)・トータル距離(km)。空欄なら区間から自動計算する
+    const rawMin = String(currentCardioManual.minutes).trim();
+    const rawKm = String(currentCardioManual.km).trim();
+    cardioMinutesManual = rawMin !== '' ? Number(rawMin) : null;
+    cardioKmManual = rawKm !== '' ? Number(rawKm) : null;
+    if (cardioMinutesManual !== null && (!Number.isFinite(cardioMinutesManual) || cardioMinutesManual <= 0 || cardioMinutesManual > 1440)){
+      showToast('有酸素時間は1〜1440分の範囲で入力してください');
+      return { ok: false };
+    }
+    if (cardioKmManual !== null && (!Number.isFinite(cardioKmManual) || cardioKmManual <= 0 || cardioKmManual > 1000)){
+      showToast('トータル距離は0より大きく1000km以下で入力してください');
+      return { ok: false };
+    }
+    if (!cardioSegments.length && cardioMinutesManual === null && cardioKmManual === null){
+      showToast('区間（距離・時速）、または有酸素時間・トータル距離を入力してください');
       return { ok: false };
     }
     // 数値以外の入力（NaN）がそのまま保存されると、以降その種目の自己ベスト計算などが
@@ -6010,6 +6175,11 @@ async function performWorkoutSave(){
       gripLeft,
       updatedAt: serverTimestamp()
     };
+    // 有酸素の手入力。編集で空欄に戻したときも消えるよう、nullで上書きする(有酸素の記録のときだけ付ける)
+    if (isCardio){
+      data.cardioMinutes = cardioMinutesManual;
+      data.cardioTotalKm = cardioKmManual;
+    }
     if (id){
       await setDoc(doc(db, 'users', user.uid, 'workoutLogs', id), data, { merge: true });
     } else {
@@ -6589,8 +6759,8 @@ function computeCardioSessionRecords(){
     const logs = byName[name].slice().sort((a,b)=> a.date.localeCompare(b.date));
     let bd = null, bs = null;
     map[name] = logs.map(l=>{
-      const totalDistance = l.cardioSegments.reduce((sum,c)=> sum + (Number(c.distanceM) || 0), 0);
-      const maxSpeed = l.cardioSegments.reduce((mx,c)=> Math.max(mx, Number(c.speedKmh) || 0), 0);
+      const totalDistance = Math.round(cardioTotalKm(l) * 1000);
+      const maxSpeed = cardioMaxSpeed(l);
       const isDistancePR = bd === null || totalDistance > bd;
       const isPacePR = bs === null || maxSpeed > bs;
       if (bd === null || totalDistance > bd) bd = totalDistance;
