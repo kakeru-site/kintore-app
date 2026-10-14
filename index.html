@@ -5157,12 +5157,17 @@ function setsVolume(sets, includeDrop){
   return (sets || []).reduce((sum, s)=> sum + (includeDrop || !s.drop ? setVolume(s) : 0), 0);
 }
 
+// 回数0のセットは「挑戦したが上がらなかった」記録。自己ベスト・更新バッジの対象にしない
+function isCountedSet(s){ return (Number(s.reps) || 0) > 0; }
+
 function getBestRecords(exerciseName, excludeId){
   const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId);
   let bestWeight = null, bestReps = null, bestVolume = null, bestSetCount = null;
   logs.forEach(l=>{
+    if (!(l.sets || []).some(isCountedSet)) return;
     const vol = setsVolume(l.sets);
     (l.sets || []).forEach(s=>{
+      if (!isCountedSet(s)) return;
       const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
       if (bestWeight === null || w > bestWeight) bestWeight = w;
       if (bestReps === null || r > bestReps) bestReps = r;
@@ -5189,10 +5194,12 @@ function getBestRecordsByCategory(exerciseName, excludeId, refDate){
   SET_CATEGORIES.forEach(({key})=>{ result[key] = { bestWeight: null, bestReps: null, bestVolume: null, bestSetCount: null }; });
   const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l) && !isGripLog(l) && inSamePhaseGroup(l.date, refDate || todayStr()));
   logs.forEach(l=>{
+    if (!(l.sets || []).some(isCountedSet)) return;
     const cat = logCategory(l);
     const rec = result[cat];
     const vol = setsVolume(l.sets);
     (l.sets || []).forEach(s=>{
+      if (!isCountedSet(s)) return;
       const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
       if (rec.bestWeight === null || w > rec.bestWeight) rec.bestWeight = w;
       if (rec.bestReps === null || r > rec.bestReps) rec.bestReps = r;
@@ -5211,10 +5218,12 @@ function getBestRecordsByCategoryForGroup(exerciseName, excludeId, group){
   SET_CATEGORIES.forEach(({key})=>{ result[key] = { bestWeight: null, bestReps: null, bestVolume: null, bestSetCount: null }; });
   const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l) && !isGripLog(l) && dateMatchesPhaseGroup(l.date, group));
   logs.forEach(l=>{
+    if (!(l.sets || []).some(isCountedSet)) return;
     const cat = logCategory(l);
     const rec = result[cat];
     const vol = setsVolume(l.sets);
     (l.sets || []).forEach(s=>{
+      if (!isCountedSet(s)) return;
       const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
       if (rec.bestWeight === null || w > rec.bestWeight) rec.bestWeight = w;
       if (rec.bestReps === null || r > rec.bestReps) rec.bestReps = r;
@@ -5700,8 +5709,10 @@ function checkLivePR(){
     .filter(s => s.weight !== '' && s.reps !== '')
     .map(s => ({ weight: Number(s.weight), reps: Number(s.reps), drop: !!s.drop }));
   if (!validSets.length){ updateLiveVolumeRow(null, null); return; }
-  const curMaxWeight = Math.max(...validSets.map(s=>s.weight));
-  const curMaxReps = Math.max(...validSets.map(s=>s.reps));
+  // 回数0のセット(上がらなかった挑戦)は、重量・回数の更新判定に使わない
+  const countedSets = validSets.filter(isCountedSet);
+  const curMaxWeight = countedSets.length ? Math.max(...countedSets.map(s=>s.weight)) : 0;
+  const curMaxReps = countedSets.length ? Math.max(...countedSets.map(s=>s.reps)) : 0;
   // ボリューム更新・自己ベスト判定には「ドロップセットを含めないボリューム」を使う（追い込みのための
   // ドロップセットでボリュームが膨らんで、実質的な自己ベスト更新と混同されないようにするため）。
   // その場の総負荷量を見たいという用途のために「含めたボリューム」もあわせて表示する。
@@ -5709,9 +5720,11 @@ function checkLivePR(){
   const curVolumeIncl = validSets.reduce((sum,s)=> sum + s.weight*s.reps, 0);
   updateLiveVolumeRow(curVolumeExDrop, rec.bestVolume, curVolumeIncl);
   const badges = [];
-  if (rec.bestWeight === null || curMaxWeight > rec.bestWeight) badges.push('🏋️重量更新');
-  if (rec.bestReps === null || curMaxReps > rec.bestReps) badges.push('🔁回数更新');
-  if (rec.bestVolume === null || curVolumeExDrop > rec.bestVolume) badges.push('📊ボリューム更新');
+  if (countedSets.length){
+    if (rec.bestWeight === null || curMaxWeight > rec.bestWeight) badges.push('🏋️重量更新');
+    if (rec.bestReps === null || curMaxReps > rec.bestReps) badges.push('🔁回数更新');
+    if (rec.bestVolume === null || curVolumeExDrop > rec.bestVolume) badges.push('📊ボリューム更新');
+  }
   if (badges.length){
     const rowEl = document.createElement('div');
     rowEl.className = 'pr-live-badge-row';
@@ -6541,10 +6554,15 @@ function computeSessionRecords(){
       let sw = null, sr = null;
       const vol = setsVolume(l.sets);
       (l.sets || []).forEach(s=>{
+        if (!isCountedSet(s)) return;
         const w = Number(s.weight) || 0, r = Number(s.reps) || 0;
         if (sw === null || w > sw) sw = w;
         if (sr === null || r > sr) sr = r;
       });
+      // 回数0のセットしかない日(上がらなかった挑戦だけ)は、更新バッジも停滞判定も対象外にする
+      if (sw === null){
+        return { id: l.id, date: l.date, maxWeight: 0, maxReps: 0, volume: vol, isWeightPR: false, isRepsPR: false, isVolumePR: false, isPlateau: false };
+      }
       const isWeightPR = bw === null || sw > bw;
       const isRepsPR = br === null || sr > br;
       const isVolumePR = bv === null || vol > bv;
