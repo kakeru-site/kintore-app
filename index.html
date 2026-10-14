@@ -2281,7 +2281,7 @@ const db = getFirestore(app);
 
 // 意見箱の返信・ステータス変更ができる「管理者」のUID。
 // Firestoreのセキュリティルール(isAdmin)のUIDと必ず同じにしてください。
-const ADMIN_UID = "";
+const ADMIN_UID = "sLq6Uam7LdTBMAUonX2Tk3hHejl2";
 function isAdminUser(){
   const u = auth.currentUser;
   return !!(u && ADMIN_UID && u.uid === ADMIN_UID);

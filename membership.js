@@ -12,15 +12,9 @@ export const PLANS = {
   year: { label: '年間プラン', months: 12, price: 12000 },
 };
 
-// 【要入力】公開前に必ず埋める。ここが空のままだと画面に警告が出る
-export const BANK_INFO = {
-  bankName: '',
-  branch: '',
-  accountType: '',
-  accountNumber: '',
-  accountHolder: '',
-};
-export const CONTACT_INFO = '';
+// 振込先・連絡先はリポジトリに置かず、Firestoreの config/payment(ログイン済みの人だけ読める)から読む。
+// 項目:bankName, branch, accountType, accountNumber, accountHolder, contact
+export const PAYMENT_PATH = ['config', 'payment'];
 
 const JST_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -114,6 +108,8 @@ export function formatDateJst(v) {
   return `${y}年${m + 1}月${d}日`;
 }
 
-export function bankInfoMissing() {
-  return Object.values(BANK_INFO).some((v) => !v);
+export const PAYMENT_FIELDS = ['bankName', 'branch', 'accountType', 'accountNumber', 'accountHolder'];
+
+export function bankInfoMissing(info) {
+  return !info || PAYMENT_FIELDS.some((k) => !info[k]);
 }

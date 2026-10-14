@@ -1,7 +1,7 @@
 // 会員制の画面と、会員台帳(members/{uid})の読み書き。
 // Firebaseの各関数は index.html から受け取る。
 import {
-  PLANS, SIGNUP_OPEN, TRIAL_DAYS, SOON_DAYS, BANK_INFO, CONTACT_INFO, LOGIN_DOMAIN,
+  PLANS, SIGNUP_OPEN, TRIAL_DAYS, SOON_DAYS, PAYMENT_PATH, LOGIN_DOMAIN,
   toAuthEmail, isValidLoginId, normalizeKana, isKanaName, trialExpiry,
   deriveState, formatDateJst, bankInfoMissing,
 } from './membership.js';
@@ -10,6 +10,7 @@ export function createMembership({ auth, db, fs, authApi, ui }) {
   const { escapeHtml: esc } = ui;
   let member = null;
   let pendingSignup = null;
+  let payment = null;
 
   const $ = (id) => document.getElementById(id);
   const yen = (n) => '¥' + n.toLocaleString('ja-JP');
@@ -92,6 +93,18 @@ export function createMembership({ auth, db, fs, authApi, ui }) {
   }
   let blockedNow = false;
 
+  // 振込先・連絡先(config/payment)。ログイン済みなら誰でも読める。画面で必要になったときに1回だけ読む
+  async function loadPayment() {
+    if (payment) return payment;
+    try {
+      const snap = await fs.getDoc(fs.doc(db, ...PAYMENT_PATH));
+      payment = snap.exists() ? snap.data() : null;
+    } catch (e) {
+      console.error(e);
+    }
+    return payment;
+  }
+
   /* ---------- 状態の確認(起動時に1回) ---------- */
   async function check(user) {
     injectDom();
@@ -101,7 +114,7 @@ export function createMembership({ auth, db, fs, authApi, ui }) {
       snap = await fs.getDoc(fs.doc(db, 'members', user.uid));
     } catch (err) {
       console.error(err);
-      showGate('error');
+      await showGate('error');
       return false;
     }
     member = snap.exists() ? snap.data() : null;
@@ -115,15 +128,18 @@ export function createMembership({ auth, db, fs, authApi, ui }) {
     }
     blockedNow = true;
     $('memberBanner').classList.remove('active');
-    showGate(st.kind, st);
+    await showGate(st.kind, st);
     return false;
   }
 
-  function showGate(kind, st) {
+  async function showGate(kind, st) {
     const body = $('mgBody');
-    const contact = CONTACT_INFO
-      ? `<div class="mg-meta">${esc(CONTACT_INFO).replace(/\n/g, '<br>')}</div>`
-      : '<div class="mg-warn">【要入力】連絡先が未設定です(membership.js の CONTACT_INFO)</div>';
+    const needsContact = kind !== 'expired';
+    const info = needsContact ? await loadPayment() : null;
+    const contact = !needsContact ? ''
+      : info && info.contact
+        ? `<div class="mg-meta"><b>運営への連絡先</b><br>${esc(info.contact).replace(/\n/g, '<br>')}</div>`
+        : '<div class="mg-warn">【要入力】連絡先が未設定です(Firestore の config/payment の contact)</div>';
     $('memberGate').classList.add('active');
     $('mgRecheck').style.display = '';
 
@@ -138,7 +154,7 @@ export function createMembership({ auth, db, fs, authApi, ui }) {
       body.innerHTML = `<div class="mg-title">${trial ? 'お試し期間が終了しました' : 'ご利用期限が切れました'}</div>
         <p class="mg-text">${formatDateJst(member.expiresAt)}までご利用いただきました。お手続きが確認できると、記録はそのまま続きからご利用いただけます(記録は期限から180日間お預かりします)。</p>
         <div id="gatePay"></div>`;
-      renderPayPanel($('gatePay'), async () => { await reloadMember(); const s = deriveState(member); showGate(s.kind, s); });
+      renderPayPanel($('gatePay'), async () => { await reloadMember(); const s = deriveState(member); await showGate(s.kind, s); });
     } else if (kind === 'none') {
       const email = (auth.currentUser && auth.currentUser.email) || '';
       if (email.endsWith('@' + LOGIN_DOMAIN)) {
@@ -171,13 +187,15 @@ export function createMembership({ auth, db, fs, authApi, ui }) {
     ui.openModal('payModal');
   }
 
-  function renderPayPanel(el, onDone) {
+  async function renderPayPanel(el, onDone) {
+    el.innerHTML = '<p class="mg-text">読み込み中…</p>';
+    const info = await loadPayment();
     let plan = (member && (member.renewPlan || member.plan)) || 'half';
     const waiting = !!(member && member.renewRequestedAt);
     const payer = (member && (member.payerName || member.nameKana)) || '';
-    const bank = bankInfoMissing()
-      ? '<div class="mg-warn">【要入力】振込先が未設定です(membership.js の BANK_INFO)</div>'
-      : `<div class="mg-meta"><b>振込先</b><br>${esc(BANK_INFO.bankName)} ${esc(BANK_INFO.branch)}<br>${esc(BANK_INFO.accountType)} ${esc(BANK_INFO.accountNumber)}<br>口座名義:${esc(BANK_INFO.accountHolder)}</div>`;
+    const bank = bankInfoMissing(info)
+      ? '<div class="mg-warn">【要入力】振込先を表示できません。運営までご連絡ください。</div>'
+      : `<div class="mg-meta"><b>振込先</b><br>${esc(info.bankName)} ${esc(info.branch)}<br>${esc(info.accountType)} ${esc(info.accountNumber)}<br>口座名義:${esc(info.accountHolder)}</div>`;
     el.innerHTML = `
       <div class="mg-plans">
         ${Object.entries(PLANS).map(([k, p]) =>
