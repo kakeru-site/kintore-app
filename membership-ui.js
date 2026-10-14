@@ -202,7 +202,7 @@ export function createMembership({ auth, db, fs, authApi, ui }) {
           `<button type="button" class="mg-plan${k === plan ? ' active' : ''}" data-plan="${k}">${p.label}<b>${yen(p.price)}</b></button>`).join('')}
       </div>
       ${bank}
-      <p class="mg-text">振込名義は <b style="color:var(--text)">${esc(payer)}</b> でお願いします。振込手数料はご負担ください。入金を確認でき次第、運営が手続きします(確認までお時間をいただくことがあります)。</p>
+      <p class="mg-text">${payer ? `振込名義は <b style="color:var(--text)">${esc(payer)}</b> でお願いします。` : '振込名義は、お申込みのお名前でお願いします。'}振込手数料はご負担ください。入金を確認でき次第、運営が手続きします(確認までお時間をいただくことがあります)。</p>
       ${waiting
         ? `<div class="mg-ok">振込の連絡を受け付けました(${formatDateJst(member.renewRequestedAt)})。入金の確認をお待ちください。</div>`
         : '<button type="button" class="btn btn-primary" id="payDoneBtn">振込しました(確認を依頼)</button>'}
