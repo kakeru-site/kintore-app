@@ -946,6 +946,16 @@
   .cardio-manual-col{ flex:1; min-width:0; }
   .cardio-manual-col label{ display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; white-space:nowrap; }
   .cardio-manual-col input{ width:100%; }
+  .cd-seg{
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    padding:10px 4px; border-bottom:1px solid var(--border);
+  }
+  .cd-seg:last-child{ border-bottom:none; }
+  .cd-name{ font-size:14px; font-weight:700; }
+  .cd-name small{ display:block; margin-top:2px; font-size:11px; font-weight:400; color:var(--text-dim); }
+  .cd-val{ font-size:17px; font-weight:700; text-align:right; white-space:nowrap; }
+  .cd-val small{ display:block; margin-top:2px; font-size:11px; font-weight:400; color:var(--text-dim); }
+  .cd-none{ padding:10px 4px; font-size:13px; color:var(--text-dim); }
   .cardio-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
   .cardio-chips button{
     padding:6px 11px; border-radius:999px; border:1px solid var(--border); background:var(--surface);
@@ -5119,15 +5129,70 @@ function toggleWorkoutInputMode(){
 function getBestCardioRecords(exerciseName, excludeId, refDate){
   const logs = workoutLogs.filter(l => l.exerciseName === exerciseName && l.id !== excludeId && isCardioLog(l) && inSamePhaseGroup(l.date, refDate || todayStr()));
   let bestDistance = null, bestSpeed = null, bestSegmentCount = null;
+  let bestDistanceLog = null, bestSpeedLog = null;
   logs.forEach(l=>{
     const totalDistance = Math.round(cardioTotalKm(l) * 1000);
     const maxSpeed = cardioMaxSpeed(l);
-    if (bestDistance === null || totalDistance > bestDistance) bestDistance = totalDistance;
-    if (bestSpeed === null || maxSpeed > bestSpeed) bestSpeed = maxSpeed;
+    if (bestDistance === null || totalDistance > bestDistance){ bestDistance = totalDistance; bestDistanceLog = l; }
+    if (bestSpeed === null || maxSpeed > bestSpeed){ bestSpeed = maxSpeed; bestSpeedLog = l; }
     const segCount = (l.cardioSegments || []).length;
     if (bestSegmentCount === null || segCount > bestSegmentCount) bestSegmentCount = segCount;
   });
-  return { bestDistance, bestSpeed, bestSegmentCount };
+  return { bestDistance, bestSpeed, bestSegmentCount, bestDistanceLog, bestSpeedLog };
+}
+
+/* 有酸素の区間ごとの記録(自己ベストの内訳+最近の記録)をモーダルで見せる */
+function cardioTotalsLineHtml(l){
+  const km = cardioTotalKm(l), min = cardioMinutes(l);
+  const parts = [];
+  if (km > 0) parts.push(`合計 <b>${formatKm(km)}km</b>`);
+  if (min > 0) parts.push(`<b>${formatMinutes(min)}</b>`);
+  if (km > 0 && min > 0) parts.push(`平均 ${formatPace(km / (min / 60))}/km`);
+  return `${escapeHtml(l.date)}${parts.length ? '・' + parts.join('・') : ''}`;
+}
+function cardioSegmentRowsHtml(l, markFastest){
+  const segs = l.cardioSegments || [];
+  if (!segs.length) return '<div class="cd-none">区間の記録なし（時間・距離のみ）</div>';
+  const maxV = Math.max(...segs.map(c => Number(c.speedKmh) || 0));
+  let cum = 0;
+  return segs.map((c, i)=>{
+    const dist = Number(c.distanceM) || 0, spd = Number(c.speedKmh) || 0;
+    const from = cum; cum += dist;
+    const min = spd > 0 ? dist / 1000 / spd * 60 : 0;
+    const fastest = markFastest && segs.length > 1 && spd === maxV;
+    return `<div class="cd-seg">
+      <div class="cd-name">区間${i + 1}${fastest ? ' <span class="mini-badge">最速</span>' : ''}<small>${from}〜${cum}m</small></div>
+      <div class="cd-val">${formatPace(spd)}/km<small>時速${spd}km ・ ${formatMinutes(min)}</small></div>
+    </div>`;
+  }).join('');
+}
+function openCardioDetailModal(exerciseName, excludeId, refDate){
+  const ref = refDate || todayStr();
+  document.getElementById('bestSetDetailTitle').textContent = `${exerciseName} の区間ごとの記録`;
+  const bodyEl = document.getElementById('bestSetDetailBody');
+  const rec = getBestCardioRecords(exerciseName, excludeId, ref);
+  const logs = workoutLogs
+    .filter(l => l.exerciseName === exerciseName && l.id !== excludeId && isCardioLog(l) && inSamePhaseGroup(l.date, ref))
+    .sort((a,b)=> a.date !== b.date ? (a.date < b.date ? 1 : -1) : recordedAtMs(b) - recordedAtMs(a));
+  if (!logs.length){
+    bodyEl.innerHTML = '<div class="empty-msg">まだ記録がありません</div>';
+    openModal('bestSetDetailModal');
+    return;
+  }
+  const block = (title, l, markFastest)=> `
+    <div class="pr-info"><b>${title}</b><br>${cardioTotalsLineHtml(l)}</div>
+    <div class="card" style="margin-bottom:16px;">${cardioSegmentRowsHtml(l, markFastest)}</div>`;
+  let html = '';
+  if (rec.bestDistanceLog) html += block(`🏃 最長距離（${formatKm(rec.bestDistance / 1000)}km）`, rec.bestDistanceLog, false);
+  if (rec.bestSpeedLog){
+    html += rec.bestSpeedLog === rec.bestDistanceLog
+      ? `<div class="pr-info"><b>⚡ 最速ペース（${formatPace(rec.bestSpeed)}/km）</b><br>最長距離と同じ記録です</div>`
+      : block(`⚡ 最速ペース（${formatPace(rec.bestSpeed)}/km）`, rec.bestSpeedLog, true);
+  }
+  html += '<div class="section-title" style="margin:18px 0 8px;">最近の記録（新しい順・最大5回）</div>';
+  html += logs.slice(0, 5).map(l => block('', l, true).replace('<b></b><br>', '')).join('');
+  bodyEl.innerHTML = html;
+  openModal('bestSetDetailModal');
 }
 
 function checkLiveCardioPR(){
@@ -5725,6 +5790,9 @@ function updateWorkoutExerciseInfo(){
       <b>最長距離</b> ${rec.bestDistance !== null ? rec.bestDistance + ' m' : '記録なし'} ・
       <b>最速ペース</b> ${rec.bestSpeed !== null ? formatPace(rec.bestSpeed) + '/km（時速' + rec.bestSpeed.toFixed(1) + 'km）' : '記録なし'}
     </div>`;
+    if (rec.bestDistance !== null){
+      html += `<button type="button" class="stats-link-btn" id="cardioDetailBtn">📋 区間ごとの記録を見る</button>`;
+    }
   }
   if (bodyPart !== CARDIO_BODY_PART && exercises.some(e => e.name === name)){
     html += `<button type="button" class="stats-link-btn" id="workoutStatsLinkBtn">📈 推移を見る</button>`;
@@ -5732,6 +5800,8 @@ function updateWorkoutExerciseInfo(){
   info.innerHTML = html;
   const statsLinkBtn = document.getElementById('workoutStatsLinkBtn');
   if (statsLinkBtn) statsLinkBtn.addEventListener('click', ()=> openExerciseStatsModal(name, currentWorkoutRefDate()));
+  const cardioDetailBtn = document.getElementById('cardioDetailBtn');
+  if (cardioDetailBtn) cardioDetailBtn.addEventListener('click', ()=> openCardioDetailModal(name, editingWorkoutId, refDate));
   info.querySelectorAll('.pr-cat-row.clickable').forEach(row=>{
     const groupWrap = row.closest('[data-best-group]');
     const explicitGroup = groupWrap && groupWrap.dataset.bestGroup === 'cutmaintain' ? 'cutmaintain' : null;
