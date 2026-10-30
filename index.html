@@ -5705,7 +5705,6 @@ function findLastMemo(exerciseName, cat, excludeId){
 /* 新規記録の場合のみ、前回の同じ強度のメモを編集可能な状態で自動表示する */
 function applyMemoPrefill(){
   if (editingWorkoutId) return;
-  if (activeRoutine) return; // ルーティン実行中は、前回のメモを自動で引き継がない（テンポよく進められるように空欄から）
   const name = document.getElementById('workoutExerciseSelect').value;
   const memoEl = document.getElementById('workoutMemo');
   const hintEl = document.getElementById('workoutMemoHint');
