@@ -5685,17 +5685,21 @@ function autofillSetsFromCategory(cat){
   checkLivePR();
 }
 
-/* 種目＋強度ごとの「前回のメモ」を探す（同じ強度で最後に記録したときのメモ） */
+/* 種目の「前回のメモ」を探す。まず同じ強度で最後に記録したメモを探し、
+   その強度にメモが無ければ、同じ種目で最後に書いたメモ（別の強度のもの）を使う。
+   見つからなければnull。 */
 function findLastMemo(exerciseName, cat, excludeId){
-  const matches = workoutLogs.filter(l =>
-    l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l) && !isGripLog(l) && logCategory(l) === cat && l.memo
+  const withMemo = workoutLogs.filter(l =>
+    l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l) && !isGripLog(l) && String(l.memo || '').trim()
   );
-  if (!matches.length) return '';
-  matches.sort((a,b)=>{
+  if (!withMemo.length) return null;
+  const newest = (arr)=> arr.slice().sort((a,b)=>{
     if (a.date !== b.date) return a.date < b.date ? 1 : -1;
     return recordedAtMs(b) - recordedAtMs(a);
-  });
-  return matches[0].memo;
+  })[0];
+  const sameCat = withMemo.filter(l => logCategory(l) === cat);
+  const hit = sameCat.length ? newest(sameCat) : newest(withMemo);
+  return { memo: hit.memo, cat: logCategory(hit), sameCat: sameCat.length > 0 };
 }
 
 /* 新規記録の場合のみ、前回の同じ強度のメモを編集可能な状態で自動表示する */
@@ -5708,8 +5712,10 @@ function applyMemoPrefill(){
   if (!name){ if (hintEl) hintEl.textContent = ''; return; }
   const last = findLastMemo(name, currentEntryCategory, null);
   if (last){
-    memoEl.value = last;
-    if (hintEl) hintEl.textContent = '（前回のメモを表示中。編集できます）';
+    memoEl.value = last.memo;
+    if (hintEl) hintEl.textContent = last.sameCat
+      ? '（前回のメモを表示中。編集できます）'
+      : `（前回の${setCategoryLabel(last.cat)}のメモを表示中。編集できます）`;
   } else {
     memoEl.value = '';
     if (hintEl) hintEl.textContent = '';
