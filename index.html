@@ -738,6 +738,68 @@
   }
   .streak-goal-cta .streak-goal-cta-arrow{ font-size:18px; line-height:1; }
 
+  /* ---------- 週平均ジム回数（ストリークカード内のタイル／詳細モーダル） ---------- */
+  .gym-avg-tile{
+    display:flex; align-items:center; gap:12px; width:100%; margin-top:12px; padding:12px 12px 12px 14px;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+    color:var(--text); text-align:left; cursor:pointer; font-family:inherit;
+    transition:transform .12s ease, border-color .15s ease;
+  }
+  .gym-avg-tile:active{ transform:scale(.985); }
+  .gym-avg-tile:disabled{ cursor:default; transform:none; }
+  .gat-main{ flex:1; min-width:0; }
+  .gat-label{ font-size:10.5px; color:var(--text-faint); letter-spacing:.04em; }
+  .gat-value{ display:flex; align-items:baseline; gap:4px; margin-top:2px; }
+  .gat-num{ font-family:var(--font-display); font-size:30px; font-weight:700; line-height:1.1; }
+  .gat-unit{ font-size:12px; color:var(--text-dim); }
+  .gat-sub{ margin-top:5px; font-size:11px; color:var(--text-dim); display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .gat-spark{ flex:none; display:block; }
+  .gat-chevron{ flex:none; color:var(--text-faint); font-size:20px; line-height:1; }
+  .ga-chip{ display:inline-flex; align-items:center; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:700; white-space:nowrap; }
+  .ga-chip.up{ background:var(--green-dim); color:var(--green); }
+  .ga-chip.down{ background:var(--orange-dim); color:var(--orange); }
+  .ga-chip.flat{ background:var(--surface); color:var(--text-dim); border:1px solid var(--border); }
+  .ga-hero{ text-align:center; padding:2px 0 16px; }
+  .ga-eyebrow{ font-size:11px; color:var(--text-faint); letter-spacing:.06em; }
+  .ga-hero-num{ font-family:var(--font-display); font-size:58px; font-weight:700; line-height:1.05; margin-top:4px; }
+  .ga-hero-unit{ font-size:15px; color:var(--text-dim); margin-left:4px; font-weight:500; }
+  .ga-hero-sub{ font-size:12px; color:var(--text-dim); margin-top:6px; line-height:1.6; }
+  .ga-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:0 0 16px; }
+  .ga-stat{ background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px 6px; text-align:center; min-width:0; }
+  .ga-stat-label{ font-size:10.5px; color:var(--text-faint); }
+  .ga-stat-val{ font-family:var(--font-display); font-size:17px; font-weight:700; margin-top:3px; }
+  .ga-stat-val small{ font-size:10.5px; font-weight:500; color:var(--text-dim); margin-left:1px; }
+  .ga-stat-sub{ margin-top:3px; font-size:10.5px; color:var(--text-dim); min-height:16px; }
+  .ga-seg{ display:flex; background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:3px; margin-bottom:12px; }
+  .ga-seg button{
+    flex:1; border:none; background:none; color:var(--text-dim); font-size:12.5px; font-weight:600;
+    padding:7px 0; border-radius:999px; cursor:pointer; font-family:inherit; transition:background .15s ease, color .15s ease;
+  }
+  .ga-seg button.active{ background:var(--bg-elevated); color:var(--text); box-shadow:0 1px 5px rgba(0,0,0,.22); }
+  .ga-chart{ position:relative; height:230px; margin-bottom:8px; }
+  .ga-legend{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; font-size:11px; color:var(--text-dim); margin-bottom:18px; }
+  .ga-legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .ga-legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; }
+  .ga-legend i.line{ width:16px; height:0; border-top:2px dashed currentColor; border-radius:0; }
+  .ga-list-title{ font-size:12px; font-weight:700; color:var(--text-dim); margin:2px 0 4px; }
+  .ga-row{ display:grid; grid-template-columns:64px 1fr 88px; align-items:center; gap:10px; padding:11px 2px; border-bottom:1px solid var(--border); }
+  .ga-row:last-child{ border-bottom:none; }
+  .ga-row-month{ font-size:14px; font-weight:700; }
+  .ga-row-month small{ display:block; margin-top:1px; font-size:10px; font-weight:400; color:var(--text-faint); white-space:nowrap; }
+  .ga-row-tag{ display:inline-block; margin-top:3px; padding:0 6px; border-radius:999px; font-size:9.5px; font-weight:600; color:var(--text-dim); background:var(--surface-2); border:1px solid var(--border); white-space:nowrap; }
+  .ga-row-bar{ height:8px; border-radius:4px; background:var(--surface-2); overflow:hidden; }
+  .ga-row-bar i{ display:block; height:100%; border-radius:4px; background:var(--red); }
+  .ga-row.partial .ga-row-bar i{ opacity:.45; }
+  .ga-row-val{ text-align:right; font-size:15px; font-weight:700; white-space:nowrap; }
+  .ga-row-val small{ display:block; margin-top:2px; font-size:10px; font-weight:400; color:var(--text-faint); }
+  .ga-row-delta{ margin-top:3px; }
+  .ga-best{ margin-left:4px; }
+  .ga-note{ font-size:11px; color:var(--text-faint); line-height:1.75; margin-top:14px; }
+  .ga-empty{ text-align:center; padding:26px 8px 8px; color:var(--text-dim); font-size:13px; line-height:1.8; }
+  @media (prefers-reduced-motion: reduce){
+    .gym-avg-tile, .ga-seg button{ transition:none; }
+  }
+
   .workout-quick-actions{ margin-bottom:12px; }
   .workout-quick-actions .btn{ width:100%; }
 
@@ -1665,6 +1727,17 @@
 </div>
 
 <!-- 週平均の詳細（前週比）モーダル -->
+<!-- 週平均ジム回数 -->
+<div class="modal-overlay" id="gymAvgModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>週平均ジム回数</h2>
+      <button class="modal-close" data-close="gymAvgModal" aria-label="閉じる">×</button>
+    </div>
+    <div id="gymAvgBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="weekAvgDetailModal">
   <div class="modal-box">
     <div class="modal-header">
@@ -2640,6 +2713,7 @@ function applyAppTheme(theme){
   try{ renderWarmupFatigueChart(); }catch(e){ console.warn('[theme] renderWarmupFatigueChart failed', e); }
   try{ renderBig3(); }catch(e){ console.warn('[theme] renderBig3 failed', e); }
   try{ renderBodyPartBalance(); }catch(e){ console.warn('[theme] renderBodyPartBalance failed', e); }
+  try{ if (document.getElementById('gymAvgModal').classList.contains('active')) renderGymAvgModal(false); }catch(e){ console.warn('[theme] renderGymAvgModal failed', e); }
 }
 let appThemeSaving = false;
 document.querySelectorAll('.app-theme-card').forEach(card=>{
@@ -4668,6 +4742,313 @@ function currentWeekSessionCount(){
   const dates = new Set(workoutLogs.filter(l => l.date >= monStr && l.date <= sunStr).map(l => l.date));
   return dates.size;
 }
+
+/* ---------- 週平均ジム回数 ----------
+   ジム回数 = トレーニングを記録した日数（同じ日に何種目記録しても1回）。
+   週平均 = 回数 ÷ (期間の日数 ÷ 7)。全期間は「最初に記録した日」から今日までで数える。
+   月別は、その月の日数（最初の月は記録を始めた日から、今月は今日まで）で割る。 */
+function ymdToUtc(str){
+  const [y, m, d] = str.split('-').map(Number);
+  return Date.UTC(y, m - 1, d);
+}
+function daysBetweenInclusive(a, b){
+  return Math.round((ymdToUtc(b) - ymdToUtc(a)) / 86400000) + 1;
+}
+function computeGymWeeklyStats(dateList, today){
+  const dates = [...new Set((dateList || []).filter(Boolean))].sort();
+  if (!dates.length) return null;
+  const first = dates[0], last = dates[dates.length - 1];
+  const end = last > today ? last : today;
+  const totalDays = daysBetweenInclusive(first, end);
+  const total = dates.length;
+  const avg = total / (totalDays / 7);
+  const months = [];
+  let [y, m] = first.slice(0, 7).split('-').map(Number);
+  const [ey, em] = end.slice(0, 7).split('-').map(Number);
+  while (y < ey || (y === ey && m <= em)){
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    const dim = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const monthStart = `${key}-01`, monthEnd = `${key}-${String(dim).padStart(2, '0')}`;
+    const from = monthStart < first ? first : monthStart;
+    const to = monthEnd > end ? end : monthEnd;
+    const days = daysBetweenInclusive(from, to);
+    const count = dates.filter(d => d >= from && d <= to).length;
+    months.push({ key, y, m, count, days, avg: count / (days / 7), partial: from !== monthStart || to !== monthEnd });
+    m++; if (m > 12){ m = 1; y++; }
+  }
+  // 直近3か月（今月を含む）をひとまとめにした週平均
+  let recent3 = null;
+  if (months.length >= 2){
+    const tail = months.slice(-3);
+    const c = tail.reduce((sum, x) => sum + x.count, 0);
+    const d = tail.reduce((sum, x) => sum + x.days, 0);
+    if (d >= 14) recent3 = c / (d / 7);
+  }
+  // ベスト月は、日数が少なすぎる月（参考値）を除いて決める
+  const eligible = months.filter(x => x.days >= 14);
+  const best = eligible.length ? eligible.reduce((a, b) => (b.avg > a.avg ? b : a)) : null;
+  return { first, end, totalDays, total, avg, months, recent3, best, enough: totalDays >= 14 };
+}
+
+function gymAvgDeltaChip(diff, digits){
+  const d = Math.round(diff * 10) / 10;
+  if (d > 0) return `<span class="ga-chip up">▲ ${d.toFixed(digits === undefined ? 1 : digits)}</span>`;
+  if (d < 0) return `<span class="ga-chip down">▼ ${Math.abs(d).toFixed(digits === undefined ? 1 : digits)}</span>`;
+  return '<span class="ga-chip flat">±0</span>';
+}
+
+// カード内に出す、直近の月別の小さな棒グラフ（SVG）
+function gymAvgSparkSvg(months){
+  const tail = months.slice(-8);
+  if (tail.length < 2) return '';
+  const max = Math.max(...tail.map(x => x.avg), 0.1);
+  const bw = 5, gap = 3, h = 30;
+  const w = tail.length * bw + (tail.length - 1) * gap;
+  const bars = tail.map((x, i) => {
+    const bh = Math.max(3, Math.round((x.avg / max) * (h - 2)));
+    const isLast = i === tail.length - 1;
+    return `<rect x="${i * (bw + gap)}" y="${h - bh}" width="${bw}" height="${bh}" rx="2" fill="var(--red)" opacity="${isLast ? 1 : 0.4}"/>`;
+  }).join('');
+  return `<svg class="gat-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">${bars}</svg>`;
+}
+
+function gymAvgTileHtml(stats){
+  if (!stats){
+    return `<button type="button" class="gym-avg-tile" disabled>
+      <div class="gat-main">
+        <div class="gat-label">週平均ジム回数・全期間</div>
+        <div class="gat-value"><span class="gat-num">--</span></div>
+        <div class="gat-sub">記録がたまると表示されます</div>
+      </div></button>`;
+  }
+  if (!stats.enough){
+    return `<button type="button" class="gym-avg-tile" id="gymAvgTile">
+      <div class="gat-main">
+        <div class="gat-label">週平均ジム回数・全期間</div>
+        <div class="gat-value"><span class="gat-num">--</span></div>
+        <div class="gat-sub">2週間たつと表示されます（いまは計${stats.total}回）</div>
+      </div><span class="gat-chevron">›</span></button>`;
+  }
+  const sub = stats.recent3 !== null
+    ? `<span>直近3か月 ${stats.recent3.toFixed(1)}回</span>${gymAvgDeltaChip(stats.recent3 - stats.avg)}`
+    : `<span>計${stats.total}回</span>`;
+  return `<button type="button" class="gym-avg-tile" id="gymAvgTile" aria-label="週平均ジム回数の詳細を見る">
+    <div class="gat-main">
+      <div class="gat-label">週平均ジム回数・全期間</div>
+      <div class="gat-value"><span class="gat-num">${stats.avg.toFixed(1)}</span><span class="gat-unit">回／週</span></div>
+      <div class="gat-sub">${sub}</div>
+    </div>
+    ${gymAvgSparkSvg(stats.months)}
+    <span class="gat-chevron">›</span>
+  </button>`;
+}
+
+let gymAvgRange = '12'; // '6' | '12' | 'all'
+let gymAvgChartInstance = null;
+
+function gymAvgMonthLabel(x){ return `${x.m}月`; }
+
+function animateGymAvgNumber(el, to){
+  if (!el) return;
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){ el.textContent = to.toFixed(1); return; }
+  const start = performance.now(), dur = 650;
+  const tick = (now)=>{
+    const t = Math.min(1, (now - start) / dur);
+    const eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = (to * eased).toFixed(1);
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+function renderGymAvgModal(animate){
+  const body = document.getElementById('gymAvgBody');
+  if (!body) return;
+  if (gymAvgChartInstance){ gymAvgChartInstance.destroy(); gymAvgChartInstance = null; }
+  const stats = computeGymWeeklyStats(workoutLogs.map(l => l.date), todayStr());
+  if (!stats || !stats.enough){
+    body.innerHTML = `<div class="ga-empty">${stats
+      ? `記録を始めて2週間たつと、週平均が表示されます。<br>いまは計${stats.total}回です。`
+      : 'まだ記録がありません。<br>トレーニングを記録すると、週平均が表示されます。'}</div>`;
+    return;
+  }
+  const hasRangeChoice = stats.months.length > 6;
+  const range = hasRangeChoice ? gymAvgRange : 'all';
+  const view = range === 'all' ? stats.months : stats.months.slice(-Number(range));
+  const goal = weeklyGoalSessions || null;
+  const best = stats.best;
+  const last = stats.months[stats.months.length - 1];
+
+  const weeksTotal = Math.max(1, Math.round(stats.totalDays / 7));
+  const firstLabel = `${stats.first.slice(0, 4)}年${Number(stats.first.slice(5, 7))}月${Number(stats.first.slice(8, 10))}日`;
+  const heroSub = `${firstLabel}から ${weeksTotal}週間・計${stats.total}回`;
+
+  const recentStat = stats.recent3 !== null
+    ? `<div class="ga-stat-val">${stats.recent3.toFixed(1)}<small>回</small></div><div class="ga-stat-sub">${gymAvgDeltaChip(stats.recent3 - stats.avg)} 全期間比</div>`
+    : `<div class="ga-stat-val">--</div><div class="ga-stat-sub"></div>`;
+  const bestStat = best
+    ? `<div class="ga-stat-val">${best.avg.toFixed(1)}<small>回</small></div><div class="ga-stat-sub">${best.y}年${best.m}月</div>`
+    : `<div class="ga-stat-val">--</div><div class="ga-stat-sub"></div>`;
+  const thisStat = `<div class="ga-stat-val">${last.avg.toFixed(1)}<small>回</small></div><div class="ga-stat-sub">${last.count}回／${last.days}日${last.partial ? '（途中）' : ''}</div>`;
+
+  const seg = hasRangeChoice ? `
+    <div class="ga-seg" role="tablist" aria-label="表示期間">
+      <button type="button" data-range="6" class="${range === '6' ? 'active' : ''}">6か月</button>
+      <button type="button" data-range="12" class="${range === '12' ? 'active' : ''}">12か月</button>
+      <button type="button" data-range="all" class="${range === 'all' ? 'active' : ''}">全期間</button>
+    </div>` : '';
+
+  const maxAvg = Math.max(...stats.months.map(x => x.avg), 0.1);
+  const listRows = stats.months.slice().reverse().map((x, idx, arr)=>{
+    const prev = arr[idx + 1]; // 1つ前の月（reverse済みなので次の要素）
+    const showDelta = prev && prev.days >= 14 && x.days >= 14;
+    const isBest = best && best.key === x.key;
+    return `<div class="ga-row${x.partial ? ' partial' : ''}">
+      <div class="ga-row-month">${x.m}月<small>${x.y}年</small>${x.partial ? `<span class="ga-row-tag">${x.key === last.key ? '集計中' : '途中から'}</span>` : ''}</div>
+      <div class="ga-row-bar"><i style="width:${Math.max(2, Math.round((x.avg / maxAvg) * 100))}%"></i></div>
+      <div class="ga-row-val">${x.avg.toFixed(1)}回${isBest ? '<span class="ga-best" title="ベスト月">🏅</span>' : ''}
+        <small>${x.count}回／${x.days}日</small>
+        ${showDelta ? `<div class="ga-row-delta">${gymAvgDeltaChip(x.avg - prev.avg)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="ga-hero">
+      <div class="ga-eyebrow">全期間の週平均</div>
+      <div class="ga-hero-num"><span id="gymAvgHeroNum">${stats.avg.toFixed(1)}</span><span class="ga-hero-unit">回／週</span></div>
+      <div class="ga-hero-sub">${heroSub}</div>
+    </div>
+    <div class="ga-stats">
+      <div class="ga-stat"><div class="ga-stat-label">直近3か月</div>${recentStat}</div>
+      <div class="ga-stat"><div class="ga-stat-label">ベスト月</div>${bestStat}</div>
+      <div class="ga-stat"><div class="ga-stat-label">今月</div>${thisStat}</div>
+    </div>
+    ${seg}
+    <div class="ga-chart"><canvas id="gymAvgChart" role="img" aria-label="月ごとの週平均ジム回数の棒グラフ"></canvas></div>
+    <div class="ga-legend">
+      <span><i style="background:var(--red)"></i>月の週平均</span>
+      <span style="color:var(--orange)"><i class="line"></i>全期間の平均</span>
+      ${goal ? '<span style="color:var(--green)"><i class="line"></i>週の目標</span>' : ''}
+    </div>
+    <div class="ga-list-title">月ごとの週平均</div>
+    <div>${listRows}</div>
+    <p class="ga-note">週平均は「ジムに行った日数 ÷ (期間の日数 ÷ 7)」で計算しています。同じ日に何種目記録しても1回と数えます。最初の月は記録を始めた日から、今月は今日までで数えるため、途中の月は薄く表示しています。</p>
+  `;
+
+  body.querySelectorAll('.ga-seg button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      gymAvgRange = btn.dataset.range;
+      renderGymAvgModal(false);
+    });
+  });
+
+  drawGymAvgChart(view, stats, goal);
+  if (animate) animateGymAvgNumber(document.getElementById('gymAvgHeroNum'), stats.avg);
+}
+
+function drawGymAvgChart(view, stats, goal){
+  const canvas = document.getElementById('gymAvgChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const accent = cssVar('--red');
+  const avgColor = cssVar('--orange');
+  const goalColor = cssVar('--green');
+  const textDim = cssVar('--text-dim');
+  const textFaint = cssVar('--text-faint');
+  const grid = cssVar('--border');
+  const fontFamily = getComputedStyle(document.body).fontFamily;
+  const labels = view.map((x, i) => (i === 0 || x.m === 1) ? [`${String(x.y).slice(2)}年`, gymAvgMonthLabel(x)] : gymAvgMonthLabel(x));
+  const maxVal = Math.max(...view.map(x => x.avg), stats.avg, goal || 0, 1);
+
+  // 棒の色:上から下へ薄くなるグラデーション。途中の月（参考値）は全体を薄くする
+  const barFill = (c)=>{
+    const x = view[c.dataIndex];
+    const partial = !!(x && x.partial);
+    const { ctx, chartArea } = c.chart;
+    if (!chartArea) return accent;
+    const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+    g.addColorStop(0, partial ? accent + '99' : accent);
+    g.addColorStop(1, partial ? accent + '26' : accent + '66');
+    return g;
+  };
+
+  const valueLabels = {
+    id: 'gaValueLabels',
+    afterDatasetsDraw(chart){
+      const meta = chart.getDatasetMeta(0);
+      if (meta.data.length > 14) return;
+      const { ctx } = chart;
+      ctx.save();
+      ctx.font = `600 10px ${fontFamily}`;
+      ctx.textAlign = 'center';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = cssVar('--bg-elevated');
+      ctx.fillStyle = cssVar('--text');
+      meta.data.forEach((bar, i)=>{
+        const v = chart.data.datasets[0].data[i];
+        const text = v.toFixed(1);
+        ctx.strokeText(text, bar.x, bar.y - 6);
+        ctx.fillText(text, bar.x, bar.y - 6);
+      });
+      ctx.restore();
+    }
+  };
+
+  const datasets = [
+    {
+      type: 'bar', label: '月の週平均', data: view.map(x => +x.avg.toFixed(2)),
+      backgroundColor: barFill,
+      borderRadius: 7, borderSkipped: false, maxBarThickness: 34, order: 2,
+    },
+    {
+      type: 'line', label: '全期間の平均', data: view.map(() => +stats.avg.toFixed(2)),
+      borderColor: avgColor, borderWidth: 2, borderDash: [6, 5], pointRadius: 0, pointHoverRadius: 0, fill: false, order: 1,
+    },
+  ];
+  if (goal){
+    datasets.push({
+      type: 'line', label: '週の目標', data: view.map(() => goal),
+      borderColor: goalColor, borderWidth: 2, borderDash: [2, 5], pointRadius: 0, pointHoverRadius: 0, fill: false, order: 0,
+    });
+  }
+
+  gymAvgChartInstance = new Chart(canvas, {
+    data: { labels, datasets },
+    plugins: [valueLabels],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 16, right: 4 } },
+      animation: { duration: window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cssVar('--bg-elevated'), titleColor: cssVar('--text'), bodyColor: textDim,
+          borderColor: grid, borderWidth: 1, padding: 10, cornerRadius: 10, displayColors: false,
+          filter: (item) => item.datasetIndex === 0,
+          callbacks: {
+            title: (items)=>{ const x = view[items[0].dataIndex]; return `${x.y}年${x.m}月`; },
+            label: (item)=>{ const x = view[item.dataIndex]; return `週平均 ${x.avg.toFixed(1)}回（${x.count}回／${x.days}日）`; },
+            afterLabel: (item)=>{ const x = view[item.dataIndex]; return x.partial ? '※途中の月（参考値）' : ''; },
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: textFaint, font: { size: 10 }, maxRotation: 0, autoSkip: true, autoSkipPadding: 6 } },
+        y: { beginAtZero: true, suggestedMax: Math.ceil(maxVal * 1.2 * 2) / 2, grid: { color: grid }, border: { display: false }, ticks: { color: textFaint, font: { size: 10 }, maxTicksLimit: 5, callback: (v)=> Number.isInteger(v) ? v : (Math.round(v * 10) / 10) } },
+      },
+    },
+  });
+}
+
+function openGymAvgModal(){
+  gymAvgRange = '12';
+  openModal('gymAvgModal');
+  renderGymAvgModal(true);
+}
+
 function renderStreakCard(){
   const el = document.getElementById('streakCard');
   if (!el) return;
@@ -4690,6 +5071,7 @@ function renderStreakCard(){
     `;
   }
   html += `</div>`;
+  html += gymAvgTileHtml(computeGymWeeklyStats(workoutLogs.map(l => l.date), todayStr()));
   if (!weeklyGoalSessions){
     // 小さな下線リンクだと見落とされやすいため、目立つ全幅のCTAボタンにする
     html += `
@@ -4705,6 +5087,8 @@ function renderStreakCard(){
     document.getElementById('weeklyGoalValue').value = weeklyGoalSessions || '';
     openModal('weeklyGoalModal');
   });
+  const gymAvgTile = document.getElementById('gymAvgTile');
+  if (gymAvgTile) gymAvgTile.addEventListener('click', openGymAvgModal);
 }
 
 document.getElementById('weeklyGoalForm').addEventListener('submit', async (e)=>{
