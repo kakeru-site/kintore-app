@@ -4759,7 +4759,10 @@ function currentWeekSessionCount(){
 /* ---------- 週平均ジム回数 ----------
    ジム回数 = トレーニングを記録した日数（同じ日に何種目記録しても1回）。
    週平均 = 回数 ÷ (期間の日数 ÷ 7)。全期間は「最初に記録した日」から今日までで数える。
-   月別は、その月の日数（最初の月は記録を始めた日から、今月は今日まで）で割る。 */
+   月別は、その月の日数（最初の月は記録を始めた日から、今月は今日まで）で割る。
+   記録を本格的に付け始めたのは2026年10月なので、集計の起点を2026-10-01にする（それより前の記録は数えない）。
+   起点より後に使い始めた人は、その人の最初の記録日から数える（起点と最初の記録日の遅いほう）。 */
+const GYM_STATS_START = '2026-10-01';
 function ymdToUtc(str){
   const [y, m, d] = str.split('-').map(Number);
   return Date.UTC(y, m - 1, d);
@@ -4767,10 +4770,14 @@ function ymdToUtc(str){
 function daysBetweenInclusive(a, b){
   return Math.round((ymdToUtc(b) - ymdToUtc(a)) / 86400000) + 1;
 }
-function computeGymWeeklyStats(dateList, today){
-  const dates = [...new Set((dateList || []).filter(Boolean))].sort();
+function computeGymWeeklyStats(dateList, today, startFloor){
+  const all = [...new Set((dateList || []).filter(Boolean))].sort();
+  if (!all.length) return null;
+  // 起点より前の記録は数えない。期間は「起点」と「最初の記録日」の遅いほうから始める
+  const first = startFloor && all[0] < startFloor ? startFloor : all[0];
+  const dates = all.filter(d => d >= first);
   if (!dates.length) return null;
-  const first = dates[0], last = dates[dates.length - 1];
+  const last = dates[dates.length - 1];
   const end = last > today ? last : today;
   const totalDays = daysBetweenInclusive(first, end);
   const total = dates.length;
@@ -4789,9 +4796,9 @@ function computeGymWeeklyStats(dateList, today){
     months.push({ key, y, m, count, days, avg: count / (days / 7), partial: from !== monthStart || to !== monthEnd });
     m++; if (m > 12){ m = 1; y++; }
   }
-  // 直近3か月（今月を含む）をひとまとめにした週平均
+  // 直近3か月（今月を含む）をひとまとめにした週平均。全期間と同じ範囲になってしまう間（3か月以内）は出さない
   let recent3 = null;
-  if (months.length >= 2){
+  if (months.length >= 4){
     const tail = months.slice(-3);
     const c = tail.reduce((sum, x) => sum + x.count, 0);
     const d = tail.reduce((sum, x) => sum + x.days, 0);
@@ -4878,7 +4885,7 @@ function renderGymAvgModal(animate){
   const body = document.getElementById('gymAvgBody');
   if (!body) return;
   if (gymAvgChartInstance){ gymAvgChartInstance.destroy(); gymAvgChartInstance = null; }
-  const stats = computeGymWeeklyStats(workoutLogs.map(l => l.date), todayStr());
+  const stats = computeGymWeeklyStats(workoutLogs.map(l => l.date), todayStr(), GYM_STATS_START);
   if (!stats || !stats.enough){
     body.innerHTML = `<div class="ga-empty">${stats
       ? `記録を始めて2週間たつと、週平均が表示されます。<br>いまは計${stats.total}回です。`
@@ -4898,7 +4905,7 @@ function renderGymAvgModal(animate){
 
   const recentStat = stats.recent3 !== null
     ? `<div class="ga-stat-val">${stats.recent3.toFixed(1)}<small>回</small></div><div class="ga-stat-sub">${gymAvgDeltaChip(stats.recent3 - stats.avg)} 全期間比</div>`
-    : `<div class="ga-stat-val">--</div><div class="ga-stat-sub"></div>`;
+    : `<div class="ga-stat-val">--</div><div class="ga-stat-sub">4か月分たまると表示</div>`;
   const bestStat = best
     ? `<div class="ga-stat-val">${best.avg.toFixed(1)}<small>回</small></div><div class="ga-stat-sub">${best.y}年${best.m}月</div>`
     : `<div class="ga-stat-val">--</div><div class="ga-stat-sub"></div>`;
@@ -4946,7 +4953,7 @@ function renderGymAvgModal(animate){
     </div>
     <div class="ga-list-title">月ごとの週平均</div>
     <div>${listRows}</div>
-    <p class="ga-note">週平均は「ジムに行った日数 ÷ (期間の日数 ÷ 7)」で計算しています。同じ日に何種目記録しても1回と数えます。最初の月は記録を始めた日から、今月は今日までで数えるため、途中の月は薄く表示しています。</p>
+    <p class="ga-note">週平均は「ジムに行った日数 ÷ (期間の日数 ÷ 7)」で計算しています。同じ日に何種目記録しても1回と数えます。集計は2026年10月からです。今月は今日までで数えるため、途中の月は薄く表示しています。</p>
   `;
 
   body.querySelectorAll('.ga-seg button').forEach(btn=>{
@@ -7446,7 +7453,7 @@ function renderPeriodSummary(){
   // 全期間の週平均ジム回数（今週・今月の切り替えには関係なく、常に全期間）。タップで月別の推移を見られる
   const gymAvgWrap = document.getElementById('gymAvgTileWrap');
   if (gymAvgWrap){
-    gymAvgWrap.innerHTML = gymAvgTileHtml(computeGymWeeklyStats(workoutLogs.map(l => l.date), todayStr()));
+    gymAvgWrap.innerHTML = gymAvgTileHtml(computeGymWeeklyStats(workoutLogs.map(l => l.date), todayStr(), GYM_STATS_START));
     const gymAvgTile = document.getElementById('gymAvgTile');
     if (gymAvgTile) gymAvgTile.addEventListener('click', openGymAvgModal);
   }
