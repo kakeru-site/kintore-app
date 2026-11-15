@@ -1463,6 +1463,7 @@
             <div class="value num nowrap" id="summaryDurationVal">--</div>
           </div>
         </div>
+        <div id="gymAvgTileWrap" style="margin-bottom:16px;"></div>
         <div id="summaryBpFreqList"></div>
         <div class="empty-msg" id="summaryEmptyMsg" style="display:none;">この期間の記録がありません</div>
       </div>
@@ -5083,7 +5084,6 @@ function renderStreakCard(){
     `;
   }
   html += `</div>`;
-  html += gymAvgTileHtml(computeGymWeeklyStats(workoutLogs.map(l => l.date), todayStr()));
   if (!weeklyGoalSessions){
     // 小さな下線リンクだと見落とされやすいため、目立つ全幅のCTAボタンにする
     html += `
@@ -5099,8 +5099,6 @@ function renderStreakCard(){
     document.getElementById('weeklyGoalValue').value = weeklyGoalSessions || '';
     openModal('weeklyGoalModal');
   });
-  const gymAvgTile = document.getElementById('gymAvgTile');
-  if (gymAvgTile) gymAvgTile.addEventListener('click', openGymAvgModal);
 }
 
 document.getElementById('weeklyGoalForm').addEventListener('submit', async (e)=>{
@@ -7444,6 +7442,14 @@ function renderPeriodSummary(){
   document.getElementById('summaryVolumeVal').textContent = totalVolume > 0 ? Math.round(totalVolume).toLocaleString('ja-JP') : '0';
   document.getElementById('summaryDaysVal').textContent = daysSet.size;
   document.getElementById('summaryDurationVal').innerHTML = formatDurationHtml(totalDurationSec);
+
+  // 全期間の週平均ジム回数（今週・今月の切り替えには関係なく、常に全期間）。タップで月別の推移を見られる
+  const gymAvgWrap = document.getElementById('gymAvgTileWrap');
+  if (gymAvgWrap){
+    gymAvgWrap.innerHTML = gymAvgTileHtml(computeGymWeeklyStats(workoutLogs.map(l => l.date), todayStr()));
+    const gymAvgTile = document.getElementById('gymAvgTile');
+    if (gymAvgTile) gymAvgTile.addEventListener('click', openGymAvgModal);
+  }
 
   const wrap = document.getElementById('summaryBpFreqList');
   const emptyMsg = document.getElementById('summaryEmptyMsg');
