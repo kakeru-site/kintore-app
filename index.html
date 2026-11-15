@@ -262,6 +262,7 @@
   .summary-box .label{font-size:11px; color:var(--text-dim); margin-bottom:6px;}
   .summary-box .value{font-family:var(--font-display); font-size:22px; font-weight:600;}
   .summary-box .unit{font-size:12px; color:var(--text-dim); margin-left:2px;}
+  .summary-box .value.nowrap{ white-space:nowrap; }
   .summary-row-secondary{ margin-top:-6px; }
   .summary-box.secondary{ padding:10px 12px; }
   .summary-box.secondary .value{ font-size:16px; }
@@ -1074,7 +1075,7 @@
   .freq-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
   .freq-label{ width:38px; flex-shrink:0; color:var(--text-dim); }
   .freq-bar-wrap{ flex:1; height:8px; background:var(--surface-2); border-radius:20px; overflow:hidden; }
-  .freq-bar-fill{ height:100%; border-radius:20px; }
+  .freq-bar-fill{ display:block; height:100%; border-radius:20px; }
   .freq-count{ width:32px; text-align:right; flex-shrink:0; color:var(--text-faint); font-size:11px; }
 
   /* ---------- 増量期・減量期・維持期（トレーニング期） ---------- */
@@ -1459,7 +1460,7 @@
           </div>
           <div class="summary-box">
             <div class="label">トレ時間</div>
-            <div class="value num" id="summaryDurationVal">--</div>
+            <div class="value num nowrap" id="summaryDurationVal">--</div>
           </div>
         </div>
         <div id="summaryBpFreqList"></div>
@@ -4576,6 +4577,17 @@ function recordedAtMs(l){
   return 0;
 }
 
+// サマリーのタイル用:数字は大きく、単位は小さくして、「5時間20分」が1行に収まるようにする
+function formatDurationHtml(totalSeconds){
+  const unit = (t)=> `<span class="unit">${t}</span>`;
+  if (!(totalSeconds > 0)) return `0${unit('分')}`;
+  const totalMin = Math.round(totalSeconds / 60);
+  if (totalMin <= 0) return unit('1分未満');
+  if (totalMin < 60) return `${totalMin}${unit('分')}`;
+  const h = Math.floor(totalMin / 60), m = totalMin % 60;
+  return m ? `${h}${unit('時間')}${m}${unit('分')}` : `${h}${unit('時間')}`;
+}
+
 function formatDurationShort(totalSeconds){
   const totalMin = Math.round(totalSeconds / 60);
   if (totalMin <= 0) return '1分未満';
@@ -7431,7 +7443,7 @@ function renderPeriodSummary(){
 
   document.getElementById('summaryVolumeVal').textContent = totalVolume > 0 ? Math.round(totalVolume).toLocaleString('ja-JP') : '0';
   document.getElementById('summaryDaysVal').textContent = daysSet.size;
-  document.getElementById('summaryDurationVal').textContent = totalDurationSec > 0 ? formatDurationShort(totalDurationSec) : '0分';
+  document.getElementById('summaryDurationVal').innerHTML = formatDurationHtml(totalDurationSec);
 
   const wrap = document.getElementById('summaryBpFreqList');
   const emptyMsg = document.getElementById('summaryEmptyMsg');
