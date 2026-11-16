@@ -681,6 +681,26 @@
   }
   .pr-suggest b{ color:var(--cyan); }
   /* 入力中のセットから計算する「現時点でのボリューム」。自己ベストとの差が一目で分かるようにする */
+  .prev-card{
+    display:none; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:12px; margin:0 0 12px; font-size:12px; color:var(--text-dim);
+  }
+  .prev-card.empty{ padding:10px 12px; color:var(--text-faint); }
+  .prev-card-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  .prev-card-title{ font-size:13px; font-weight:700; color:var(--text); }
+  .prev-card-date{ font-size:11.5px; color:var(--text-dim); white-space:nowrap; }
+  .prev-card-sets{ margin-top:7px; font-size:12.5px; line-height:1.75; color:var(--text); }
+  .prev-card-sets .drop{ color:var(--orange); }
+  .prev-card-vol{ margin-top:3px; }
+  .prev-card-vol b{ font-family:var(--font-display); font-size:15px; color:var(--text); }
+  .prev-card-sep{ height:1px; background:var(--border); margin:11px 0 10px; }
+  .prev-card-max{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .prev-card-max b{ font-family:var(--font-display); font-size:15px; color:var(--text); }
+  .prev-card-max .pm-date{ margin-top:2px; font-size:11px; color:var(--text-faint); white-space:nowrap; text-align:right; }
+  .prev-card-gap{ margin-top:9px; display:flex; align-items:center; gap:8px; }
+  .prev-card-bar{ flex:1; height:6px; border-radius:4px; background:var(--surface); border:1px solid var(--border); overflow:hidden; }
+  .prev-card-bar i{ display:block; height:100%; border-radius:4px; background:var(--cyan); }
+  .prev-card-pct{ font-size:11px; color:var(--text-dim); white-space:nowrap; }
   .live-volume-row{
     display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap;
     background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
@@ -1965,6 +1985,7 @@
       </div>
       <div class="field" id="setsFieldWrap">
         <label>セット <span class="field-hint" id="setsBestHint"></span></label>
+        <div class="prev-card" id="prevRecordCard"></div>
         <p class="set-drop-hint">↓↓ をタップすると、そのセットをドロップセット（直前に続けて重量を落とすセット）にできます</p>
         <div class="live-volume-row" id="liveVolumeRow" style="display:none;"></div>
         <div id="setsContainer"></div>
@@ -2988,6 +3009,8 @@ function startListeners(uid){
     renderPeriodSummary();
     renderStreakCard();
     if (currentBPFilter) renderExerciseList();
+    // 記録モーダルを開いたままデータが更新されたら、「前回の記録」カードも最新にする
+    if (document.getElementById('workoutModal').classList.contains('active')) renderPrevRecordCard();
   }, (err)=>{
     console.error(err);
     onListenError(err);
@@ -6075,10 +6098,92 @@ function openBestSetDetailModal(exerciseName, cat, excludeId, refDate, explicitG
 }
 
 /* 強度を選んだ段階で、その強度の自己ベストの各セットの重量・回数を、セット欄に自動入力する（編集は可能） */
+/* 同じ種目・同じ強度の「前回の記録」（基準日以前で一番新しいもの）を探す。
+   同じ日に複数あれば、あとから記録したほうを前回とする。同じトレーニング期（増量期／減量期・維持期）の中から探す。 */
+function findLastLogByCategory(exerciseName, cat, excludeId, refDate){
+  const ref = refDate || todayStr();
+  const list = workoutLogs.filter(l =>
+    l.exerciseName === exerciseName && l.id !== excludeId && !isCardioLog(l) && !isGripLog(l) &&
+    logCategory(l) === cat && l.date <= ref && inSamePhaseGroup(l.date, ref) && (l.sets || []).length
+  );
+  list.sort((a,b)=>{
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return recordedAtMs(b) - recordedAtMs(a);
+  });
+  return list[0] || null;
+}
+
+/* セット欄の上の「前回の記録」カード：前回の日付・内容・ボリューム、ボリュームMAXの日付、前回とMAXの差 */
+function renderPrevRecordCard(){
+  const el = document.getElementById('prevRecordCard');
+  if (!el) return;
+  const name = document.getElementById('workoutExerciseSelect').value;
+  const bodyPart = document.getElementById('workoutBodyPartSelect').value;
+  if (!name || bodyPart === CARDIO_BODY_PART || bodyPart === GRIP_BODY_PART){
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  const ref = currentWorkoutRefDate();
+  const cat = currentEntryCategory;
+  const prev = findLastLogByCategory(name, cat, editingWorkoutId, ref);
+  el.classList.toggle('empty', !prev);
+  el.style.display = 'block';
+  if (!prev){
+    el.innerHTML = `${escapeHtml(setCategoryLabel(cat))}の前回の記録は、まだありません`;
+    return;
+  }
+  const fmt = (v)=> Number(v).toLocaleString('ja-JP', { maximumFractionDigits: 1 });
+  const agoText = (dateStr)=>{
+    const n = daysBetweenInclusive(dateStr, todayStr()) - 1;
+    if (n < 0) return '';
+    return n === 0 ? '（今日）' : `（${n}日前）`;
+  };
+  const prevVol = setsVolume(prev.sets);
+  const setsHtml = prev.sets.map(s=>{
+    const t = `${s.weight}kg×${s.reps}`;
+    return s.drop ? `<span class="drop">↓${t}</span>` : t;
+  }).join(' ・ ');
+  let html = `
+    <div class="prev-card-head">
+      <span class="prev-card-title">前回の記録（${escapeHtml(setCategoryLabel(cat))}）</span>
+      <span class="prev-card-date">${escapeHtml(prev.date)}${agoText(prev.date)}</span>
+    </div>
+    <div class="prev-card-sets">${setsHtml}</div>
+    <div class="prev-card-vol">ボリューム <b>${fmt(prevVol)}</b></div>`;
+
+  const maxLog = findBestLogByCategory(name, cat, editingWorkoutId, ref);
+  const maxVol = maxLog ? setsVolume(maxLog.sets) : 0;
+  if (maxLog && maxVol > 0){
+    if (maxLog.id === prev.id){
+      html += `<div class="prev-card-sep"></div>
+        <div class="prev-card-max"><div>🏅 前回の記録が、ボリュームMAXです</div></div>`;
+    } else {
+      const diff = prevVol - maxVol;
+      const chip = diff > 0 ? `<span class="ga-chip up">▲ ${fmt(diff)}</span>`
+        : diff < 0 ? `<span class="ga-chip down">▼ ${fmt(Math.abs(diff))}</span>`
+        : '<span class="ga-chip flat">±0</span>';
+      const pct = Math.max(0, Math.min(100, Math.round((prevVol / maxVol) * 100)));
+      html += `<div class="prev-card-sep"></div>
+        <div class="prev-card-max">
+          <div>🏅 ボリュームMAX <b>${fmt(maxVol)}</b></div>
+          <div class="pm-date">${escapeHtml(maxLog.date)}${agoText(maxLog.date)}</div>
+        </div>
+        <div class="prev-card-gap">
+          <span>前回との差</span>${chip}
+          <span class="prev-card-bar"><i style="width:${pct}%"></i></span>
+          <span class="prev-card-pct">MAXの${pct}%</span>
+        </div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
 function autofillSetsFromCategory(cat){
   const name = document.getElementById('workoutExerciseSelect').value;
   if (!name) return;
-  const ref = findBestLogByCategory(name, cat, editingWorkoutId, currentWorkoutRefDate());
+  // 初期値は「前回の記録」（同じ種目・同じ強度で、いちばん新しい記録）。無ければ空欄から
+  const ref = findLastLogByCategory(name, cat, editingWorkoutId, currentWorkoutRefDate());
   currentSets = (ref && ref.sets && ref.sets.length)
     ? ref.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps), drop: !!s.drop }))
     : [{ weight: '', reps: '', drop: false }];
@@ -6144,6 +6249,7 @@ function renderEntryCategoryUI(){
 }
 
 function updateWorkoutExerciseInfo(){
+  renderPrevRecordCard();
   const name = document.getElementById('workoutExerciseSelect').value;
   const bodyPart = document.getElementById('workoutBodyPartSelect').value;
   const info = document.getElementById('workoutExerciseInfo');
