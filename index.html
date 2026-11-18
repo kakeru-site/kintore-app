@@ -701,6 +701,55 @@
   .prev-card-bar{ flex:1; height:6px; border-radius:4px; background:var(--surface); border:1px solid var(--border); overflow:hidden; }
   .prev-card-bar i{ display:block; height:100%; border-radius:4px; background:var(--cyan); }
   .prev-card-pct{ font-size:11px; color:var(--text-dim); white-space:nowrap; }
+  .prev-card-link{
+    display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; margin-top:11px;
+    padding:10px 12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-sm);
+    color:var(--text); font-size:13px; font-weight:700; font-family:inherit; text-align:left; cursor:pointer;
+    transition:transform .12s ease;
+  }
+  .prev-card-link:active{ transform:scale(.985); }
+  .prev-card-link small{ font-weight:400; font-size:11.5px; color:var(--text-dim); margin-left:6px; }
+  .prev-card-link .chev{ color:var(--text-faint); font-size:18px; line-height:1; }
+
+  /* ---------- 種目の記録の履歴（一覧） ---------- */
+  #exerciseHistoryModal{ z-index:60; }
+  .eh-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+  .eh-chart{ position:relative; height:170px; margin:2px 0 16px; }
+  .eh-chart-note{ font-size:11.5px; color:var(--text-faint); text-align:center; margin:2px 0 14px; }
+  .eh-list{ display:flex; flex-direction:column; gap:10px; }
+  .eh-item{
+    position:relative; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:var(--radius-sm); padding:12px 12px 11px;
+  }
+  .eh-item.is-max{ border-color:var(--orange); box-shadow:0 0 0 1px var(--orange-dim) inset; }
+  .eh-head{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .eh-date{ font-size:14px; font-weight:700; color:var(--text); }
+  .eh-ago{ font-size:11px; color:var(--text-faint); }
+  .eh-max{ margin-left:auto; font-size:11px; font-weight:700; color:var(--orange); white-space:nowrap; }
+  .eh-sets{ display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+  .eh-set{
+    padding:3px 9px; border-radius:999px; background:var(--surface); border:1px solid var(--border);
+    font-size:12px; color:var(--text); white-space:nowrap;
+  }
+  .eh-set.drop{ border-color:var(--orange); color:var(--orange); }
+  .eh-foot{ display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .eh-vol{ font-size:12px; color:var(--text-dim); }
+  .eh-vol b{ font-family:var(--font-display); font-size:15px; color:var(--text); margin-left:2px; }
+  .eh-vol small{ display:block; margin-top:1px; font-size:10.5px; color:var(--text-faint); }
+  .eh-memo{
+    margin-top:8px; font-size:12px; color:var(--text-dim); line-height:1.6;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .eh-apply{
+    margin-left:auto; flex:none; padding:6px 11px; border-radius:999px; border:1px solid var(--border);
+    background:var(--surface); color:var(--text); font-size:11.5px; font-weight:700; font-family:inherit; cursor:pointer;
+  }
+  .eh-apply:active{ background:var(--surface-2); }
+  .eh-more{
+    width:100%; margin-top:12px; padding:11px; border-radius:var(--radius-sm); border:1px dashed var(--border);
+    background:none; color:var(--text-dim); font-size:13px; font-family:inherit; cursor:pointer;
+  }
+  .eh-note{ font-size:11px; color:var(--text-faint); line-height:1.75; margin-top:14px; }
   .live-volume-row{
     display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap;
     background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm);
@@ -1749,6 +1798,17 @@
 </div>
 
 <!-- 週平均の詳細（前週比）モーダル -->
+<!-- 種目の記録の履歴 -->
+<div class="modal-overlay" id="exerciseHistoryModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="exerciseHistoryTitle">記録の履歴</h2>
+      <button class="modal-close" data-close="exerciseHistoryModal" aria-label="閉じる">×</button>
+    </div>
+    <div id="exerciseHistoryBody"></div>
+  </div>
+</div>
+
 <!-- 週平均ジム回数 -->
 <div class="modal-overlay" id="gymAvgModal">
   <div class="modal-box">
@@ -2737,6 +2797,7 @@ function applyAppTheme(theme){
   try{ renderBig3(); }catch(e){ console.warn('[theme] renderBig3 failed', e); }
   try{ renderBodyPartBalance(); }catch(e){ console.warn('[theme] renderBodyPartBalance failed', e); }
   try{ if (document.getElementById('gymAvgModal').classList.contains('active')) renderGymAvgModal(false); }catch(e){ console.warn('[theme] renderGymAvgModal failed', e); }
+  try{ if (document.getElementById('exerciseHistoryModal').classList.contains('active')) renderExerciseHistory(); }catch(e){ console.warn('[theme] renderExerciseHistory failed', e); }
 }
 let appThemeSaving = false;
 document.querySelectorAll('.app-theme-card').forEach(card=>{
@@ -3011,6 +3072,7 @@ function startListeners(uid){
     if (currentBPFilter) renderExerciseList();
     // 記録モーダルを開いたままデータが更新されたら、「前回の記録」カードも最新にする
     if (document.getElementById('workoutModal').classList.contains('active')) renderPrevRecordCard();
+    if (document.getElementById('exerciseHistoryModal').classList.contains('active')) renderExerciseHistory();
   }, (err)=>{
     console.error(err);
     onListenError(err);
@@ -6113,6 +6175,207 @@ function findLastLogByCategory(exerciseName, cat, excludeId, refDate){
   return list[0] || null;
 }
 
+
+/* ---------- 種目の記録の履歴（一覧） ----------
+   前回の記録カードから開く。その種目のこれまでの記録を新しい順に並べ、強度で絞り込める。
+   各記録の「この内容で入力」で、その日のセットを入力欄に取り込める。 */
+let ehState = { name: '', cat: 'medium', limit: 20 };
+let ehChartInstance = null;
+
+function countExerciseLogs(name){
+  return workoutLogs.filter(l => l.exerciseName === name && !isCardioLog(l) && !isGripLog(l) && (l.sets || []).length).length;
+}
+
+// 全記録に「強度内での前回との差」と「ボリュームMAX」の印を付けて、新しい順に返す
+function buildExerciseHistory(name){
+  const logs = workoutLogs.filter(l => l.exerciseName === name && !isCardioLog(l) && !isGripLog(l) && (l.sets || []).length);
+  const asc = logs.slice().sort((a,b)=>{
+    if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+    return recordedAtMs(a) - recordedAtMs(b);
+  });
+  const lastVolByCat = {};
+  const ref = currentWorkoutRefDate();
+  const maxIds = new Set();
+  SET_CATEGORIES.forEach(({ key })=>{
+    const m = findBestLogByCategory(name, key, null, ref);
+    if (m && setsVolume(m.sets) > 0) maxIds.add(m.id);
+  });
+  const rows = asc.map(l=>{
+    const cat = logCategory(l);
+    const vol = setsVolume(l.sets);
+    const prevVol = lastVolByCat[cat];
+    lastVolByCat[cat] = vol;
+    return { log: l, cat, vol, volIncl: setsVolume(l.sets, true), delta: prevVol === undefined ? null : vol - prevVol, isMax: maxIds.has(l.id) };
+  });
+  return rows.reverse();
+}
+
+function ehFmt(v){ return Number(v).toLocaleString('ja-JP', { maximumFractionDigits: 1 }); }
+
+function ehAgo(dateStr){
+  const n = daysBetweenInclusive(dateStr, todayStr()) - 1;
+  if (n < 0) return '';
+  return n === 0 ? '今日' : `${n}日前`;
+}
+
+function ehItemHtml(r){
+  const l = r.log;
+  const sets = l.sets.map(s=>{
+    const t = `${s.weight}kg×${s.reps}`;
+    return `<span class="eh-set${s.drop ? ' drop' : ''}">${s.drop ? '↓ ' : ''}${t}</span>`;
+  }).join('');
+  const hasDrop = r.volIncl !== r.vol;
+  const deltaChip = r.delta === null ? '' : (r.delta > 0 ? `<span class="ga-chip up">▲ ${ehFmt(r.delta)}</span>`
+    : r.delta < 0 ? `<span class="ga-chip down">▼ ${ehFmt(Math.abs(r.delta))}</span>` : '<span class="ga-chip flat">±0</span>');
+  const memo = String(l.memo || '').trim();
+  return `<div class="eh-item${r.isMax ? ' is-max' : ''}">
+    <div class="eh-head">
+      <span class="eh-date">${escapeHtml(l.date)}</span>
+      <span class="eh-ago">${ehAgo(l.date)}</span>
+      <span class="cat-badge" data-cat="${r.cat}">${escapeHtml(setCategoryLabel(r.cat))}</span>
+      ${phaseBadgeHtml(l.date)}
+      ${r.isMax ? '<span class="eh-max">🏅 ボリュームMAX</span>' : ''}
+    </div>
+    <div class="eh-sets">${sets}</div>
+    ${memo ? `<div class="eh-memo">📝 ${escapeHtml(memo)}</div>` : ''}
+    <div class="eh-foot">
+      <span class="eh-vol">ボリューム<b>${ehFmt(r.vol)}</b>${hasDrop ? `<small>（ドロップ含む ${ehFmt(r.volIncl)}）</small>` : ''}</span>
+      ${deltaChip}
+      <button type="button" class="eh-apply" data-apply="${escapeHtml(l.id)}">この内容で入力</button>
+    </div>
+  </div>`;
+}
+
+function renderExerciseHistory(){
+  const body = document.getElementById('exerciseHistoryBody');
+  if (!body) return;
+  if (ehChartInstance){ ehChartInstance.destroy(); ehChartInstance = null; }
+  const name = ehState.name;
+  const all = buildExerciseHistory(name);
+  document.getElementById('exerciseHistoryTitle').textContent = `${name} の記録`;
+  if (!all.length){
+    body.innerHTML = '<div class="empty-msg">まだ記録がありません</div>';
+    return;
+  }
+  const counts = { all: all.length };
+  SET_CATEGORIES.forEach(({ key })=>{ counts[key] = all.filter(r => r.cat === key).length; });
+  if (ehState.cat !== 'all' && !counts[ehState.cat]) ehState.cat = 'all';
+  const view = ehState.cat === 'all' ? all : all.filter(r => r.cat === ehState.cat);
+
+  // 要約:回数・ボリュームMAX・直近の記録
+  const maxRow = view.reduce((a, r)=> (!a || r.vol > a.vol ? r : a), null);
+  const latest = view[0];
+  const stats = `
+    <div class="eh-stats">
+      <div class="ga-stat"><div class="ga-stat-label">記録回数</div><div class="ga-stat-val">${view.length}<small>回</small></div><div class="ga-stat-sub">${ehState.cat === 'all' ? 'すべての強度' : escapeHtml(setCategoryLabel(ehState.cat))}</div></div>
+      <div class="ga-stat"><div class="ga-stat-label">ボリュームMAX</div><div class="ga-stat-val">${maxRow && maxRow.vol > 0 ? ehFmt(maxRow.vol) : '--'}</div><div class="ga-stat-sub">${maxRow && maxRow.vol > 0 ? escapeHtml(maxRow.log.date.slice(2)) : ''}</div></div>
+      <div class="ga-stat"><div class="ga-stat-label">直近の記録</div><div class="ga-stat-val">${ehFmt(latest.vol)}</div><div class="ga-stat-sub">${escapeHtml(latest.log.date.slice(2))}</div></div>
+    </div>`;
+
+  const seg = `
+    <div class="ga-seg" role="tablist" aria-label="強度で絞り込む">
+      <button type="button" data-cat="all" class="${ehState.cat === 'all' ? 'active' : ''}">すべて ${counts.all}</button>
+      ${SET_CATEGORIES.map(({ key, label })=> `<button type="button" data-cat="${key}" class="${ehState.cat === key ? 'active' : ''}"${counts[key] ? '' : ' disabled style="opacity:.4"'}>${escapeHtml(label)} ${counts[key]}</button>`).join('')}
+    </div>`;
+
+  const chartBlock = (ehState.cat !== 'all' && view.length >= 2)
+    ? '<div class="eh-chart"><canvas id="ehChart" role="img" aria-label="ボリュームの推移グラフ"></canvas></div>'
+    : (ehState.cat === 'all' ? '<div class="eh-chart-note">強度を選ぶと、ボリュームの推移グラフが出ます</div>' : '');
+
+  const shown = view.slice(0, ehState.limit);
+  const list = shown.map(ehItemHtml).join('');
+  const more = view.length > shown.length
+    ? `<button type="button" class="eh-more" id="ehMoreBtn">さらに表示（残り${view.length - shown.length}件）</button>` : '';
+
+  body.innerHTML = `${stats}${seg}${chartBlock}<div class="eh-list">${list}</div>${more}
+    <p class="eh-note">ボリューム = 重量 × 回数の合計（ドロップセットは除く）。🏅は、いまのトレーニング期の中での、強度ごとのボリュームMAXです。▲▼は、同じ強度の1つ前の記録との差です。「この内容で入力」で、その記録のセットを入力欄に取り込めます。</p>`;
+
+  body.querySelectorAll('.ga-seg button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ ehState.cat = btn.dataset.cat; ehState.limit = 20; renderExerciseHistory(); });
+  });
+  const moreBtn = document.getElementById('ehMoreBtn');
+  if (moreBtn) moreBtn.addEventListener('click', ()=>{ ehState.limit += 20; renderExerciseHistory(); });
+  body.querySelectorAll('.eh-apply').forEach(btn=>{
+    btn.addEventListener('click', ()=> applyHistoryRecord(btn.dataset.apply));
+  });
+  if (ehState.cat !== 'all' && view.length >= 2) drawExerciseHistoryChart(view);
+}
+
+function drawExerciseHistoryChart(view){
+  const canvas = document.getElementById('ehChart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const pts = view.slice(0, 30).reverse(); // 古い→新しい
+  const accent = cssVar('--cyan');
+  const maxColor = cssVar('--orange');
+  const textFaint = cssVar('--text-faint');
+  const grid = cssVar('--border');
+  const maxVol = Math.max(...pts.map(r => r.vol));
+  ehChartInstance = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: pts.map(r => r.log.date.slice(5).replace('-', '/')),
+      datasets: [{
+        label: 'ボリューム', data: pts.map(r => r.vol),
+        borderColor: accent, borderWidth: 2.5, tension: 0.3, fill: true,
+        backgroundColor: (c)=>{
+          const { ctx, chartArea } = c.chart;
+          if (!chartArea) return accent + '22';
+          const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          g.addColorStop(0, accent + '55'); g.addColorStop(1, accent + '05');
+          return g;
+        },
+        pointRadius: pts.map(r => (r.vol === maxVol ? 6 : 3)),
+        pointBackgroundColor: pts.map(r => (r.vol === maxVol ? maxColor : accent)),
+        pointBorderColor: cssVar('--bg-elevated'), pointBorderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 8, right: 6 } },
+      animation: { duration: window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 500 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: cssVar('--bg-elevated'), titleColor: cssVar('--text'), bodyColor: cssVar('--text-dim'),
+          borderColor: grid, borderWidth: 1, padding: 10, cornerRadius: 10, displayColors: false,
+          callbacks: {
+            title: (items)=> pts[items[0].dataIndex].log.date,
+            label: (item)=> `ボリューム ${ehFmt(item.parsed.y)}${pts[item.dataIndex].vol === maxVol ? '（MAX）' : ''}`,
+            afterLabel: (item)=> pts[item.dataIndex].log.sets.map(s => `${s.weight}kg×${s.reps}`).join(' ・ '),
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: textFaint, font: { size: 10 }, maxRotation: 0, autoSkip: true, autoSkipPadding: 8 } },
+        y: { grid: { color: grid }, border: { display: false }, ticks: { color: textFaint, font: { size: 10 }, maxTicksLimit: 4, callback: (v)=> Number(v).toLocaleString('ja-JP') } },
+      },
+    },
+  });
+}
+
+// 履歴の1件を、いま入力中の記録に取り込む（セットと強度）
+function applyHistoryRecord(logId){
+  const l = workoutLogs.find(x => x.id === logId);
+  if (!l || !(l.sets || []).length) return;
+  const cat = logCategory(l);
+  if (cat !== currentEntryCategory){
+    currentEntryCategory = cat;
+    renderEntryCategoryUI();
+  }
+  currentSets = l.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps), drop: !!s.drop }));
+  renderSetsUI();
+  updateWorkoutExerciseInfo();
+  closeModal('exerciseHistoryModal');
+  showToast(`${l.date} の記録のセットを入力しました`);
+}
+
+function openExerciseHistoryModal(name){
+  ehState = { name, cat: currentEntryCategory, limit: 20 };
+  openModal('exerciseHistoryModal');
+  renderExerciseHistory();
+}
+
 /* セット欄の上の「前回の記録」カード：前回の日付・内容・ボリューム、ボリュームMAXの日付、前回とMAXの差 */
 function renderPrevRecordCard(){
   const el = document.getElementById('prevRecordCard');
@@ -6129,8 +6392,18 @@ function renderPrevRecordCard(){
   const prev = findLastLogByCategory(name, cat, editingWorkoutId, ref);
   el.classList.toggle('empty', !prev);
   el.style.display = 'block';
+  const totalCount = countExerciseLogs(name);
+  const historyBtn = totalCount ? `
+    <button type="button" class="prev-card-link" id="prevHistoryBtn">
+      <span>これまでの記録を見る<small>${totalCount}件</small></span><span class="chev">›</span>
+    </button>` : '';
+  const bindHistoryBtn = ()=>{
+    const b = document.getElementById('prevHistoryBtn');
+    if (b) b.addEventListener('click', ()=> openExerciseHistoryModal(name));
+  };
   if (!prev){
-    el.innerHTML = `${escapeHtml(setCategoryLabel(cat))}の前回の記録は、まだありません`;
+    el.innerHTML = `${escapeHtml(setCategoryLabel(cat))}の前回の記録は、まだありません${historyBtn}`;
+    bindHistoryBtn();
     return;
   }
   const fmt = (v)=> Number(v).toLocaleString('ja-JP', { maximumFractionDigits: 1 });
@@ -6176,14 +6449,16 @@ function renderPrevRecordCard(){
         </div>`;
     }
   }
-  el.innerHTML = html;
+  el.innerHTML = html + historyBtn;
+  bindHistoryBtn();
 }
 
 function autofillSetsFromCategory(cat){
   const name = document.getElementById('workoutExerciseSelect').value;
   if (!name) return;
-  // 初期値は「前回の記録」（同じ種目・同じ強度で、いちばん新しい記録）。無ければ空欄から
-  const ref = findLastLogByCategory(name, cat, editingWorkoutId, currentWorkoutRefDate());
+  // 初期値は「過去のボリュームMAXの記録」のセット（同じ種目・同じ強度）。無ければ空欄から。
+  // 前回の記録は、セット欄の上の「前回の記録」カードで確認できる
+  const ref = findBestLogByCategory(name, cat, editingWorkoutId, currentWorkoutRefDate());
   currentSets = (ref && ref.sets && ref.sets.length)
     ? ref.sets.map(s => ({ weight: String(s.weight), reps: String(s.reps), drop: !!s.drop }))
     : [{ weight: '', reps: '', drop: false }];
