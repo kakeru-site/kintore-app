@@ -16,6 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Shippori+Mincho:wght@500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="membership.css">
+<link rel="stylesheet" href="community.css">
 <style>
   :root{
     --bg:#0c0c0e;
@@ -1401,10 +1402,15 @@
   <header class="appbar">
     <span class="title" id="pageTitle">体重記録</span>
     <div class="header-actions">
-      <button class="logout" id="helpBtn">使い方</button>
-      <button class="logout" id="feedbackBtn">意見箱</button>
-      <button class="logout" id="settingsBtn">設定</button>
-      <button class="logout" id="logoutBtn">ログアウト</button>
+      <button type="button" class="menu-btn" id="appMenuBtn" aria-haspopup="true" aria-expanded="false" aria-label="メニュー">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+      </button>
+      <div class="app-menu" id="appMenu" role="menu">
+        <button type="button" role="menuitem" id="helpBtn"><span class="mi">📖</span>使い方</button>
+        <button type="button" role="menuitem" id="feedbackBtn"><span class="mi">💬</span>意見箱</button>
+        <button type="button" role="menuitem" id="settingsBtn"><span class="mi">⚙️</span>設定</button>
+        <button type="button" role="menuitem" id="logoutBtn" class="danger"><span class="mi">↩︎</span>ログアウト</button>
+      </div>
     </div>
   </header>
 
@@ -1569,7 +1575,10 @@
       <div class="card" id="big3TotalCard">
         <div class="big3-total-head">
           <div class="section-title" style="margin-bottom:0;"><span>BIG3合計</span></div>
-          <button type="button" class="edit-target-btn" id="editBig3TargetBtn">目標を編集</button>
+          <div style="display:flex; align-items:center; gap:12px;">
+            <button type="button" class="edit-target-btn" id="big3ShareBtn">👥 みんなに見せる</button>
+            <button type="button" class="edit-target-btn" id="editBig3TargetBtn">目標を編集</button>
+          </div>
         </div>
         <div class="summary-row">
           <div class="summary-box">
@@ -1633,6 +1642,11 @@
       <p style="font-size:11px; color:var(--text-faint); text-align:center; margin-top:4px;">
         ※ 各カードの「＋記録を追加」からすべて手動で入力します。記録はタップするといつでも編集・削除できます。
       </p>
+    </section>
+
+    <!-- ⑥ みんなの記録 -->
+    <section class="section" id="section-community">
+      <div id="communityBody"></div>
     </section>
 
     <!-- ⑤ タイマー -->
@@ -1710,6 +1724,10 @@
     <button class="tab-btn" data-section="timer" data-title="タイマー">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13.5" r="7.5"/><line x1="12" y1="13.5" x2="12" y2="9.3"/><line x1="12" y1="13.5" x2="14.8" y2="14.9"/><line x1="9.8" y1="3" x2="14.2" y2="3"/></svg>
       タイマー
+    </button>
+    <button class="tab-btn" data-section="community" data-title="みんなの記録">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.9-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.2 14.1c2.4.1 4 1.7 4.6 4.4"/></svg>
+      みんな
     </button>
   </nav>
 </div>
@@ -2115,6 +2133,7 @@
         <button type="button" class="btn btn-danger" id="workoutDeleteBtn" style="display:none;">削除</button>
         <button type="submit" class="btn btn-primary">保存</button>
       </div>
+      <button type="button" class="btn btn-ghost" id="workoutShareBtn" style="display:none; margin-top:10px;">👥 この日のメニューをみんなに見せる</button>
       <div class="modal-actions-secondary" id="workoutSecondaryActions">
         <button type="button" class="btn btn-ghost" id="workoutDraftSaveBtn">下書き保存</button>
         <button type="button" class="btn btn-ghost" id="workoutSaveContinueBtn">保存して次のセットへ</button>
@@ -2471,9 +2490,11 @@ import {
 import {
   getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot,
   query, orderBy, serverTimestamp, enableIndexedDbPersistence, increment, writeBatch, arrayUnion,
-  getDoc, updateDoc, Timestamp, terminate, clearIndexedDbPersistence
+  getDoc, updateDoc, Timestamp, terminate, clearIndexedDbPersistence,
+  getDocs, startAfter, limit, where
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { createMembership } from "./membership-ui.js";
+import { createCommunity } from "./community.js";
 import { toAuthEmail } from "./membership.js";
 
 const app = initializeApp(firebaseConfig);
@@ -2591,6 +2612,17 @@ const membership = createMembership({
   authApi: { createUserWithEmailAndPassword, signOut },
   ui: { openModal, closeModal, showToast, guardedSubmit, escapeHtml }
 });
+const community = createCommunity({
+  auth, db,
+  fs: { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy, limit, startAfter, where, writeBatch, serverTimestamp, Timestamp },
+  ui: { openModal, closeModal, showToast, escapeHtml, guardedSubmit, askConfirm },
+  getMember: () => membership.getMember(),
+  adminUid: ADMIN_UID,
+  getState: () => ({
+    workoutLogs, big3ManualEntries, weightEntries, todayStr,
+    helpers: { isCardioLog, isGripLog, formatLogSummary, logCategory, setsVolume, recordedAtMs }
+  })
+});
 let memberAllowed = false;
 let memberCheckSeq = 0;
 let permissionRecheckTimer = null;
@@ -2610,6 +2642,7 @@ async function runMembershipCheck(user){
     if (!memberAllowed){
       memberAllowed = true;
       startListeners(user.uid);
+      community.onMemberReady(membership.getMember());
     }
     if (!isLockPending()) showAppScreen();
   } else {
@@ -2644,7 +2677,24 @@ function switchToSection(name){
   // 記録⇄タイマーをワンタップで行き来できるクイックボタン
   document.getElementById('quickJumpToTimerBtn').style.display = (activeSection === 'workout') ? 'flex' : 'none';
   document.getElementById('quickJumpToWorkoutBtn').style.display = (activeSection === 'timer') ? 'flex' : 'none';
+  if (activeSection === 'community') community.onShow();
 }
+
+/* ---------- ヘッダーのメニュー(使い方・意見箱・設定・ログアウト) ---------- */
+(function setupAppMenu(){
+  const btn = document.getElementById('appMenuBtn');
+  const menu = document.getElementById('appMenu');
+  const close = ()=>{ menu.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    const open = !menu.classList.contains('open');
+    menu.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  menu.addEventListener('click', ()=> close());
+  document.addEventListener('click', (e)=>{ if (!menu.contains(e.target) && e.target !== btn) close(); });
+  document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') close(); });
+})();
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=> switchToSection(btn.dataset.section));
 });
@@ -2986,6 +3036,7 @@ onAuthStateChanged(auth, (user)=>{
     hideLockScreen();
     sessionUnlocked = false;
     stopListeners();
+    community.reset();
     // ログアウト後は他人の端末に前のユーザーのテーマが残らないよう標準に戻す
     applyAppTheme('default');
   }
@@ -6899,6 +6950,7 @@ function openWorkoutModal(entry, prefill){
   renderRoutineProgressBanner();
 
   document.getElementById('workoutDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
+  document.getElementById('workoutShareBtn').style.display = entry ? 'block' : 'none';
   document.getElementById('workoutSecondaryActions').style.display = entry ? 'none' : 'flex';
   document.getElementById('workoutDraftClearBtn').style.display = (!entry && !prefill && draft) ? 'block' : 'none';
   openModal('workoutModal');
@@ -8507,6 +8559,12 @@ function openBig3TargetModal(scope){
 }
 
 document.getElementById('editBig3TargetBtn').addEventListener('click', ()=> openBig3TargetModal('total'));
+document.getElementById('big3ShareBtn').addEventListener('click', ()=> community.openShare({ type: 'big3' }));
+document.getElementById('workoutShareBtn').addEventListener('click', ()=>{
+  const date = document.getElementById('workoutDate').value;
+  closeModal('workoutModal');
+  community.openShare({ type: 'menu', date });
+});
 document.querySelectorAll('[data-lift-target]').forEach(btn=>{
   btn.addEventListener('click', ()=> openBig3TargetModal(btn.dataset.liftTarget));
 });

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'muscle-log-shell-v3';
+const CACHE_NAME = 'muscle-log-shell-v4';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,6 +6,8 @@ const APP_SHELL = [
   './membership.js',
   './membership-ui.js',
   './membership.css',
+  './community.js',
+  './community.css',
   './icon-192.png',
   './icon-512.png'
 ];

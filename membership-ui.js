@@ -338,5 +338,5 @@ export function createMembership({ auth, db, fs, authApi, ui }) {
     return member && member.trial ? 'お試し会員' : '会員';
   }
 
-  return { check, authorLabel };
+  return { check, authorLabel, getMember: () => member };
 }

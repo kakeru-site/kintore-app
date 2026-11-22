@@ -1,0 +1,211 @@
+rules_version = '2';
+
+// MUSCLE LOG 会員制ルール(会員基盤 + みんなの記録)
+// 管理者のUIDは、反映の直前に isAdmin() 内のプレースホルダーを置き換える
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin()  { return signedIn() && request.auth.uid == 'sLq6Uam7LdTBMAUonX2Tk3hHejl2'; }
+
+    // 承認済み かつ (特別会員 または 期限内)。時刻はサーバー時刻(request.time)
+    function isActiveMember() {
+      let p = /databases/$(database)/documents/members/$(request.auth.uid);
+      return signedIn()
+        && get(p).data.status == 'active'
+        && (get(p).data.get('special', false) == true
+            || (get(p).data.get('expiresAt', null) != null
+                && request.time < get(p).data.expiresAt));
+    }
+
+    // 「みんなの記録」の掲載期限。特別会員は 2100-01-01、通常会員は会員の期限(expiresAt)
+    function myActiveUntil() {
+      let m = get(/databases/$(database)/documents/members/$(request.auth.uid)).data;
+      return m.get('special', false) == true ? timestamp.date(2100, 1, 1) : m.get('expiresAt', null);
+    }
+
+    // 会員台帳
+    match /members/{uid} {
+      allow get:  if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow list: if isAdmin();
+
+      // 申込(1週間お試しの開始):本人のみ。状態・特別・番号は固定値しか書けない
+      allow create: if isAdmin()
+        || (signedIn() && request.auth.uid == uid
+            && request.resource.data.keys().hasOnly(
+                 ['loginId','nameKana','payerName','plan','contactEmail','status','special',
+                  'trial','memberNo','expiresAt','createdAt','approvedAt',
+                  'renewPlan','renewRequestedAt'])
+            && request.resource.data.status == 'active'
+            && request.resource.data.special == false
+            && request.resource.data.trial == true
+            && request.resource.data.memberNo == null
+            && request.resource.data.approvedAt == null
+            && request.resource.data.renewPlan == null
+            && request.resource.data.renewRequestedAt == null
+            && request.resource.data.expiresAt is timestamp
+            && request.resource.data.expiresAt > request.time
+            && request.resource.data.expiresAt <= request.time + duration.value(8, 'd')
+            && request.resource.data.plan in ['half', 'year']
+            && request.resource.data.nameKana is string
+            && request.resource.data.nameKana.size() > 0
+            && request.resource.data.nameKana.size() <= 40
+            && request.resource.data.payerName is string
+            && request.resource.data.payerName.size() <= 40
+            && request.resource.data.contactEmail is string
+            && request.resource.data.contactEmail.size() <= 100
+            && request.resource.data.loginId.matches('^[a-z0-9_-]{4,20}$')
+            && request.auth.token.email
+                 == request.resource.data.loginId + '@login.muscle-log.invalid'
+            && request.resource.data.createdAt == request.time);
+
+      // 更新:管理者は全項目。本人は連絡先・振込名義・更新希望(振込申告)だけ
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['contactEmail','payerName','renewPlan','renewRequestedAt'])
+            && request.resource.data.get('contactEmail', '') is string
+            && request.resource.data.get('contactEmail', '').size() <= 100
+            && request.resource.data.get('payerName', '') is string
+            && request.resource.data.get('payerName', '').size() <= 40
+            && (request.resource.data.get('renewPlan', null) == null
+                || request.resource.data.renewPlan in ['half', 'year'])
+            && (request.resource.data.get('renewRequestedAt', null)
+                  == resource.data.get('renewRequestedAt', null)
+                || request.resource.data.renewRequestedAt == request.time));
+
+      allow delete: if isAdmin();
+    }
+
+    // 承認・更新・停止の履歴(追記専用)
+    match /membershipLogs/{id} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // 振込先・連絡先:ログイン済みなら読める(期限切れ・停止の人にも案内が必要)。書き込みは管理者だけ
+    match /config/{id} {
+      allow get: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // 会員番号の連番など
+    match /counters/{id} {
+      allow read, write: if isAdmin();
+    }
+
+    // アプリのデータ:本人かつ「承認済み・期限内」だけ
+    match /users/{userId}/{document=**} {
+      allow read, write: if signedIn() && request.auth.uid == userId && isActiveMember();
+    }
+
+    // 意見箱:会員だけが閲覧・投稿。返信・削除は管理者だけ
+    match /feedback/{feedbackId} {
+      allow read: if isActiveMember() || isAdmin();
+      allow create: if isActiveMember()
+        && request.resource.data.authorUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
+
+    /* ---------- みんなの記録 ---------- */
+
+    // ニックネーム(本人だけが読める。表示名は、投稿のコピーに入る)
+    match /profiles/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow create: if isActiveMember() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['nickname', 'nicknameKey', 'activeUntil', 'createdAt'])
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.matches('^[A-Za-z0-9_\\-\\x{3041}-\\x{3096}\\x{30A1}-\\x{30FA}\\x{30FC}\\x{4E00}-\\x{9FFF}\\x{3005}]{2,12}$')
+        && request.resource.data.nicknameKey == request.resource.data.nickname.lower()
+        && request.resource.data.activeUntil == myActiveUntil()
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/nicknames/$(request.resource.data.nicknameKey)).data.uid == request.auth.uid;
+      // 掲載期限だけ、会員の期限にそろえる形でしか更新できない(期限切れの人の投稿を見せないための仕組み)
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeUntil'])
+        && request.resource.data.activeUntil == myActiveUntil();
+      allow delete: if isAdmin();
+    }
+
+    // ニックネームの先着登録(同じ名前は、登録できない)
+    match /nicknames/{key} {
+      allow get: if isActiveMember();
+      allow create: if isActiveMember()
+        && key.matches('^[a-z0-9_\\-\\x{3041}-\\x{3096}\\x{30A1}-\\x{30FA}\\x{30FC}\\x{4E00}-\\x{9FFF}\\x{3005}]{2,12}$')
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.nicknameKey == key;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // 投稿(その時点の内容のコピー)。会員だけが読める。書けるのは本人だけ
+    match /feed/{postId} {
+      allow get, list: if isActiveMember();
+      allow create: if isActiveMember()
+        && request.resource.data.keys().hasOnly(
+             ['type', 'authorUid', 'nickname', 'createdAt', 'authorActiveUntil',
+              'bodyWeight', 'bodyWeightDate', 'comment', 'big3', 'menu'])
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.type in ['big3', 'menu']
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.nickname
+             == get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.nickname
+        && request.resource.data.authorActiveUntil == myActiveUntil()
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 200
+        && (request.resource.data.bodyWeight == null
+            || (request.resource.data.bodyWeight is number
+                && request.resource.data.bodyWeight > 0
+                && request.resource.data.bodyWeight < 500))
+        && (request.resource.data.bodyWeightDate == null
+            || (request.resource.data.bodyWeightDate is string
+                && request.resource.data.bodyWeightDate.size() == 10))
+        && ((request.resource.data.type == 'big3'
+             && request.resource.data.big3 is map
+             && request.resource.data.menu == null)
+            || (request.resource.data.type == 'menu'
+                && request.resource.data.menu is map
+                && request.resource.data.menu.items is list
+                && request.resource.data.menu.items.size() <= 12
+                && request.resource.data.big3 == null));
+      // 本人は、ひとことと掲載期限だけ更新できる
+      allow update: if isActiveMember() && resource.data.authorUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comment', 'authorActiveUntil'])
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 200
+        && (request.resource.data.authorActiveUntil == resource.data.authorActiveUntil
+            || request.resource.data.authorActiveUntil == myActiveUntil());
+      // 削除は、本人(期限が切れていても)と管理者
+      allow delete: if isAdmin() || (signedIn() && resource.data.authorUid == request.auth.uid);
+    }
+
+    // 通報(管理者だけが読める。同じ人が同じ投稿を通報できるのは1回だけ)
+    match /reports/{id} {
+      allow create: if isActiveMember()
+        && request.resource.data.keys().hasOnly(['postId', 'postAuthorUid', 'reporterUid', 'reason', 'createdAt'])
+        && request.resource.data.reporterUid == request.auth.uid
+        && id == request.resource.data.postId + '_' + request.auth.uid
+        && exists(/databases/$(database)/documents/feed/$(request.resource.data.postId))
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() <= 40
+        && request.resource.data.createdAt == request.time;
+      allow read, delete: if isAdmin();
+      allow update: if false;
+    }
+
+    // todo-log(タスク管理アプリ)用。現行ルールのまま変更なし
+    function isTodoOwner() {
+      return request.auth != null
+        && request.auth.token.email == '<<TODO_OWNER_EMAIL>>'
+        && request.auth.token.email_verified == true;
+    }
+
+    match /todo_tasks/{id}    { allow read, write: if isTodoOwner(); }
+    match /todo_events/{id}   { allow read, write: if isTodoOwner(); }
+    match /todo_shopping/{id} { allow read, write: if isTodoOwner(); }
+    match /todo_stock/{id}    { allow read, write: if isTodoOwner(); }
+    match /todo_notes/{id}    { allow read, write: if isTodoOwner(); }
+  }
+}
