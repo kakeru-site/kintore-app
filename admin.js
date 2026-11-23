@@ -32,6 +32,7 @@ const endOfDayJstMs = (s) => Date.parse(s + 'T23:59:59.999+09:00');
 let members = [];
 let logs = [];
 let reports = [];
+let reportsOk = true;
 let tab = 'pending';
 let filter = { q: '', kind: 'all' };
 
@@ -78,11 +79,13 @@ async function loadAll() {
     const [m, l, r] = await Promise.all([
       getDocs(collection(db, 'members')),
       getDocs(query(collection(db, 'membershipLogs'), orderBy('at', 'desc'), limit(100))),
-      getDocs(query(collection(db, 'reports'), limit(100))),
+      // 通報のルールが未反映でも、会員の管理は使えるようにする
+      getDocs(query(collection(db, 'reports'), limit(100))).catch(() => null),
     ]);
     members = m.docs.map((d) => ({ uid: d.id, ...d.data() }));
     logs = l.docs.map((d) => ({ id: d.id, ...d.data() }));
-    reports = r.docs.map((d) => ({ id: d.id, ...d.data() }));
+    reportsOk = !!r;
+    reports = r ? r.docs.map((d) => ({ id: d.id, ...d.data() })) : [];
   } catch (e) {
     $('adBody').innerHTML = `<div class="ad-empty">読み込めませんでした(${esc(e.code || e.message)})<br>ルールの反映を確認してください</div>`;
     return;
@@ -340,6 +343,7 @@ function reportGroups() {
 
 async function renderReports() {
   const groups = reportGroups();
+  if (!reportsOk) { $('adBody').innerHTML = '<div class="ad-empty">通報はまだ読み込めません<br>(みんなの記録のルールを反映すると使えます)</div>'; return; }
   if (!groups.length) { $('adBody').innerHTML = '<div class="ad-empty">通報はありません</div>'; return; }
   const posts = await Promise.all(groups.map((g) => getDoc(doc(db, 'feed', g.postId)).catch(() => null)));
   if (tab !== 'reports') return;
