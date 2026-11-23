@@ -2615,7 +2615,7 @@ const membership = createMembership({
 });
 const community = createCommunity({
   auth, db,
-  fs: { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy, limit, startAfter, where, writeBatch, serverTimestamp, Timestamp },
+  fs: { collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, query, orderBy, limit, startAfter, where, writeBatch, serverTimestamp, Timestamp, increment },
   ui: { openModal, closeModal, showToast, escapeHtml, guardedSubmit, askConfirm },
   getMember: () => membership.getMember(),
   adminUid: ADMIN_UID,

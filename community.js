@@ -171,6 +171,10 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
 
   let me = null;            // { nickname, activeUntil }
   let meLoaded = false;
+  const REACTIONS = [{ k: 'clap', e: '👏', l: 'いいね' }, { k: 'fire', e: '🔥', l: '熱い' }, { k: 'muscle', e: '💪', l: 'ナイスパワー' }];
+  const MY_REACT_MAX = 400;
+  let myReact = { loaded: false, map: {} };   // 自分が付けた反応 { 投稿ID: [種類] }(自分だけが読める設定に保存)
+  const reactBusy = new Set();
   let feed = { posts: [], cursor: null, done: false, loading: false, loadedAt: 0, filter: 'all', error: false, showHidden: 0 };
   let draft = null;         // 投稿画面の状態
   let injected = false;
@@ -343,6 +347,7 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
       if (snap.docs.length) feed.cursor = snap.docs[snap.docs.length - 1];
       feed.done = snap.docs.length < PAGE_SIZE;
       feed.loadedAt = Date.now();
+      await ensureMyReactions();
     } catch (e) {
       console.error(e);
       feed.error = true;
@@ -366,6 +371,7 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
     feed = { posts: [], cursor: null, done: false, loading: false, loadedAt: 0, filter: 'all', error: false, showHidden: 0 };
     pub = { loaded: false, enabled: false, showWeight: false };
     rivals = { loaded: false, uids: [] };
+    myReact = { loaded: false, map: {} }; reactBusy.clear();
     rank.cache = {}; rank.loading = false; rank.error = false;
     rivalList = { rows: [], at: 0, loading: false };
     rivalView = null; pendingPublic = false;
@@ -413,6 +419,63 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
 
   const expandedIds = new Set();
 
+  async function ensureMyReactions() {
+    if (myReact.loaded || !auth.currentUser) return;
+    try {
+      const snap = await fs.getDoc(fs.doc(db, 'users', auth.currentUser.uid, 'settings', 'reactions'));
+      myReact.map = snap.exists() && snap.data().map && typeof snap.data().map === 'object' ? snap.data().map : {};
+      myReact.loaded = true;
+    } catch (e) { console.error(e); }   // 読めなくても投稿は見られる
+  }
+
+  function reactionBar(p) {
+    const mineSet = new Set(myReact.map[p.id] || []);
+    const cnt = p.reactions || {};
+    return `<div class="cm-react">${REACTIONS.map(r => {
+      const n = Math.max(0, Number(cnt[r.k]) || 0);
+      return `<button type="button" class="cm-rx${mineSet.has(r.k) ? ' on' : ''}" data-act="react" data-id="${esc(p.id)}" data-kind="${r.k}" aria-pressed="${mineSet.has(r.k)}" aria-label="${r.l}"><span class="e">${r.e}</span>${n ? `<b>${n}</b>` : ''}</button>`;
+    }).join('')}</div>`;
+  }
+
+  // 反応の付け外し。画面はすぐ更新し、失敗したら元に戻す。件数は他の人と同時でも崩れないよう increment で足し引きする
+  async function toggleReaction(id, kind) {
+    const p = findPost(id); const uid = myUid();
+    if (!p || !uid || !REACTIONS.some(r => r.k === kind)) return;
+    const key = id + kind;
+    if (reactBusy.has(key)) return;
+    reactBusy.add(key);
+    const had = (myReact.map[id] || []).includes(kind);
+    const delta = had ? -1 : 1;
+    const prevMap = myReact.map, prevCounts = p.reactions;
+    const base = { clap: 0, fire: 0, muscle: 0, ...(p.reactions || {}) };
+    const nextMap = { ...myReact.map };
+    const kinds = new Set(nextMap[id] || []);
+    if (had) kinds.delete(kind); else kinds.add(kind);
+    delete nextMap[id];
+    if (kinds.size) nextMap[id] = [...kinds];       // 古いものから捨てて上限内に保つ(Mapは挿入順)
+    const ids = Object.keys(nextMap);
+    if (ids.length > MY_REACT_MAX) ids.slice(0, ids.length - MY_REACT_MAX).forEach(k => { delete nextMap[k]; });
+    myReact.map = nextMap;
+    p.reactions = { ...base, [kind]: Math.max(0, base[kind] + delta) };
+    renderCommunity();
+    try {
+      const b = fs.writeBatch(db);
+      const rref = fs.doc(db, 'feed', id, 'reactions', `${uid}_${kind}`);
+      if (had) b.delete(rref); else b.set(rref, { uid, kind, createdAt: fs.serverTimestamp() });
+      const fref = fs.doc(db, 'feed', id);
+      if (prevCounts) b.update(fref, { [`reactions.${kind}`]: fs.increment(delta) });
+      else b.update(fref, { reactions: { ...base, [kind]: Math.max(0, base[kind] + delta) } });   // 反応欄が無い古い投稿は丸ごと作る
+      b.set(fs.doc(db, 'users', uid, 'settings', 'reactions'), { map: nextMap, updatedAt: fs.serverTimestamp() });
+      await b.commit();
+    } catch (e) {
+      console.error(e);
+      myReact.map = prevMap; p.reactions = prevCounts;
+      ui.showToast('反応できませんでした。通信状態をご確認ください');
+      renderCommunity();
+    }
+    reactBusy.delete(key);
+  }
+
   function postHtml(p, preview) {
     const t = formatPostTime(p.createdAt);
     const nick = p.nickname || '会員';
@@ -435,6 +498,7 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
       <div class="cm-body">${body}</div>
       ${weightHtml(p) ? `<div class="cm-meta">${weightHtml(p)}</div>` : ''}
       ${comment ? `<p class="cm-comment"><span>💬</span>${esc(comment)}</p>` : ''}
+      ${preview ? '' : reactionBar(p)}
       ${actions ? `<footer class="cm-actions">${actions}</footer>` : ''}
     </article>`;
   }
@@ -486,6 +550,7 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
     else if (act === 'delete') confirmDelete(id);
     else if (act === 'edit') openEdit(id);
     else if (act === 'report') openReport(id);
+    else if (act === 'react') toggleReaction(id, btn.dataset.kind);
     else if (act === 'rank-toggle') {
       rank.open = !rank.open; lsSet('ml_cm_rank_open', rank.open ? '1' : '0');
       renderCommunity();
@@ -983,6 +1048,7 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
         bodyWeight: post.bodyWeight, bodyWeightDate: post.bodyWeightDate,
         comment: String(draft.comment || '').trim().slice(0, COMMENT_MAX),
         big3: post.big3, menu: post.menu,
+        reactions: { clap: 0, fire: 0, muscle: 0 },
       };
       await fs.addDoc(fs.collection(db, 'feed'), data);
       ui.closeModal('cmShareModal');

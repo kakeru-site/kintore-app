@@ -24,6 +24,24 @@ service cloud.firestore {
       return m.get('special', false) == true ? timestamp.date(2100, 1, 1) : m.get('expiresAt', null);
     }
 
+    // リアクション(👏🔥💪)の集計チェック。
+    // 投稿の reactions 件数の増減は、同じバッチで作る/消す反応ドキュメント(feed/{id}/reactions/{uid}_{種類})の増減と一致しなければならない
+    function reactionDelta(postId, kind) {
+      let r = /databases/$(database)/documents/feed/$(postId)/reactions/$(request.auth.uid + '_' + kind);
+      return (existsAfter(r) ? 1 : 0) - (exists(r) ? 1 : 0);
+    }
+    function reactionsOk(postId) {
+      let o = resource.data.get('reactions', {});
+      let n = request.resource.data.reactions;
+      return n is map && n.size() == 3
+        && n.keys().hasOnly(['clap', 'fire', 'muscle'])
+        && n.clap is int && n.fire is int && n.muscle is int
+        && n.clap >= 0 && n.fire >= 0 && n.muscle >= 0
+        && n.clap - o.get('clap', 0) == reactionDelta(postId, 'clap')
+        && n.fire - o.get('fire', 0) == reactionDelta(postId, 'fire')
+        && n.muscle - o.get('muscle', 0) == reactionDelta(postId, 'muscle');
+    }
+
     // 会員台帳
     match /members/{uid} {
       allow get:  if isAdmin() || (signedIn() && request.auth.uid == uid);
@@ -146,7 +164,9 @@ service cloud.firestore {
       allow create: if isActiveMember()
         && request.resource.data.keys().hasOnly(
              ['type', 'authorUid', 'nickname', 'createdAt', 'authorActiveUntil',
-              'bodyWeight', 'bodyWeightDate', 'comment', 'big3', 'menu'])
+              'bodyWeight', 'bodyWeightDate', 'comment', 'big3', 'menu', 'reactions'])
+        && request.resource.data.get('reactions', {'clap': 0, 'fire': 0, 'muscle': 0})
+             == {'clap': 0, 'fire': 0, 'muscle': 0}
         && request.resource.data.authorUid == request.auth.uid
         && request.resource.data.type in ['big3', 'menu']
         && request.resource.data.createdAt == request.time
@@ -177,8 +197,26 @@ service cloud.firestore {
         && request.resource.data.comment.size() <= 200
         && (request.resource.data.authorActiveUntil == resource.data.authorActiveUntil
             || request.resource.data.authorActiveUntil == myActiveUntil());
+      // 誰でも(有効な会員)、リアクション件数だけは更新できる。増減は反応ドキュメントと一致が必須
+      allow update: if isActiveMember()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
+        && reactionsOk(postId);
       // 削除は、本人(期限が切れていても)と管理者
       allow delete: if isAdmin() || (signedIn() && resource.data.authorUid == request.auth.uid);
+
+      // 反応ドキュメント。1人1種類につき1件(IDは「UID_種類」)
+      match /reactions/{rid} {
+        allow create: if isActiveMember()
+          && request.resource.data.keys().hasOnly(['uid', 'kind', 'createdAt'])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.kind in ['clap', 'fire', 'muscle']
+          && rid == request.auth.uid + '_' + request.resource.data.kind
+          && request.resource.data.createdAt == request.time
+          && exists(/databases/$(database)/documents/feed/$(postId));
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+        allow read: if isAdmin();
+        allow update: if false;
+      }
     }
 
     // 通報(管理者だけが読める。同じ人が同じ投稿を通報できるのは1回だけ)
