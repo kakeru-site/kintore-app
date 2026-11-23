@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>MUSCLE LOG 管理画面</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div id="adGate" class="ad-gate">読み込み中…</div>
+
+<div id="adLogin" class="ad-gate" hidden>
+  <div class="ad-card">
+    <h1>管理画面</h1>
+    <p class="ad-dim">管理者アカウントでログインしてください</p>
+    <input id="adId" placeholder="ログインID またはメールアドレス" autocomplete="username" autocapitalize="none">
+    <input id="adPw" type="password" placeholder="パスワード" autocomplete="current-password">
+    <div id="adLoginErr" class="ad-err"></div>
+    <button id="adLoginBtn" class="ad-btn primary">ログイン</button>
+  </div>
+</div>
+
+<div id="adApp" hidden>
+  <header class="ad-head">
+    <h1>管理画面</h1>
+    <div>
+      <a class="ad-link" href="index.html">アプリへ</a>
+      <button id="adReload" class="ad-btn sm">再読込</button>
+    </div>
+  </header>
+
+  <section id="adSummary" class="ad-tiles"></section>
+
+  <nav class="ad-tabs" id="adTabs">
+    <button data-tab="pending" class="active">承認待ち<span id="adPendingN" class="ad-badge" hidden></span></button>
+    <button data-tab="members">会員</button>
+    <button data-tab="logs">履歴</button>
+    <button data-tab="reports">通報<span id="adReportN" class="ad-badge" hidden></span></button>
+  </nav>
+
+  <main id="adBody"></main>
+</div>
+
+<div id="adModal" class="ad-modal" hidden>
+  <div class="ad-modal-card" id="adModalCard"></div>
+</div>
+<div id="adToast" class="ad-toast"></div>
+
+<script type="module" src="admin.js"></script>
+</body>
+</html>

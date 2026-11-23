@@ -1409,6 +1409,7 @@
         <button type="button" role="menuitem" id="helpBtn"><span class="mi">📖</span>使い方</button>
         <button type="button" role="menuitem" id="feedbackBtn"><span class="mi">💬</span>意見箱</button>
         <button type="button" role="menuitem" id="settingsBtn"><span class="mi">⚙️</span>設定</button>
+        <a role="menuitem" id="adminLink" href="admin.html" hidden><span class="mi">🛠</span>管理画面</a>
         <button type="button" role="menuitem" id="logoutBtn" class="danger"><span class="mi">↩︎</span>ログアウト</button>
       </div>
     </div>
@@ -3027,6 +3028,7 @@ onAuthStateChanged(auth, (user)=>{
     // 会員状態を確認できるまでアプリ画面は出さない。確認後、runMembershipCheckが表示とデータ読み込みを行う
     if (isLockPending()) showLockScreen();
     else hideLockScreen();
+    document.getElementById('adminLink').hidden = !isAdminUser();
     runMembershipCheck(user);
   } else {
     memberCheckSeq++;

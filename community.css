@@ -144,13 +144,14 @@ header.appbar .header-actions{ position:relative; gap:0; padding-bottom:0; flex:
 }
 .app-menu.open{ display:block; animation:cmPop .14s ease-out; }
 @keyframes cmPop{ from{ opacity:0; transform:translateY(-4px) scale(.98); } to{ opacity:1; transform:none; } }
-.app-menu button{
+.app-menu button, .app-menu a{
   display:flex; align-items:center; gap:10px; width:100%; padding:12px 12px; border:none; background:none;
   color:var(--text); font-size:14px; font-family:inherit; text-align:left; border-radius:8px; cursor:pointer;
   text-decoration:none;
 }
+.app-menu a[hidden]{ display:none; }
 .app-menu button:active{ background:var(--surface-2); }
-.app-menu button + button{ border-top:1px solid var(--border); border-radius:0; }
+.app-menu > * + *{ border-top:1px solid var(--border); border-radius:0; }
 .app-menu button.danger{ color:var(--red); }
 .app-menu .mi{ width:20px; text-align:center; flex:none; }
 
