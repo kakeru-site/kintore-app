@@ -3047,6 +3047,7 @@ function startListeners(uid){
   const wq = query(weightCol, orderBy('date', 'desc'));
   unsubWeight = onSnapshot(wq, (snap)=>{
     weightEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    community.onDataChanged(); // 公開プロフィールを使っている人は、体重の変化を自動で反映する
     renderWeightSummary();
     renderWeightChart();
     renderFatigueChart();
@@ -3151,6 +3152,7 @@ function startListeners(uid){
   const big3Col = collection(db, 'users', uid, 'big3Manual');
   unsubBig3Manual = onSnapshot(big3Col, (snap)=>{
     big3ManualEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    community.onDataChanged(); // 公開プロフィールを使っている人は、BIG3の変化を自動で反映する
     renderBig3();
   }, (err)=>{
     console.error(err);

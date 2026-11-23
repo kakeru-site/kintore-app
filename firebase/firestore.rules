@@ -195,6 +195,38 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // 公開プロフィール(ランキング・ライバル用)。オプトイン。有効な会員が読める。書く・消すのは本人だけ
+    match /publicProfiles/{uid} {
+      allow get, list: if isActiveMember();
+      allow create, update: if isActiveMember() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(
+             ['nickname', 'squat', 'bench', 'deadlift', 'total', 'bodyWeight', 'ratio',
+              'showWeight', 'activeUntil', 'updatedAt'])
+        && request.resource.data.nickname
+             == get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.nickname
+        && request.resource.data.activeUntil == myActiveUntil()
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.showWeight is bool
+        && (request.resource.data.squat == null
+            || (request.resource.data.squat is number && request.resource.data.squat > 0 && request.resource.data.squat <= 600))
+        && (request.resource.data.bench == null
+            || (request.resource.data.bench is number && request.resource.data.bench > 0 && request.resource.data.bench <= 600))
+        && (request.resource.data.deadlift == null
+            || (request.resource.data.deadlift is number && request.resource.data.deadlift > 0 && request.resource.data.deadlift <= 600))
+        && (request.resource.data.total == null
+            || (request.resource.data.total is number && request.resource.data.total > 0 && request.resource.data.total <= 1800
+                && request.resource.data.squat != null && request.resource.data.bench != null && request.resource.data.deadlift != null
+                && math.abs(request.resource.data.total
+                     - (request.resource.data.squat + request.resource.data.bench + request.resource.data.deadlift)) < 0.5))
+        && (request.resource.data.bodyWeight == null
+            || (request.resource.data.bodyWeight is number && request.resource.data.bodyWeight > 0
+                && request.resource.data.bodyWeight < 500 && request.resource.data.showWeight == true))
+        && (request.resource.data.ratio == null
+            || (request.resource.data.ratio is number && request.resource.data.ratio > 0
+                && request.resource.data.ratio < 15 && request.resource.data.showWeight == true));
+      allow delete: if (signedIn() && request.auth.uid == uid) || isAdmin();
+    }
+
     // todo-log(タスク管理アプリ)用。現行ルールのまま変更なし
     function isTodoOwner() {
       return request.auth != null

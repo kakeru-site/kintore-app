@@ -111,6 +111,49 @@ export function composeMenuSnapshot(logs, date, h) {
   return { ok: items.length > 0, date, items, volume, omitted: Math.max(0, dayLogs.length - items.length) };
 }
 
+/* ---------- ランキング・ライバル(v2) ---------- */
+export const MAX_RIVALS = 10;
+export const RANK_SHOW = 10;     // 画面に出す件数
+export const RANK_FETCH = 15;    // 期限切れの会員を除くぶん、多めに読む
+export const RANK_SORTS = [
+  { key: 'total', label: '合計', field: 'total', unit: 'kg', dec: 0 },
+  { key: 'ratio', label: '体重比', field: 'ratio', unit: '倍', dec: 2 },
+  { key: 'squat', label: 'SQ', field: 'squat', unit: 'kg', dec: 0 },
+  { key: 'bench', label: 'BP', field: 'bench', unit: 'kg', dec: 0 },
+  { key: 'deadlift', label: 'DL', field: 'deadlift', unit: 'kg', dec: 0 },
+];
+
+// 公開プロフィールの中身。体重は「体重も公開する」をオンにした人だけ(オフなら体重比も出さない)
+export function composePublicProfile(big3Snap, bw, showWeight) {
+  const L = (big3Snap && big3Snap.lifts) || {};
+  const w = (k) => (L[k] ? L[k].weight : null);
+  const total = big3Snap && big3Snap.total ? big3Snap.total : null;
+  const useW = !!showWeight && bw && Number(bw.weight) > 0;
+  return {
+    squat: w('squat'), bench: w('bench'), deadlift: w('deadlift'), total,
+    bodyWeight: useW ? Number(bw.weight) : null,
+    ratio: useW && total ? Math.round((total / Number(bw.weight)) * 100) / 100 : null,
+    showWeight: !!showWeight,
+  };
+}
+// 前回と同じ内容なら書き込まないための目印
+export function profileSignature(p, extra) {
+  return JSON.stringify([p.squat, p.bench, p.deadlift, p.total, p.bodyWeight, p.ratio, p.showWeight, extra || '']);
+}
+export function rankValue(p, sortKey) {
+  const v = p ? p[sortKey] : null;
+  return typeof v === 'number' && v > 0 ? v : null;
+}
+// 相手 − 自分(どちらかが無い項目は null)
+export function diffVsMe(rival, mine) {
+  const d = {};
+  ['total', 'squat', 'bench', 'deadlift', 'ratio'].forEach(k => {
+    const a = rankValue(rival, k), b = rankValue(mine, k);
+    d[k] = a !== null && b !== null ? Math.round((a - b) * 100) / 100 : null;
+  });
+  return d;
+}
+
 // ニックネームから、アイコンの色を決める
 export function avatarHue(nick) {
   let h = 0;
@@ -178,6 +221,16 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
         </form>
       </div></div>
 
+      <div class="modal-overlay" id="cmPublicModal"><div class="modal-box">
+        <div class="modal-header"><h2>公開プロフィール</h2><button class="modal-close" data-close="cmPublicModal" aria-label="閉じる">×</button></div>
+        <div id="cmPublicBody"></div>
+      </div></div>
+
+      <div class="modal-overlay" id="cmRivalModal"><div class="modal-box">
+        <div class="modal-header"><h2 id="cmRivalTitle">プロフィール</h2><button class="modal-close" data-close="cmRivalModal" aria-label="閉じる">×</button></div>
+        <div id="cmRivalBody"></div>
+      </div></div>
+
       <div class="modal-overlay" id="cmReportModal"><div class="modal-box">
         <div class="modal-header"><h2>この投稿を通報</h2><button class="modal-close" data-close="cmReportModal" aria-label="閉じる">×</button></div>
         <p class="cm-lead">運営が内容を確認します。通報したことは、投稿した人には伝わりません。</p>
@@ -188,7 +241,7 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
         </form>
       </div></div>`);
 
-    document.querySelectorAll('#cmNickModal [data-close], #cmShareModal [data-close], #cmEditModal [data-close], #cmReportModal [data-close]')
+    document.querySelectorAll('#cmNickModal [data-close], #cmShareModal [data-close], #cmEditModal [data-close], #cmReportModal [data-close], #cmPublicModal [data-close], #cmRivalModal [data-close]')
       .forEach(b => b.addEventListener('click', () => ui.closeModal(b.dataset.close)));
     $('cmNickForm').addEventListener('submit', (e) => { e.preventDefault(); ui.guardedSubmit(e.currentTarget, registerNickname); });
     $('cmEditForm').addEventListener('submit', (e) => { e.preventDefault(); ui.guardedSubmit(e.currentTarget, saveEdit); });
@@ -208,6 +261,15 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
       meLoaded = true;
     } catch (e) { console.error(e); }
     return me;
+  }
+
+  function openNickModal(afterNick) {
+    injectDom();
+    draft = afterNick ? { afterNick } : null;
+    $('cmNickInput').value = '';
+    $('cmNickAgree').checked = false;
+    $('cmNickErr').textContent = '';
+    ui.openModal('cmNickModal');
   }
 
   async function registerNickname() {
@@ -230,7 +292,8 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
       meLoaded = true;
       ui.closeModal('cmNickModal');
       ui.showToast(`「${v.nickname}」で登録しました`);
-      if (draft && draft.afterNick) { const d = draft; draft = null; openShare(d.afterNick); }
+      if (pendingPublic) { pendingPublic = false; openPublicModal(); }
+      else if (draft && draft.afterNick) { const d = draft; draft = null; openShare(d.afterNick); }
       renderCommunity();
     } catch (e) {
       console.error(e);
@@ -291,6 +354,9 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
   function onShow() {
     injectDom();
     ensureProfile().then(renderCommunity);
+    ensurePublic().then(renderCommunity);
+    ensureRivals().then(renderCommunity);
+    if (rank.open) { if (rank.mode === 'rank') loadRanking(false); else loadRivals(false); }
     if (!feed.posts.length || Date.now() - feed.loadedAt > CACHE_MS) loadFeed(true);
     else renderCommunity();
   }
@@ -298,6 +364,12 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
   function reset() {
     me = null; meLoaded = false; draft = null;
     feed = { posts: [], cursor: null, done: false, loading: false, loadedAt: 0, filter: 'all', error: false, showHidden: 0 };
+    pub = { loaded: false, enabled: false, showWeight: false };
+    rivals = { loaded: false, uids: [] };
+    rank.cache = {}; rank.loading = false; rank.error = false;
+    rivalList = { rows: [], at: 0, loading: false };
+    rivalView = null; pendingPublic = false;
+    clearTimeout(syncTimer);
     const body = $('communityBody');
     if (body) body.innerHTML = '';
   }
@@ -393,6 +465,8 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
         <div><div class="cm-title">みんなの記録</div><div class="cm-sub">会員が載せた、BIG3とメニュー${me ? `<span class="cm-me">あなた: ${esc(me.nickname)}</span>` : ''}</div></div>
         <button type="button" class="btn btn-primary btn-sm cm-compose" data-act="compose">＋ 載せる</button>
       </div>
+      ${rankCardHtml()}
+      <div class="cm-section-label">みんなの投稿</div>
       <div class="ga-seg cm-seg" role="tablist" aria-label="種類で絞り込む">${seg}</div>
       <div class="cm-list">${list}</div>
       ${more}
@@ -412,6 +486,385 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
     else if (act === 'delete') confirmDelete(id);
     else if (act === 'edit') openEdit(id);
     else if (act === 'report') openReport(id);
+    else if (act === 'rank-toggle') {
+      rank.open = !rank.open; lsSet('ml_cm_rank_open', rank.open ? '1' : '0');
+      renderCommunity();
+      if (rank.open) { if (rank.mode === 'rank') loadRanking(false); else loadRivals(false); }
+    }
+    else if (act === 'rank-mode') { rank.mode = btn.dataset.mode; renderCommunity(); if (rank.mode === 'rank') loadRanking(false); else loadRivals(false); }
+    else if (act === 'rank-sort') { rank.sort = btn.dataset.sort; renderCommunity(); loadRanking(false); }
+    else if (act === 'rank-refresh') { if (rank.mode === 'rank') loadRanking(true); else loadRivals(true); }
+    else if (act === 'rank-open') openRival(btn.dataset.uid);
+    else if (act === 'rival-star') { e.stopPropagation(); toggleRival(btn.dataset.uid); }
+    else if (act === 'public-open') openPublicModal();
+  }
+
+
+  /* ===== ランキング・ライバル(v2) ===== */
+  let pub = { loaded: false, enabled: false, showWeight: false };    // 自分の公開プロフィール
+  let rivals = { loaded: false, uids: [] };                          // 自分のライバル(自分だけが読める設定)
+  const rank = { open: true, mode: 'rank', sort: 'total', cache: {}, loading: false, error: false };
+  let rivalList = { rows: [], at: 0, loading: false };
+  let rivalView = null;
+  let syncTimer = null;
+  let pendingPublic = false;
+
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* 使えなくても動く */ } };
+  const myUid = () => (auth.currentUser ? auth.currentUser.uid : null);
+  rank.open = lsGet('ml_cm_rank_open') !== '0';
+
+  function saveFlag() { const u = myUid(); if (u) lsSet(`ml_cm_pub_${u}`, JSON.stringify({ enabled: pub.enabled, showWeight: pub.showWeight })); }
+  function readFlag() { const u = myUid(); if (!u) return null; try { return JSON.parse(lsGet(`ml_cm_pub_${u}`) || 'null'); } catch (e) { return null; } }
+
+  async function ensurePublic() {
+    if (pub.loaded || !myUid()) return pub;
+    try {
+      const snap = await fs.getDoc(fs.doc(db, 'publicProfiles', myUid()));
+      pub.enabled = snap.exists();
+      pub.showWeight = snap.exists() ? !!snap.data().showWeight : false;
+      pub.loaded = true;
+      saveFlag();
+    } catch (e) { console.error(e); }
+    return pub;
+  }
+
+  async function ensureRivals() {
+    if (rivals.loaded || !myUid()) return rivals;
+    try {
+      const snap = await fs.getDoc(fs.doc(db, 'users', myUid(), 'settings', 'rivals'));
+      rivals.uids = snap.exists() && Array.isArray(snap.data().uids) ? snap.data().uids.slice(0, MAX_RIVALS) : [];
+      rivals.loaded = true;
+    } catch (e) { console.error(e); }
+    return rivals;
+  }
+
+  function myProfileNow(showWeight) {
+    const st = state();
+    const snap = composeBig3Snapshot(st.big3ManualEntries);
+    const bw = latestBodyWeight(st.weightEntries, st.todayStr());
+    return { snap, bw, profile: composePublicProfile(snap, bw, showWeight) };
+  }
+
+  function invalidateRank() { rank.cache = {}; rivalList.at = 0; }
+
+  // 公開プロフィールを、いまのBIG3・体重に合わせて書き込む(前回と同じ内容なら書かない)
+  async function syncPublicProfile(force) {
+    const uid = myUid();
+    if (!uid) return;
+    await ensureProfile();
+    if (!me) return;
+    if (!pub.loaded) { const f = readFlag(); if (f) { pub.enabled = !!f.enabled; pub.showWeight = !!f.showWeight; } }
+    if (!pub.enabled) return;
+    const until = untilTimestamp();
+    if (!until) return;
+    const { snap, profile } = myProfileNow(pub.showWeight);
+    if (!snap.ok) return;   // BIG3の記録が1件も無いときは、書き換えない
+    const sig = profileSignature(profile, `${me.nickname}|${toMs(until)}`);
+    const key = `ml_cm_pubsig_${uid}`;
+    if (!force && lsGet(key) === sig) return;
+    await fs.setDoc(fs.doc(db, 'publicProfiles', uid), {
+      nickname: me.nickname, ...profile, activeUntil: until, updatedAt: fs.serverTimestamp(),
+    });
+    lsSet(key, sig);
+    invalidateRank();
+  }
+
+  // BIG3や体重が変わったら、公開中の人だけ、少し待ってから自動で更新する
+  function onDataChanged() {
+    const f = pub.loaded ? { enabled: pub.enabled } : readFlag();
+    if (!f || !f.enabled) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => { syncPublicProfile(false).catch(e => console.warn('公開プロフィールの更新に失敗しました', e)); }, 2500);
+  }
+
+  async function setPublic(enabled, showWeight) {
+    const uid = myUid();
+    if (!uid) return;
+    await ensureProfile();
+    if (enabled && !me) { pendingPublic = true; ui.closeModal('cmPublicModal'); openNickModal(null); return; }
+    try {
+      if (enabled) {
+        const { snap } = myProfileNow(showWeight);
+        if (!snap.ok) { ui.showToast('BIG3タブで記録を追加すると、公開できます'); renderPublicModal(); return; }
+        pub.enabled = true; pub.showWeight = !!showWeight; pub.loaded = true; saveFlag();
+        await syncPublicProfile(true);
+        ui.showToast('公開プロフィールをオンにしました');
+      } else {
+        await fs.deleteDoc(fs.doc(db, 'publicProfiles', uid));
+        pub.enabled = false; pub.showWeight = false; pub.loaded = true; saveFlag();
+        lsSet(`ml_cm_pubsig_${uid}`, '');
+        invalidateRank();
+        ui.showToast('公開プロフィールをオフにしました');
+      }
+    } catch (e) {
+      console.error(e);
+      ui.showToast('設定を変更できませんでした。通信状態をご確認ください');
+      pub.loaded = false; await ensurePublic();
+    }
+    renderPublicModal();
+    renderCommunity();
+    if (rank.open && rank.mode === 'rank') loadRanking(true);
+  }
+
+  async function openPublicModal() {
+    injectDom();
+    await ensureProfile();
+    // ニックネームが未登録なら、先に決めてもらう(登録後、そのまま公開設定が開く)
+    if (!me) { pendingPublic = true; openNickModal(null); return; }
+    ui.openModal('cmPublicModal');
+    renderPublicModal();
+    ensurePublic().then(renderPublicModal);
+  }
+
+  function renderPublicModal() {
+    const body = $('cmPublicBody');
+    if (!body) return;
+    const { snap, bw, profile } = myProfileNow(pub.showWeight);
+    const mock = Object.assign({ nickname: me ? me.nickname : '(ニックネーム未登録)', uid: myUid() }, profile);
+    const hasData = snap.ok;
+    body.innerHTML = `
+      <p class="cm-lead">ランキングとライバル一覧に、あなたの<b>BIG3の自己ベスト</b>が載ります。記録を追加・更新すると、<b>自動で更新</b>されます。</p>
+      <div class="cm-label">こう載ります</div>
+      <div class="cm-rank-list single">${hasData ? rankRowHtml(mock, 0, { preview: true, label: '–' }) : '<div class="cm-empty small">BIG3の記録がありません。BIG3タブで記録を追加すると、公開できます。</div>'}</div>
+      <label class="cm-switch"><input type="checkbox" id="cmPubOn" ${pub.enabled ? 'checked' : ''} ${hasData || pub.enabled ? '' : 'disabled'}>
+        <span class="cm-switch-ui"></span>
+        <span class="cm-switch-text">公開プロフィールをオンにする<small>${pub.enabled ? '公開中です' : 'オフのあいだは、ランキングに載りません'}</small></span></label>
+      <label class="cm-switch"><input type="checkbox" id="cmPubWeight" ${pub.showWeight ? 'checked' : ''} ${bw ? '' : 'disabled'}>
+        <span class="cm-switch-ui"></span>
+        <span class="cm-switch-text">体重も公開する<small>${bw ? `${fmtNum(bw.weight)}kg を載せ、「体重比」ランキングにも参加します` : '体重の記録がありません'}</small></span></label>
+      <div class="cm-consent" style="margin-top:14px;">
+        <b>公開される項目</b>
+        <ul>
+          <li>ニックネーム、SQ・BP・DLの自己ベストと合計、更新した日時</li>
+          <li>「体重も公開する」をオンにしたときだけ、体重と体重比</li>
+          <li>本名・ログインID・メールアドレスは、出ません</li>
+        </ul>
+        <p class="cm-note" style="margin:8px 0 0;">オフにすると、ランキングからすぐに削除されます。数字は、あなたが入力した記録の自己申告です。</p>
+      </div>`;
+    const on = $('cmPubOn'), wt = $('cmPubWeight');
+    if (on) on.addEventListener('change', () => setPublic(on.checked, pub.showWeight));
+    if (wt) wt.addEventListener('change', () => {
+      if (pub.enabled) setPublic(true, wt.checked);
+      else { pub.showWeight = wt.checked; renderPublicModal(); }
+    });
+  }
+
+  /* ----- ランキング ----- */
+  const rankDef = () => RANK_SORTS.find(x => x.key === rank.sort) || RANK_SORTS[0];
+
+  async function loadRanking(force) {
+    const def = rankDef();
+    const c = rank.cache[def.key];
+    if (!force && c && Date.now() - c.at < CACHE_MS) { renderCommunity(); return; }
+    if (rank.loading) return;
+    rank.loading = true; rank.error = false;
+    renderCommunity();
+    try {
+      const snap = await fs.getDocs(fs.query(fs.collection(db, 'publicProfiles'),
+        fs.where(def.field, '>', 0), fs.orderBy(def.field, 'desc'), fs.limit(RANK_FETCH)));
+      rank.cache[def.key] = { at: Date.now(), rows: snap.docs.map(d => ({ uid: d.id, ...d.data() })) };
+    } catch (e) { console.error(e); rank.error = true; }
+    rank.loading = false;
+    renderCommunity();
+  }
+
+  function visibleRank() {
+    const c = rank.cache[rank.sort];
+    if (!c) return null;
+    const now = Date.now();
+    return c.rows.filter(r => isPostVisible({ authorActiveUntil: r.activeUntil }, now)).slice(0, RANK_SHOW);
+  }
+
+  const liftNum = (v) => (typeof v === 'number' && v > 0 ? fmtNum(v) : '--');
+  const fmtMetric = (v, def) => (def.dec === 2 ? Number(v).toFixed(2) : fmtNum(v));
+
+  function rankRowHtml(r, idx, opts) {
+    const o = opts || {};
+    const def = rankDef();
+    const nick = r.nickname || '会員';
+    const mine = r.uid === myUid();
+    const isRival = rivals.uids.includes(r.uid);
+    const v = rankValue(r, def.key);
+    const sub = `SQ ${liftNum(r.squat)}・BP ${liftNum(r.bench)}・DL ${liftNum(r.deadlift)}`
+      + (def.key === 'ratio' && r.total ? `・合計 ${fmtNum(r.total)}` : '')
+      + (Number(r.bodyWeight) > 0 && def.key !== 'ratio' ? `・${fmtNum(r.bodyWeight)}kg` : '');
+    const no = o.label ? `<span class="cm-rank-no out">${esc(o.label)}</span>`
+      : `<span class="cm-rank-no${idx < 3 ? ` m${idx + 1}` : ''}">${idx + 1}</span>`;
+    const star = (mine || o.preview) ? '' : `<button type="button" class="cm-star${isRival ? ' on' : ''}" data-act="rival-star" data-uid="${esc(r.uid)}" aria-label="${isRival ? 'ライバルから外す' : 'ライバルに登録'}">${isRival ? '★' : '☆'}</button>`;
+    const attrs = (o.preview || o.noOpen) ? '' : ` data-act="rank-open" data-uid="${esc(r.uid)}"`;
+    return `<div class="cm-rrow${mine ? ' mine' : ''}"${attrs}>
+      ${no}
+      <span class="cm-avatar sm" style="--h:${avatarHue(nick)}">${esc(Array.from(nick)[0] || '?')}</span>
+      <div class="cm-rmain"><b>${esc(nick)}${mine ? '<span class="cm-you">あなた</span>' : ''}</b><small>${esc(sub)}</small></div>
+      <div class="cm-rval">${v === null ? '--' : fmtMetric(v, def)}<small>${def.unit}</small></div>
+      ${star}
+    </div>`;
+  }
+
+  function rankCardHtml() {
+    const chev = `<span class="cm-rank-chev${rank.open ? ' open' : ''}">›</span>`;
+    const head = `<button type="button" class="cm-rank-head" data-act="rank-toggle" aria-expanded="${rank.open}"><span>🏆 BIG3ランキング</span>${chev}</button>`;
+    if (!rank.open) return `<section class="cm-rank collapsed">${head}</section>`;
+    const modeSeg = `<div class="ga-seg cm-seg sm" role="tablist" aria-label="表示">
+        <button type="button" data-act="rank-mode" data-mode="rank" class="${rank.mode === 'rank' ? 'active' : ''}">ランキング</button>
+        <button type="button" data-act="rank-mode" data-mode="rivals" class="${rank.mode === 'rivals' ? 'active' : ''}">ライバル${rivals.uids.length ? ` ${rivals.uids.length}` : ''}</button>
+      </div>`;
+    const chips = rank.mode === 'rank'
+      ? `<div class="cm-chips">${RANK_SORTS.map(x => `<button type="button" data-act="rank-sort" data-sort="${x.key}" class="${rank.sort === x.key ? 'active' : ''}">${x.label}</button>`).join('')}</div>` : '';
+    let list;
+    if (rank.mode === 'rank') {
+      const rows = visibleRank();
+      if (!rows && rank.loading) list = '<div class="cm-skel s"></div>';
+      else if (rank.error && !rows) list = '<div class="cm-empty small">読み込めませんでした。<button type="button" class="cm-refresh" data-act="rank-refresh">もう一度</button></div>';
+      else if (!rows || !rows.length) list = `<div class="cm-empty small">${rank.sort === 'ratio' ? '体重も公開している人が、まだいません。' : 'まだ、ランキングに載っている人がいません。'}</div>`;
+      else {
+        list = rows.map((r, i) => rankRowHtml(r, i)).join('');
+        if (pub.enabled && !rows.some(r => r.uid === myUid())) {
+          const { snap, profile } = myProfileNow(pub.showWeight);
+          if (snap.ok && rankValue(profile, rank.sort) !== null) {
+            list += rankRowHtml(Object.assign({ uid: myUid(), nickname: me ? me.nickname : '' }, profile), 0, { label: '圏外' });
+          }
+        }
+      }
+    } else {
+      if (rivalList.loading && !rivalList.rows.length) list = '<div class="cm-skel s"></div>';
+      else if (!rivals.uids.length) list = '<div class="cm-empty small">まだ、ライバルがいません。<br>ランキングの ☆ を押すと、ここに並びます。</div>';
+      else list = rivalList.rows.map(rr => rivalRowHtml(rr)).join('');
+    }
+    const joined = pub.enabled;
+    const foot = joined
+      ? `<div class="cm-rank-foot"><span>公開プロフィール: <b>オン</b>${pub.showWeight ? '（体重も公開）' : ''}</span><button type="button" data-act="public-open">設定</button></div>`
+      : `<div class="cm-rank-join"><div><b>あなたも参加しませんか?</b><small>BIG3の自己ベストが、自動でランキングに載ります。体重は、出さない選択もできます。</small></div><button type="button" class="btn btn-primary btn-sm" data-act="public-open">参加する</button></div>`;
+    return `<section class="cm-rank">${head}${modeSeg}${chips}<div class="cm-rank-list">${list}</div>${foot}</section>`;
+  }
+
+  /* ----- ライバル ----- */
+  async function toggleRival(uid2) {
+    await ensureRivals();
+    const has = rivals.uids.includes(uid2);
+    if (!has && rivals.uids.length >= MAX_RIVALS) { ui.showToast(`ライバルは${MAX_RIVALS}人までです`); return; }
+    const next = has ? rivals.uids.filter(x => x !== uid2) : [...rivals.uids, uid2];
+    try {
+      await fs.setDoc(fs.doc(db, 'users', myUid(), 'settings', 'rivals'), { uids: next, updatedAt: fs.serverTimestamp() });
+      rivals.uids = next;
+      rivalList.at = 0;
+      ui.showToast(has ? 'ライバルから外しました' : 'ライバルに登録しました');
+    } catch (e) { console.error(e); ui.showToast('変更できませんでした'); }
+    renderCommunity();
+    if (rivalView) renderRival();
+    if (rank.open && rank.mode === 'rivals') loadRivals(true);
+  }
+
+  async function loadRivals(force) {
+    await ensureRivals();
+    if (!force && rivalList.at && Date.now() - rivalList.at < CACHE_MS) { renderCommunity(); return; }
+    if (!rivals.uids.length) { rivalList = { rows: [], at: Date.now(), loading: false }; renderCommunity(); return; }
+    rivalList.loading = true;
+    renderCommunity();
+    const rows = await Promise.all(rivals.uids.map(async (u) => {
+      try {
+        const snap = await fs.getDoc(fs.doc(db, 'publicProfiles', u));
+        return { uid: u, profile: snap.exists() ? { uid: u, ...snap.data() } : null };
+      } catch (e) { return { uid: u, profile: null }; }
+    }));
+    rivalList = { rows, at: Date.now(), loading: false };
+    renderCommunity();
+  }
+
+  function diffChip(diff, unit) {
+    if (diff === null) return '<span class="cm-muted">--</span>';
+    if (diff === 0) return '<span class="ga-chip flat">±0</span>';
+    // 相手が上なら「あと◯」(追いかける側)、自分が上なら「+◯」(リード)
+    return diff > 0 ? `<span class="ga-chip down">あと ${fmtNum(diff)}${unit}</span>` : `<span class="ga-chip up">+${fmtNum(Math.abs(diff))}${unit}</span>`;
+  }
+
+  function rivalRowHtml(rr) {
+    const pr = rr.profile;
+    const now = Date.now();
+    if (!pr || !isPostVisible({ authorActiveUntil: pr.activeUntil }, now)) {
+      return `<div class="cm-rrow off"><span class="cm-rank-no out">–</span><span class="cm-avatar sm" style="--h:0">?</span>
+        <div class="cm-rmain"><b>公開をやめた会員</b><small>ランキングから外れています</small></div>
+        <button type="button" class="cm-star on" data-act="rival-star" data-uid="${esc(rr.uid)}" aria-label="ライバルから外す">★</button></div>`;
+    }
+    const mine = myProfileNow(true).profile;
+    const d = diffVsMe(pr, mine);
+    const nick = pr.nickname || '会員';
+    return `<div class="cm-rrow" data-act="rank-open" data-uid="${esc(rr.uid)}">
+      <span class="cm-avatar sm" style="--h:${avatarHue(nick)}">${esc(Array.from(nick)[0] || '?')}</span>
+      <div class="cm-rmain"><b>${esc(nick)}</b><small>SQ ${liftNum(pr.squat)}・BP ${liftNum(pr.bench)}・DL ${liftNum(pr.deadlift)}${Number(pr.bodyWeight) > 0 ? `・${fmtNum(pr.bodyWeight)}kg` : ''}</small></div>
+      <div class="cm-rval">${pr.total ? fmtNum(pr.total) : '--'}<small>kg</small><span class="cm-rdiff">${d.total === null ? '' : diffChip(d.total, 'kg')}</span></div>
+      <button type="button" class="cm-star on" data-act="rival-star" data-uid="${esc(rr.uid)}" aria-label="ライバルから外す">★</button>
+    </div>`;
+  }
+
+  async function openRival(uid2) {
+    injectDom();
+    const cached = Object.values(rank.cache).flatMap(c => c.rows).find(r => r.uid === uid2)
+      || (rivalList.rows.find(r => r.uid === uid2) || {}).profile || null;
+    rivalView = { uid: uid2, profile: cached, posts: null };
+    ui.openModal('cmRivalModal');
+    renderRival();
+    try {
+      if (!cached) {
+        const snap = await fs.getDoc(fs.doc(db, 'publicProfiles', uid2));
+        rivalView.profile = snap.exists() ? { uid: uid2, ...snap.data() } : null;
+      }
+      const ps = await fs.getDocs(fs.query(fs.collection(db, 'feed'), fs.where('authorUid', '==', uid2), fs.limit(8)));
+      const now = Date.now();
+      rivalView.posts = ps.docs.map(d => ({ id: d.id, ...d.data() }))
+        .filter(p => isPostVisible(p, now))
+        .sort((a, b) => (toMs(b.createdAt) || 0) - (toMs(a.createdAt) || 0)).slice(0, 5);
+    } catch (e) { console.error(e); if (rivalView) rivalView.posts = []; }
+    renderRival();
+  }
+
+  function postSummaryHtml(p) {
+    const t = formatPostTime(p.createdAt);
+    let text = '';
+    if (p.type === 'big3') text = p.big3 && p.big3.total ? `BIG3 合計 ${fmtNum(p.big3.total)}kg` : 'BIG3';
+    else {
+      const names = ((p.menu && p.menu.items) || []).slice(0, 3).map(i => i.name).join('・');
+      text = `メニュー ${names}${p.menu && p.menu.items && p.menu.items.length > 3 ? ' ほか' : ''}`;
+    }
+    const c = String(p.comment || '').trim();
+    return `<div class="cm-mini"><div class="cm-mini-top"><b>${esc(text)}</b><small>${esc(t.abs.slice(5))}</small></div>${c ? `<div class="cm-mini-c">💬 ${esc(c.slice(0, 60))}${c.length > 60 ? '…' : ''}</div>` : ''}</div>`;
+  }
+
+  function renderRival() {
+    const body = $('cmRivalBody');
+    if (!body || !rivalView) return;
+    const pr = rivalView.profile;
+    if (!pr) { $('cmRivalTitle').textContent = 'プロフィール'; body.innerHTML = '<div class="cm-empty small">この会員は、公開プロフィールをオフにしました。</div>'; return; }
+    const nick = pr.nickname || '会員';
+    $('cmRivalTitle').textContent = nick;
+    const isRival = rivals.uids.includes(rivalView.uid);
+    const mineSelf = rivalView.uid === myUid();
+    const upd = formatPostTime(pr.updatedAt);
+    const L = [['SQ', 'squat'], ['BP', 'bench'], ['DL', 'deadlift']];
+    const grid = L.map(([n, k]) => `<div class="cm-lift${pr[k] ? '' : ' none'}"><span class="cm-lift-name">${n}</span><b>${liftNum(pr[k])}</b><small>${pr[k] ? 'kg' : '記録なし'}</small></div>`).join('');
+    const total = pr.total ? `<div class="cm-total">合計 <b>${fmtNum(pr.total)}</b>kg${pr.ratio ? `<span class="cm-chip accent">体重比 ${Number(pr.ratio).toFixed(2)}倍</span>` : ''}</div>` : '';
+    const weight = Number(pr.bodyWeight) > 0 ? `<div class="cm-meta" style="justify-content:center;"><span class="cm-chip">体重 ${fmtNum(pr.bodyWeight)}kg</span></div>` : '';
+    let cmp = '';
+    if (!mineSelf) {
+      const mine = myProfileNow(true).profile;
+      const d = diffVsMe(pr, mine);
+      const rows = [['合計', 'total', 'kg'], ['SQ', 'squat', 'kg'], ['BP', 'bench', 'kg'], ['DL', 'deadlift', 'kg']].map(([n, k, u]) =>
+        `<div class="cm-cmp-row"><span>${n}</span><span>${rankValue(mine, k) !== null ? fmtNum(mine[k]) : '--'}</span><span>${rankValue(pr, k) !== null ? fmtNum(pr[k]) : '--'}</span><span>${diffChip(d[k], u)}</span></div>`).join('');
+      cmp = `<div class="cm-label">あなたとの差</div>
+        <div class="cm-cmp"><div class="cm-cmp-row head"><span></span><span>あなた</span><span>${esc(nick)}</span><span></span></div>${rows}</div>`;
+    }
+    const posts = rivalView.posts === null ? '<div class="cm-skel s"></div>'
+      : (rivalView.posts.length ? rivalView.posts.map(postSummaryHtml).join('') : '<div class="cm-muted" style="padding:8px 0;">投稿は、まだありません</div>');
+    body.innerHTML = `
+      <div class="cm-rhead"><span class="cm-avatar lg" style="--h:${avatarHue(nick)}">${esc(Array.from(nick)[0] || '?')}</span>
+        <div><b>${esc(nick)}</b><small>${esc(upd.rel || '')}${upd.rel ? 'に更新' : ''}</small></div>
+        ${mineSelf ? '' : `<button type="button" class="cm-star big${isRival ? ' on' : ''}" data-rstar="1" aria-label="${isRival ? 'ライバルから外す' : 'ライバルに登録'}">${isRival ? '★ 登録済み' : '☆ ライバルに登録'}</button>`}</div>
+      <div class="cm-big3">${grid}</div>${total}${weight}
+      ${cmp}
+      <div class="cm-label">最近の投稿</div>${posts}`;
+    const sb = body.querySelector('[data-rstar]');
+    if (sb) sb.addEventListener('click', () => toggleRival(rivalView.uid));
   }
 
   /* ----- 投稿する ----- */
@@ -427,14 +880,7 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
   async function openShare(opts) {
     injectDom();
     await ensureProfile();
-    if (!me) {
-      draft = { afterNick: opts };
-      $('cmNickInput').value = '';
-      $('cmNickAgree').checked = false;
-      $('cmNickErr').textContent = '';
-      ui.openModal('cmNickModal');
-      return;
-    }
+    if (!me) { openNickModal(opts); return; }
     const st = state();
     const today = st.todayStr();
     const dates = recentMenuDates();
@@ -608,5 +1054,5 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
     }
   }
 
-  return { onShow, onMemberReady, openShare, reset };
+  return { onShow, onMemberReady, onDataChanged, openShare, reset };
 }
