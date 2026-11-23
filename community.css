@@ -248,3 +248,28 @@ header.appbar .header-actions{ position:relative; gap:0; padding-bottom:0; flex:
 .cm-rx:active{ transform:scale(.92); }
 .cm-rx.on{ border-color:var(--red); background:var(--red-dim); color:var(--text); }
 .cm-rx.on .e{ filter:none; }
+
+/* ---------- 「みんな」タブの新着バッジ ---------- */
+.tab-btn .tab-new{
+  position:absolute; top:3px; left:calc(50% + 5px);
+  min-width:17px; height:17px; padding:0 4px; border-radius:999px;
+  background:var(--red); color:#fff; font-size:10px; font-weight:800; line-height:17px; text-align:center;
+  box-shadow:0 0 0 2px var(--bg-elevated), 0 0 10px 1px var(--red);
+  animation:cmDotPulse 2.2s ease-in-out infinite;
+  pointer-events:none;
+}
+.tab-btn .tab-new[hidden]{ display:none; }
+.tab-btn.has-new:not(.active){ color:var(--red); }
+.tab-btn.has-new:not(.active) .ic{ animation:cmIcGlow 2.2s ease-in-out infinite; }
+@keyframes cmDotPulse{
+  0%,100%{ box-shadow:0 0 0 2px var(--bg-elevated), 0 0 6px 0 var(--red); transform:scale(1); }
+  50%{ box-shadow:0 0 0 2px var(--bg-elevated), 0 0 16px 4px var(--red); transform:scale(1.08); }
+}
+@keyframes cmIcGlow{
+  0%,100%{ filter:drop-shadow(0 0 0 transparent); }
+  50%{ filter:drop-shadow(0 0 7px var(--red)); }
+}
+@media (prefers-reduced-motion: reduce){
+  .tab-btn .tab-new, .tab-btn.has-new:not(.active) .ic{ animation:none; }
+  .tab-btn.has-new:not(.active) .ic{ filter:drop-shadow(0 0 5px var(--red)); }
+}

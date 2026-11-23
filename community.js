@@ -347,6 +347,7 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
       if (snap.docs.length) feed.cursor = snap.docs[snap.docs.length - 1];
       feed.done = snap.docs.length < PAGE_SIZE;
       feed.loadedAt = Date.now();
+      markSeen(feed.posts.reduce((m, p) => Math.max(m, toMs(p.createdAt) || 0), 0));
       await ensureMyReactions();
     } catch (e) {
       console.error(e);
@@ -356,8 +357,47 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
     renderCommunity();
   }
 
+  /* ===== 「みんな」タブの新着バッジ =====
+     自分以外の、見える投稿のうち、最後に見た時刻より新しいものを数える(新しい順の10件だけ読む)。
+     見た時刻はこの端末に保存。タブを開いて一覧を読み込んだら「見た」ことにする */
+  const seenKey = () => `ml_cm_seen_${myUid()}`;
+  const seenMs = () => { const v = Number(lsGet(seenKey())); return Number.isFinite(v) && v > 0 ? v : null; };
+  let unreadCheckedAt = 0;
+  function setBadge(n) {
+    const dot = document.getElementById('cmTabDot');
+    const tab = document.querySelector('.tab-btn[data-section="community"]');
+    if (dot) { dot.hidden = !n; dot.textContent = n > 9 ? '9+' : String(n || ''); }
+    if (tab) tab.classList.toggle('has-new', n > 0);
+  }
+  function markSeen(ms) {
+    if (!myUid() || !ms) return;
+    const cur = seenMs();
+    if (cur === null || ms > cur) lsSet(seenKey(), String(ms));
+    setBadge(0);
+  }
+  async function checkUnread(force) {
+    const uid = myUid();
+    if (!uid) return;
+    if (!force && Date.now() - unreadCheckedAt < 5 * 60 * 1000) return;
+    const tab = document.querySelector('.tab-btn[data-section="community"]');
+    if (tab && tab.classList.contains('active')) return;   // 見ている最中は光らせない
+    unreadCheckedAt = Date.now();
+    try {
+      const snap = await fs.getDocs(fs.query(fs.collection(db, 'feed'), fs.orderBy('createdAt', 'desc'), fs.limit(10)));
+      const posts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const newest = posts.reduce((m, p) => Math.max(m, toMs(p.createdAt) || 0), 0);
+      const seen = seenMs();
+      if (seen === null) { if (newest) lsSet(seenKey(), String(newest)); setBadge(0); return; }   // 初回は、すでにある投稿では光らせない
+      const now = Date.now();
+      const n = posts.filter(p => p.authorUid !== uid && isPostVisible(p, now) && (toMs(p.createdAt) || 0) > seen).length;
+      setBadge(n);
+    } catch (e) { console.error(e); }
+  }
+
   function onShow() {
     injectDom();
+    if (feed.posts.length) markSeen(feed.posts.reduce((m, p) => Math.max(m, toMs(p.createdAt) || 0), 0));
+    setBadge(0);
     ensureProfile().then(renderCommunity);
     ensurePublic().then(renderCommunity);
     ensureRivals().then(renderCommunity);
@@ -372,6 +412,7 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
     pub = { loaded: false, enabled: false, showWeight: false };
     rivals = { loaded: false, uids: [] };
     myReact = { loaded: false, map: {} }; reactBusy.clear();
+    unreadCheckedAt = 0; setBadge(0);
     rank.cache = {}; rank.loading = false; rank.error = false;
     rivalList = { rows: [], at: 0, loading: false };
     rivalView = null; pendingPublic = false;
@@ -1120,5 +1161,5 @@ export function createCommunity({ auth, db, fs, ui, getState, getMember, adminUi
     }
   }
 
-  return { onShow, onMemberReady, onDataChanged, openShare, reset };
+  return { onShow, onMemberReady, onDataChanged, openShare, reset, checkUnread };
 }

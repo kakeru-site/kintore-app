@@ -1728,6 +1728,7 @@
     </button>
     <button class="tab-btn" data-section="community" data-title="みんなの記録">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.9-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16.2 14.1c2.4.1 4 1.7 4.6 4.4"/></svg>
+      <span class="tab-new" id="cmTabDot" hidden aria-label="新着の投稿があります"></span>
       みんな
     </button>
   </nav>
@@ -2644,6 +2645,7 @@ async function runMembershipCheck(user){
       memberAllowed = true;
       startListeners(user.uid);
       community.onMemberReady(membership.getMember());
+      community.checkUnread(true);
     }
     if (!isLockPending()) showAppScreen();
   } else {
@@ -3021,6 +3023,10 @@ function stopListeners(){
   unsubBig3LiftTargets = unsubTrainingDuration = unsubRoutines = unsubWeeklyGoal = unsubPhasePeriods = null;
   unsubFeedback = unsubGoalBanner = unsubGoalPhotos = unsubAppTheme = unsubAge = null;
 }
+
+// 新着バッジ:画面に戻ったとき・一定時間ごとに確認(5分以内の再確認はしない)
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && memberAllowed) community.checkUnread(); });
+setInterval(()=>{ if (!document.hidden && memberAllowed) community.checkUnread(); }, 10 * 60 * 1000);
 
 onAuthStateChanged(auth, (user)=>{
   if (user){
