@@ -6656,6 +6656,52 @@ function renderEntryCategoryUI(){
   });
 }
 
+// 記録画面の「ポイント」。ここからそのまま書き換えられる(種目の設定と同じ項目)
+let cueEditing = null;   // { id, text }
+function cueBoxHtml(ex){
+  if (cueEditing && cueEditing.id === ex.id){
+    return `<div class="pr-info cue-edit"><textarea id="cueEditInput" rows="2" maxlength="120" placeholder="例: 肩甲骨を寄せる、可動域を広くとる">${escapeHtml(cueEditing.text)}</textarea>
+      <div class="cue-edit-actions"><button type="button" class="btn btn-ghost" data-cue-act="cancel">キャンセル</button><button type="button" class="btn btn-primary" data-cue-act="save">保存</button></div></div>`;
+  }
+  if (!ex.cue) return `<button type="button" class="cue-add" data-cue-act="edit">💡 ポイントを追加</button>`;
+  return `<div class="pr-info cue-view" data-cue-act="edit" role="button" tabindex="0" aria-label="ポイントを編集"><span>💡 ${escapeHtml(ex.cue)}</span><span class="cue-pen" aria-hidden="true">✎</span></div>`;
+}
+document.getElementById('workoutExerciseInfo').addEventListener('click', async (e)=>{
+  const b = e.target.closest('[data-cue-act]');
+  if (!b) return;
+  const ex = exercises.find(x => x.name === document.getElementById('workoutExerciseSelect').value);
+  if (!ex) return;
+  const act = b.dataset.cueAct;
+  if (act === 'edit'){
+    cueEditing = { id: ex.id, text: ex.cue || '' };
+    updateWorkoutExerciseInfo();
+    const t = document.getElementById('cueEditInput');
+    if (t){ t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+  } else if (act === 'cancel'){
+    cueEditing = null;
+    updateWorkoutExerciseInfo();
+  } else if (act === 'save'){
+    const user = auth.currentUser;
+    if (!user) return;
+    const text = document.getElementById('cueEditInput').value.trim().slice(0, 120);
+    b.disabled = true;
+    try{
+      await setDoc(doc(db, 'users', user.uid, 'exercises', ex.id), { cue: text, updatedAt: serverTimestamp() }, { merge: true });
+      ex.cue = text;
+      cueEditing = null;
+      updateWorkoutExerciseInfo();
+      showToast('ポイントを保存しました');
+    }catch(err){
+      console.error(err);
+      b.disabled = false;
+      showToast('保存に失敗しました: ' + err.message);
+    }
+  }
+});
+document.getElementById('workoutExerciseInfo').addEventListener('input', (e)=>{
+  if (e.target.id === 'cueEditInput' && cueEditing) cueEditing.text = e.target.value;
+});
+
 function updateWorkoutExerciseInfo(){
   renderPrevRecordCard();
   const name = document.getElementById('workoutExerciseSelect').value;
@@ -6663,10 +6709,9 @@ function updateWorkoutExerciseInfo(){
   const info = document.getElementById('workoutExerciseInfo');
   if (!name){ info.innerHTML = ''; updateLiveVolumeRow(null, null); return; }
   const match = exercises.find(e => e.name === name);
+  if (cueEditing && (!match || match.id !== cueEditing.id)) cueEditing = null;
   let html = '';
-  if (match && match.cue){
-    html += `<div class="pr-info">💡 ${escapeHtml(match.cue)}</div>`;
-  }
+  if (match) html += cueBoxHtml(match);
   const refDate = currentWorkoutRefDate();
   const scopeGroupForInfo = getPhaseGroupForDate(refDate);
   const phaseGroupNote = scopeGroupForInfo ? `（${escapeHtml(phaseScopeNoteText(scopeGroupForInfo))}）` : '（期間未設定：全期間）';

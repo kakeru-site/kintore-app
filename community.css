@@ -273,3 +273,21 @@ header.appbar .header-actions{ position:relative; gap:0; padding-bottom:0; flex:
   .tab-btn .tab-new, .tab-btn.has-new:not(.active) .ic{ animation:none; }
   .tab-btn.has-new:not(.active) .ic{ filter:drop-shadow(0 0 5px var(--red)); }
 }
+
+/* ---------- 記録画面のポイント(その場で編集) ---------- */
+.cue-view{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; cursor:pointer; }
+.cue-view .cue-pen{ flex:none; color:var(--text-faint); font-size:14px; line-height:1.4; }
+.cue-view:active{ background:var(--surface-2); }
+.cue-add{
+  display:block; width:100%; margin:0 0 12px; padding:10px 14px; text-align:left;
+  background:none; border:1px dashed var(--border); border-radius:var(--radius-sm);
+  color:var(--text-dim); font-size:13px; font-family:inherit; cursor:pointer;
+}
+.cue-edit textarea{
+  width:100%; margin-bottom:10px; resize:none; box-sizing:border-box; padding:11px 12px;
+  background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm);
+  font-family:inherit; font-size:14px; line-height:1.6;
+}
+.cue-edit textarea:focus{ outline:none; border-color:var(--red); }
+.cue-edit-actions{ display:flex; gap:8px; }
+.cue-edit-actions .btn{ flex:1; padding-top:10px; padding-bottom:10px; }
