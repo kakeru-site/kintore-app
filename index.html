@@ -2429,6 +2429,17 @@
         <button type="submit" class="btn btn-primary">保存</button>
       </form>
     </div>
+    <div class="field" style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+      <label>高速読み込み(試験版)</label>
+      <p style="font-size:12px; color:var(--text-dim); margin:0 0 14px; line-height:1.6;">
+        記録のデータをこの端末に保存し、前回から変わった分だけを読み込みます。通信量とサーバーの読み取りが減り、会員が増えても安定して動かすための仕組みです。この端末だけの設定です。表示がおかしいときは、オフに戻してください。
+      </p>
+      <label class="check-row" style="display:flex; gap:10px; align-items:center; font-size:14px; margin-bottom:12px;">
+        <input type="checkbox" id="settingsSyncToggle" style="width:auto;"> この端末で使う
+      </label>
+      <button type="button" class="btn btn-ghost" id="settingsSyncReloadBtn">全データを読み込み直す</button>
+      <p id="settingsSyncStat" style="font-size:12px; color:var(--text-dim); margin:12px 0 0;"></p>
+    </div>
   </div>
 </div>
 
@@ -2490,16 +2501,31 @@ import {
   createUserWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot,
-  query, orderBy, serverTimestamp, enableIndexedDbPersistence, increment, writeBatch, arrayUnion,
-  getDoc, updateDoc, Timestamp, terminate, clearIndexedDbPersistence,
+  getFirestore, collection, doc, setDoc as rawSetDoc, addDoc as rawAddDoc, deleteDoc as rawDeleteDoc, onSnapshot,
+  query, orderBy, serverTimestamp as rawServerTimestamp, enableIndexedDbPersistence, increment as rawIncrement,
+  writeBatch as rawWriteBatch, arrayUnion as rawArrayUnion,
+  getDoc, updateDoc as rawUpdateDoc, Timestamp, terminate, clearIndexedDbPersistence,
   getDocs, startAfter, limit, where
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
 import { createMembership } from "./membership-ui.js";
 import { createCommunity } from "./community.js";
 import { toAuthEmail } from "./membership.js";
+import { createSyncManager, createWriteLayer } from "./sync.js";
 
 const app = initializeApp(firebaseConfig);
+
+// 書き込みはすべてこのレイヤーを通す。体重・記録・トレーニング時間・BIG3手動記録には updatedAt を付け、
+// 削除は「消した印」にする(読み取りを減らす差分同期のため。同期モードがオフでも必ず行う)
+let syncManager = null;
+const readStats = { legacy: 0 };
+const SYNC_FLAG_KEY = 'ml_sync';
+function syncOn(){ try{ return localStorage.getItem(SYNC_FLAG_KEY) === '1'; }catch(e){ return false; } }
+const writeLayer = createWriteLayer({
+  fs: { doc, collection, setDoc: rawSetDoc, addDoc: rawAddDoc, deleteDoc: rawDeleteDoc, updateDoc: rawUpdateDoc,
+        writeBatch: rawWriteBatch, serverTimestamp: rawServerTimestamp, increment: rawIncrement, arrayUnion: rawArrayUnion, Timestamp },
+  getCol: (uid, name) => (syncManager && syncManager.uid === uid ? syncManager.cols[name] : null),
+});
+const { setDoc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, increment, arrayUnion } = writeLayer;
 const auth = getAuth(app);
 const db = getFirestore(app);
 
@@ -2790,8 +2816,32 @@ document.getElementById('forgotPasswordForm').addEventListener('submit', async (
   });
 });
 
+function refreshSyncStat(){
+  const n = syncManager ? syncManager.stats.reads : readStats.legacy;
+  document.getElementById('settingsSyncStat').textContent =
+    `今回の読み取り(記録・体重など4種):${n}件 ・ ${syncOn() ? '高速読み込み:オン' : '従来の読み込み'}`;
+  document.getElementById('settingsSyncReloadBtn').style.display = syncOn() ? '' : 'none';
+}
+document.getElementById('settingsSyncToggle').addEventListener('change', (e)=>{
+  try{ localStorage.setItem(SYNC_FLAG_KEY, e.target.checked ? '1' : '0'); }catch(err){ /* 使えなければ従来どおり */ }
+  showToast('切り替えます…');
+  setTimeout(()=> location.reload(), 600);
+});
+document.getElementById('settingsSyncReloadBtn').addEventListener('click', async ()=>{
+  if (!syncManager) return;
+  showToast('読み込み直しています…');
+  await syncManager.reloadAll();
+  refreshSyncStat();
+  showToast('読み込み直しました');
+});
+// 画面に戻ったとき・オンラインに戻ったときに、他の端末の変更を取り込む
+document.addEventListener('visibilitychange', ()=>{ if (!document.hidden && syncManager) syncManager.syncAll(); });
+window.addEventListener('online', ()=>{ if (syncManager) syncManager.syncAll(); });
+
 document.getElementById('settingsBtn').addEventListener('click', ()=>{
   document.getElementById('settingsAgeInput').value = Number.isFinite(currentUserAge) ? currentUserAge : '';
+  document.getElementById('settingsSyncToggle').checked = syncOn();
+  refreshSyncStat();
   openModal('settingsModal');
 });
 document.getElementById('settingsAgeForm').addEventListener('submit', async (e)=>{
@@ -3022,6 +3072,7 @@ function stopListeners(){
   unsubWeight = unsubTarget = unsubExercises = unsubWorkoutLogs = unsubBig3Manual = unsubBig3Target = null;
   unsubBig3LiftTargets = unsubTrainingDuration = unsubRoutines = unsubWeeklyGoal = unsubPhasePeriods = null;
   unsubFeedback = unsubGoalBanner = unsubGoalPhotos = unsubAppTheme = unsubAge = null;
+  if (syncManager) { syncManager.stop(); }
 }
 
 // 新着バッジ:画面に戻ったとき・一定時間ごとに確認(5分以内の再確認はしない)
@@ -3043,18 +3094,43 @@ onAuthStateChanged(auth, (user)=>{
     document.getElementById('appScreen').classList.remove('active');
     hideLockScreen();
     sessionUnlocked = false;
+    const leaving = syncManager;
     stopListeners();
+    if (leaving) leaving.clearCaches();   // 共用端末に前の人の記録の写しを残さない
+    syncManager = null;
     community.reset();
     // ログアウト後は他人の端末に前のユーザーのテーマが残らないよう標準に戻す
     applyAppTheme('default');
   }
 });
 
+// 消した印の付いた書類は、画面のデータに含めない
+const aliveDocs = (snap)=> snap.docs.filter(d => d.data().deleted !== true).map(d => ({ id: d.id, data: d.data() }));
+// 同期モードなら端末内の写し+差分、そうでなければ従来のリアルタイム購読
+function attach(name, q, apply, label){
+  if (syncManager) return syncManager.cols[name].subscribe(apply);
+  return onSnapshot(q, (snap)=>{
+    readStats.legacy += typeof snap.docChanges === 'function' ? snap.docChanges().length : snap.docs.length;
+    apply(aliveDocs(snap));
+  }, (err)=>{
+    console.error(err);
+    onListenError(err);
+    if (label) showToast(label + 'の読み込みに失敗しました: ' + err.message);
+  });
+}
+
 function startListeners(uid){
+  if (syncManager) { syncManager.stop(); syncManager = null; }
+  if (syncOn()) {
+    syncManager = createSyncManager({
+      fs: { collection, query, where, orderBy, getDocs, Timestamp }, db, uid,
+      onError: (e)=>{ if (e && e.code === 'permission-denied') onListenError(e); },
+    });
+  }
   const weightCol = collection(db, 'users', uid, 'bodyWeight');
   const wq = query(weightCol, orderBy('date', 'desc'));
-  unsubWeight = onSnapshot(wq, (snap)=>{
-    weightEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const applyWeight = (list)=>{
+    weightEntries = list.map(x => ({ id: x.id, ...x.data })).sort((a,b)=> a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
     community.onDataChanged(); // 公開プロフィールを使っている人は、体重の変化を自動で反映する
     renderWeightSummary();
     renderWeightChart();
@@ -3063,11 +3139,8 @@ function startListeners(uid){
     renderWeightList();
     renderBig3();
     renderCalendar();
-  }, (err)=>{
-    console.error(err);
-    onListenError(err);
-    showToast('体重データの読み込みに失敗しました: ' + err.message);
-  });
+  };
+  unsubWeight = attach('bodyWeight', wq, applyWeight, '体重データ');
 
   const targetRef = doc(db, 'users', uid, 'settings', 'targetWeight');
   unsubTarget = onSnapshot(targetRef, (snap)=>{
@@ -3116,8 +3189,8 @@ function startListeners(uid){
 
   const woCol = collection(db, 'users', uid, 'workoutLogs');
   const woQ = query(woCol, orderBy('date', 'desc'));
-  unsubWorkoutLogs = onSnapshot(woQ, (snap)=>{
-    workoutLogs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const applyWorkoutLogs = (list)=>{
+    workoutLogs = list.map(x => ({ id: x.id, ...x.data }));
     // 同じ日付の記録は、実際に記録した順（古い→新しい）に並ぶようにする
     workoutLogs.sort((a,b)=>{
       if (a.date !== b.date) return a.date < b.date ? 1 : -1;
@@ -3133,18 +3206,15 @@ function startListeners(uid){
     // 記録モーダルを開いたままデータが更新されたら、「前回の記録」カードも最新にする
     if (document.getElementById('workoutModal').classList.contains('active')) renderPrevRecordCard();
     if (document.getElementById('exerciseHistoryModal').classList.contains('active')) renderExerciseHistory();
-  }, (err)=>{
-    console.error(err);
-    onListenError(err);
-    showToast('トレーニング記録の読み込みに失敗しました: ' + err.message);
-  });
+  };
+  unsubWorkoutLogs = attach('workoutLogs', woQ, applyWorkoutLogs, 'トレーニング記録');
 
   const tdCol = collection(db, 'users', uid, 'trainingDuration');
-  unsubTrainingDuration = onSnapshot(tdCol, (snap)=>{
+  const applyTrainingDuration = (list)=>{
     trainingDurations = {};
     trainingDurationSessions = {};
-    snap.docs.forEach(d=>{
-      const data = d.data();
+    list.forEach(d=>{
+      const data = d.data;
       trainingDurations[d.id] = Number(data.seconds) || 0;
       trainingDurationSessions[d.id] = Array.isArray(data.sessions) ? data.sessions : [];
     });
@@ -3152,21 +3222,16 @@ function startListeners(uid){
     renderPeriodSummary();
     renderCalendar();
     renderTrainingTimeOfDayStats();
-  }, (err)=>{
-    console.error(err);
-    onListenError(err);
-  });
+  };
+  unsubTrainingDuration = attach('trainingDuration', tdCol, applyTrainingDuration, null);
 
   const big3Col = collection(db, 'users', uid, 'big3Manual');
-  unsubBig3Manual = onSnapshot(big3Col, (snap)=>{
-    big3ManualEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const applyBig3Manual = (list)=>{
+    big3ManualEntries = list.map(x => ({ id: x.id, ...x.data }));
     community.onDataChanged(); // 公開プロフィールを使っている人は、BIG3の変化を自動で反映する
     renderBig3();
-  }, (err)=>{
-    console.error(err);
-    onListenError(err);
-    showToast('BIG3手動記録の読み込みに失敗しました: ' + err.message);
-  });
+  };
+  unsubBig3Manual = attach('big3Manual', big3Col, applyBig3Manual, 'BIG3手動記録');
 
   const big3TargetRef = doc(db, 'users', uid, 'settings', 'big3Target');
   unsubBig3Target = onSnapshot(big3TargetRef, (snap)=>{
@@ -3227,16 +3292,6 @@ function startListeners(uid){
     showToast('期間データの読み込みに失敗しました: ' + err.message);
   });
 
-  // 意見箱：全利用ユーザー共通の top-level コレクション（users/{uid} の外）
-  const feedbackQ = query(collection(db, 'feedback'), orderBy('createdAt', 'desc'));
-  unsubFeedback = onSnapshot(feedbackQ, (snap)=>{
-    feedbackItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderFeedbackList();
-  }, (err)=>{
-    console.error(err);
-    onListenError(err);
-  });
-
   const goalBannerRef = doc(db, 'users', uid, 'settings', 'goalBanner');
   unsubGoalBanner = onSnapshot(goalBannerRef, (snap)=>{
     goalBannerSettings = snap.exists() ? snap.data() : null;
@@ -3247,6 +3302,9 @@ function startListeners(uid){
   });
 
   const goalPhotosCol = collection(db, 'users', uid, 'goalPhotos');
+  // 同期モードのときは、ここまでの購読がそろってから読み込みを始める
+  if (syncManager) { syncManager.startAll(); syncManager.startTimer(); }
+
   unsubGoalPhotos = onSnapshot(goalPhotosCol, (snap)=>{
     goalPhotos = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       .sort((a,b)=> (a.order || 0) - (b.order || 0));
@@ -3331,6 +3389,7 @@ function renderFeedbackList(){
             devCommentUpdatedAt: serverTimestamp()
           }, { merge: true });
           showToast('保存しました');
+          loadFeedback();
         }catch(err){
           console.error(err);
           showToast('保存に失敗しました: ' + err.message);
@@ -3344,6 +3403,7 @@ function renderFeedbackList(){
           try{
             await deleteDoc(doc(db, 'feedback', id));
             showToast('削除しました');
+            loadFeedback();
           }catch(err){
             console.error(err);
             showToast('削除に失敗しました: ' + err.message);
@@ -3354,9 +3414,20 @@ function renderFeedbackList(){
   }
 }
 
+// 意見箱は、開いたときだけ新しい50件を読む(全員分をずっと購読すると読み取りが増えるため)
+async function loadFeedback(){
+  try{
+    const snap = await getDocs(query(collection(db, 'feedback'), orderBy('createdAt', 'desc'), limit(50)));
+    feedbackItems = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderFeedbackList();
+  }catch(err){
+    console.error(err);
+  }
+}
 document.getElementById('feedbackBtn').addEventListener('click', ()=>{
   renderFeedbackList();
   openModal('feedbackModal');
+  loadFeedback();
 });
 
 document.getElementById('feedbackForm').addEventListener('submit', async (e)=>{
@@ -3379,6 +3450,7 @@ document.getElementById('feedbackForm').addEventListener('submit', async (e)=>{
       });
       document.getElementById('feedbackContentInput').value = '';
       showToast('投稿しました。ありがとうございます！');
+      loadFeedback();
     }catch(err){
       console.error(err);
       showToast('投稿に失敗しました: ' + err.message);
